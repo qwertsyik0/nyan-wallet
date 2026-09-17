@@ -12,12 +12,14 @@ const currencyNameEl = document.getElementById("currency-name");
 const historyEl = document.querySelector(".history");
 const walletView = document.getElementById("wallet-view");
 const earnView = document.getElementById("earn-view");
+const ownerView = document.getElementById("owner-view");
 const earnButton = document.getElementById("earn-button");
 const earnBack = document.getElementById("earn-back");
+const ownerButton = document.getElementById("owner-button");
+const ownerBack = document.getElementById("owner-back");
 const promoCode = document.getElementById("promo-code");
 const promoActivate = document.getElementById("promo-activate");
 const promoStatus = document.getElementById("promo-status");
-const ownerPanel = document.getElementById("owner-panel");
 const ownerTarget = document.getElementById("owner-target");
 const ownerAmount = document.getElementById("owner-amount");
 const ownerReason = document.getElementById("owner-reason");
@@ -31,8 +33,20 @@ if (unsafeUser) {
     usernameEl.textContent = unsafeUser.first_name || unsafeUser.username || "пользователь";
 }
 
+function showWalletView() {
+    earnView.classList.add("hidden");
+    ownerView.classList.add("hidden");
+    walletView.classList.remove("hidden");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    if (tg?.BackButton) {
+        tg.BackButton.hide();
+    }
+}
+
 function openEarnView() {
     walletView.classList.add("hidden");
+    ownerView.classList.add("hidden");
     earnView.classList.remove("hidden");
     window.scrollTo({ top: 0, behavior: "smooth" });
 
@@ -43,23 +57,32 @@ function openEarnView() {
     tg?.HapticFeedback?.impactOccurred?.("light");
 }
 
-function closeEarnView() {
+function openOwnerView() {
+    if (!currentUser?.is_owner) {
+        return;
+    }
+
+    walletView.classList.add("hidden");
     earnView.classList.add("hidden");
-    walletView.classList.remove("hidden");
+    ownerView.classList.remove("hidden");
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     if (tg?.BackButton) {
-        tg.BackButton.hide();
+        tg.BackButton.show();
     }
+
+    tg?.HapticFeedback?.impactOccurred?.("light");
 }
 
 earnButton?.addEventListener("click", openEarnView);
-earnBack?.addEventListener("click", closeEarnView);
+earnBack?.addEventListener("click", showWalletView);
+ownerButton?.addEventListener("click", openOwnerView);
+ownerBack?.addEventListener("click", showWalletView);
 
 if (tg?.BackButton?.onClick) {
     tg.BackButton.onClick(() => {
-        if (!earnView.classList.contains("hidden")) {
-            closeEarnView();
+        if (!earnView.classList.contains("hidden") || !ownerView.classList.contains("hidden")) {
+            showWalletView();
         }
     });
 }
@@ -267,11 +290,11 @@ function applyUserState(user) {
     if (user.unlimited_balance) {
         balanceEl.textContent = "∞";
         currencyNameEl.textContent = "лапкоинов · владелец";
-        ownerPanel.hidden = false;
+        ownerButton.hidden = false;
     } else {
         balanceEl.textContent = user.balance ?? 0;
         currencyNameEl.textContent = "лапкоинов";
-        ownerPanel.hidden = true;
+        ownerButton.hidden = true;
     }
 }
 
