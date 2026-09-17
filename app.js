@@ -10,6 +10,10 @@ const loadingView = document.getElementById("loading-view");
 const usernameEl = document.getElementById("username");
 const balanceEl = document.getElementById("balance");
 const currencyNameEl = document.getElementById("currency-name");
+const walletCardEl = document.getElementById("wallet-card");
+const walletNumberEl = document.getElementById("wallet-number");
+const walletStatusEl = document.getElementById("wallet-status");
+const walletHolderEl = document.getElementById("wallet-holder");
 const historyEl = document.querySelector(".history");
 const walletView = document.getElementById("wallet-view");
 const earnView = document.getElementById("earn-view");
@@ -53,6 +57,30 @@ let initialLoadFinished = false;
 const unsafeUser = tg?.initDataUnsafe?.user;
 if (unsafeUser) {
     usernameEl.textContent = unsafeUser.first_name || unsafeUser.username || "пользователь";
+    if (walletNumberEl) walletNumberEl.textContent = createWalletNumber(unsafeUser.id);
+    if (walletHolderEl) walletHolderEl.textContent = walletHolderName(unsafeUser);
+}
+
+function createWalletNumber(telegramId) {
+    const input = `nyan-wallet:${telegramId || "guest"}`;
+    let left = 0x811c9dc5;
+    let right = 0x9e3779b9;
+
+    for (let index = 0; index < input.length; index += 1) {
+        const code = input.charCodeAt(index);
+        left = Math.imul(left ^ code, 16777619) >>> 0;
+        right = Math.imul(right ^ code, 2246822519) >>> 0;
+    }
+
+    const digits = `${String(left % 1000000).padStart(6, "0")}${String(right % 1000000).padStart(6, "0")}`;
+    return `NYAN ${digits.slice(0, 4)} ${digits.slice(4, 8)} ${digits.slice(8, 12)}`;
+}
+
+function walletHolderName(user) {
+    const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim();
+    if (fullName) return fullName;
+    if (user?.username) return `@${user.username}`;
+    return "пользователь";
 }
 
 function authHeaders(json = false) {
@@ -549,6 +577,10 @@ for (const input of [ownerPromoCode, ownerPromoReward, ownerPromoLimit, ownerPro
 function applyUserState(user) {
     currentUser = user;
     usernameEl.textContent = user.first_name || user.username || "пользователь";
+    if (walletNumberEl) walletNumberEl.textContent = createWalletNumber(user.telegram_id);
+    if (walletHolderEl) walletHolderEl.textContent = walletHolderName(user);
+    if (walletStatusEl) walletStatusEl.textContent = user.is_owner ? "Владелец" : "Участник Нян";
+    walletCardEl?.classList.toggle("is-owner", Boolean(user.is_owner));
 
     if (user.unlimited_balance) {
         balanceEl.textContent = "∞";

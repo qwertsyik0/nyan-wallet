@@ -6,7 +6,7 @@
     <title>Nyan Wallet</title>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="./style.css?v=20260917-7">
+    <link rel="stylesheet" href="./style.css?v=20260918-8">
 </head>
 <body>
 
@@ -24,13 +24,37 @@
             <div class="username" id="username">кошелёк Нян</div>
         </header>
 
-        <section class="balance-card">
-            <div class="balance-label">ваш баланс</div>
-            <div class="balance">
-                <span id="balance">0</span>
-                <span class="currency">🐾</span>
+        <section id="wallet-card" class="balance-card" aria-label="Карточка Nyan Wallet">
+            <div class="wallet-card-top">
+                <div class="wallet-card-brand">
+                    <div class="wallet-card-mark" aria-hidden="true">🐾</div>
+                    <div>
+                        <div class="wallet-card-name">Nyan Wallet</div>
+                        <div class="wallet-card-type">карта экосистемы Нян</div>
+                    </div>
+                </div>
+                <div id="wallet-status" class="wallet-status">Участник Нян</div>
             </div>
-            <div class="currency-name" id="currency-name">лапкоинов</div>
+
+            <div class="wallet-balance-block">
+                <div class="balance-label">ваш баланс</div>
+                <div class="balance">
+                    <span id="balance">0</span>
+                    <span class="currency">🐾</span>
+                </div>
+                <div class="currency-name" id="currency-name">лапкоинов</div>
+            </div>
+
+            <div class="wallet-card-bottom">
+                <div class="wallet-detail wallet-number-detail">
+                    <div class="wallet-detail-label">номер кошелька</div>
+                    <div id="wallet-number" class="wallet-number">NYAN 0000 0000 0000</div>
+                </div>
+                <div class="wallet-detail wallet-holder-detail">
+                    <div class="wallet-detail-label">владелец</div>
+                    <div id="wallet-holder" class="wallet-holder">пользователь</div>
+                </div>
+            </div>
         </section>
 
         <section class="actions">
@@ -218,7 +242,7 @@
     </main>
 </div>
 
-<script src="./app.js?v=20260918-3"></script>
+<script src="./app.js?v=20260918-4"></script>
 <script type="module" src="./features.js?v=20260917-1"></script>
 <script src="./purchase_toast.js?v=20260917-1"></script>
 <script type="module" src="./advanced_features.js?v=20260917-1"></script>

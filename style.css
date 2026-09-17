@@ -89,22 +89,128 @@ header {
 }
 
 .balance-card {
-    background: linear-gradient(145deg, #fff, #fff1f6);
-    border: 1px solid #f6dce7;
-    border-radius: 28px;
-    padding: 28px;
-    box-shadow: 0 14px 40px rgba(137, 41, 82, 0.08);
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    min-height: 286px;
+    background:
+        radial-gradient(circle at 88% 12%, rgba(255, 255, 255, 0.96) 0 7%, rgba(255, 255, 255, 0) 32%),
+        linear-gradient(145deg, #fffdfd 0%, #fff0f6 52%, #f9dce9 100%);
+    border: 1px solid rgba(226, 163, 188, 0.48);
+    border-radius: 30px;
+    padding: 24px;
+    box-shadow: 0 18px 48px rgba(137, 41, 82, 0.13);
+}
+
+.balance-card::before,
+.balance-card::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+}
+
+.balance-card::before {
+    width: 190px;
+    height: 190px;
+    right: -80px;
+    top: -72px;
+    border: 30px solid rgba(166, 47, 98, 0.045);
+    border-radius: 50%;
+}
+
+.balance-card::after {
+    width: 150px;
+    height: 150px;
+    left: -94px;
+    bottom: -98px;
+    border-radius: 44px;
+    background: rgba(255, 255, 255, 0.58);
+    transform: rotate(28deg);
+}
+
+.balance-card.is-owner {
+    background:
+        radial-gradient(circle at 88% 12%, rgba(255, 255, 255, 0.98) 0 7%, rgba(255, 255, 255, 0) 32%),
+        linear-gradient(145deg, #fffdfa 0%, #fff0f6 50%, #f1cddd 100%);
+}
+
+.wallet-card-top,
+.wallet-card-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.wallet-card-brand {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+}
+
+.wallet-card-mark {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    border: 1px solid rgba(222, 165, 188, 0.55);
+    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.72);
+    box-shadow: 0 8px 20px rgba(143, 41, 85, 0.08);
+    font-size: 20px;
+}
+
+.wallet-card-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #83264d;
+}
+
+.wallet-card-type {
+    margin-top: 3px;
+    font-size: 10px;
+    color: #b0768e;
+}
+
+.wallet-status {
+    flex: 0 0 auto;
+    max-width: 130px;
+    padding: 7px 10px;
+    overflow: hidden;
+    border: 1px solid rgba(218, 151, 178, 0.45);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.7);
+    color: #913159;
+    font-size: 10px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.balance-card.is-owner .wallet-status {
+    background: #922954;
+    border-color: #922954;
+    color: #fff;
+}
+
+.wallet-balance-block {
+    margin-top: 30px;
 }
 
 .balance-label {
-    font-size: 14px;
+    font-size: 12px;
+    letter-spacing: 0.04em;
     color: #a87088;
 }
 
 .balance {
-    margin-top: 10px;
-    font-size: 46px;
+    margin-top: 7px;
+    font-size: 48px;
     font-weight: 700;
+    line-height: 1;
     color: #8f2955;
 }
 
@@ -113,8 +219,47 @@ header {
 }
 
 .currency-name {
-    margin-top: 5px;
+    margin-top: 7px;
+    font-size: 13px;
     color: #bb7f98;
+}
+
+.wallet-card-bottom {
+    align-items: flex-end;
+    margin-top: 26px;
+    padding-top: 17px;
+    border-top: 1px solid rgba(189, 111, 144, 0.16);
+}
+
+.wallet-detail {
+    min-width: 0;
+}
+
+.wallet-detail-label {
+    margin-bottom: 5px;
+    color: #b17c92;
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.wallet-number,
+.wallet-holder {
+    overflow: hidden;
+    color: #742542;
+    font-size: 12px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wallet-number {
+    letter-spacing: 0.055em;
+}
+
+.wallet-holder-detail {
+    max-width: 42%;
+    text-align: right;
 }
 
 .actions {
@@ -608,6 +753,49 @@ button span {
 }
 
 @media (max-width: 380px) {
+    .balance-card {
+        min-height: 274px;
+        padding: 20px;
+    }
+
+    .wallet-card-type {
+        display: none;
+    }
+
+    .wallet-card-top {
+        gap: 10px;
+    }
+
+    .wallet-status {
+        max-width: 104px;
+        padding: 6px 8px;
+        font-size: 9px;
+    }
+
+    .wallet-card-mark {
+        width: 38px;
+        height: 38px;
+        min-width: 38px;
+        border-radius: 13px;
+    }
+
+    .wallet-balance-block {
+        margin-top: 26px;
+    }
+
+    .balance {
+        font-size: 43px;
+    }
+
+    .wallet-card-bottom {
+        gap: 10px;
+    }
+
+    .wallet-number,
+    .wallet-holder {
+        font-size: 11px;
+    }
+
     .promo-row,
     .admin-search-row {
         grid-template-columns: 1fr;
