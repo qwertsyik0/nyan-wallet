@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import csv
+import hmac
 import io
 import json
+import os
 import threading
 import time
 import urllib.request
@@ -13,7 +15,7 @@ from collections import defaultdict, deque
 from datetime import date, datetime, timezone
 from typing import Any
 
-from fastapi import Request
+from fastapi import Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import Date, DateTime, String, Text, select
 from sqlalchemy.orm import Mapped, mapped_column
@@ -280,11 +282,28 @@ async def _start_backup_loop() -> None:
         _backup_task = asyncio.create_task(_backup_loop(), name="nyan-wallet-daily-backup")
 
 
+async def backup_cron_trigger(
+    x_backup_secret: str | None = Header(default=None, alias="X-Backup-Secret"),
+):
+    expected = os.getenv("BACKUP_CRON_SECRET", "")
+    supplied = x_backup_secret or ""
+    if not expected or not hmac.compare_digest(supplied, expected):
+        raise HTTPException(status_code=404, detail="Not found")
+    await asyncio.to_thread(run_daily_backup_if_needed)
+    return {"ok": True}
+
+
 def register_release_hardening(app) -> None:
     global _REGISTERED
     if _REGISTERED:
         return
     core.Base.metadata.create_all(core.engine)
     app.middleware("http")(rate_limit_middleware)
+    app.add_api_route(
+        "/internal/backup/run",
+        backup_cron_trigger,
+        methods=["POST"],
+        include_in_schema=False,
+    )
     app.add_event_handler("startup", _start_backup_loop)
     _REGISTERED = True
