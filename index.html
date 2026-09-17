@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nyan Wallet</title>
+
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <link rel="stylesheet" href="./style.css">
+</head>
+
+<body>
+
+<div class="app">
+
+    <header>
+        <div class="logo">Nyan Wallet</div>
+        <div class="username" id="username">кошелёк Нян</div>
+    </header>
+
+    <section class="balance-card">
+        <div class="balance-label">ваш баланс</div>
+
+        <div class="balance">
+            <span id="balance">0</span>
+            <span class="currency">🐾</span>
+        </div>
+
+        <div class="currency-name">лапкоинов</div>
+    </section>
+
+    <section class="actions">
+
+        <button>
+            <span>＋</span>
+            Пополнить
+        </button>
+
+        <button>
+            <span>↗</span>
+            Перевести
+        </button>
+
+    </section>
+
+    <section class="history">
+
+        <h2>Последние операции</h2>
+
+        <div class="empty">
+            Здесь появится история ваших операций
+        </div>
+
+    </section>
+
+</div>
+
+<script src="./app.js"></script>
+
+</body>
+</html>
