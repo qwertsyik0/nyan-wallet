@@ -64,12 +64,13 @@ header {
 
 .actions {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 12px;
     margin-top: 18px;
 }
 
 button {
+    width: 100%;
     border: 0;
     background: #fff0f6;
     color: #922954;
