@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -10,7 +11,20 @@ from urllib.parse import parse_qsl
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, Text, create_engine, select
+from pydantic import BaseModel, Field
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    create_engine,
+    select,
+)
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -72,9 +86,50 @@ class Transaction(Base):
     user: Mapped[User] = relationship(back_populates="transactions")
 
 
+class PromoCode(Base):
+    __tablename__ = "promo_codes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(32), nullable=False, unique=True, index=True)
+    reward_amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_uses: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    uses_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class PromoRedemption(Base):
+    __tablename__ = "promo_redemptions"
+    __table_args__ = (
+        UniqueConstraint("promo_id", "telegram_id", name="uq_promo_redemption"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    promo_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("promo_codes.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    telegram_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("users.telegram_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    reward_amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class PromoRedeemRequest(BaseModel):
+    code: str = Field(min_length=1, max_length=32)
+
+
 Base.metadata.create_all(engine)
 
-app = FastAPI(title="Nyan Wallet API", version="1.1.0")
+app = FastAPI(title="Nyan Wallet API", version="1.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -85,8 +140,67 @@ app.add_middleware(
 )
 
 
+PROMO_PATTERN = re.compile(r"^[A-Z0-9_-]{2,32}$")
+
+
 def now_utc() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def normalize_promo_code(value: str) -> str:
+    return value.strip().upper()
+
+
+def seed_bootstrap_promo() -> None:
+    raw_code = os.getenv("BOOTSTRAP_PROMO_CODE", "").strip()
+    raw_amount = os.getenv("BOOTSTRAP_PROMO_AMOUNT", "").strip()
+    raw_max_uses = os.getenv("BOOTSTRAP_PROMO_MAX_USES", "").strip()
+
+    if not raw_code or not raw_amount:
+        return
+
+    code = normalize_promo_code(raw_code)
+    if not PROMO_PATTERN.fullmatch(code):
+        raise RuntimeError("BOOTSTRAP_PROMO_CODE имеет недопустимый формат")
+
+    try:
+        amount = int(raw_amount)
+    except ValueError as exc:
+        raise RuntimeError("BOOTSTRAP_PROMO_AMOUNT должен быть целым числом") from exc
+
+    if amount <= 0:
+        raise RuntimeError("BOOTSTRAP_PROMO_AMOUNT должен быть больше нуля")
+
+    max_uses: int | None = None
+    if raw_max_uses:
+        try:
+            max_uses = int(raw_max_uses)
+        except ValueError as exc:
+            raise RuntimeError("BOOTSTRAP_PROMO_MAX_USES должен быть целым числом") from exc
+        if max_uses <= 0:
+            raise RuntimeError("BOOTSTRAP_PROMO_MAX_USES должен быть больше нуля")
+
+    with SessionLocal() as session:
+        existing = session.scalar(select(PromoCode).where(PromoCode.code == code))
+        if existing is not None:
+            return
+
+        session.add(
+            PromoCode(
+                code=code,
+                reward_amount=amount,
+                max_uses=max_uses,
+                uses_count=0,
+                is_active=True,
+                description="Тестовый промокод Nyan Wallet",
+                created_at=now_utc(),
+                expires_at=None,
+            )
+        )
+        session.commit()
+
+
+seed_bootstrap_promo()
 
 
 def verify_init_data(init_data: str) -> dict:
@@ -153,6 +267,13 @@ def verify_init_data(init_data: str) -> dict:
     return user
 
 
+def apply_telegram_profile(user: User, tg_user: dict, timestamp: datetime) -> None:
+    user.username = tg_user.get("username")
+    user.first_name = tg_user.get("first_name") or "Пользователь"
+    user.last_name = tg_user.get("last_name")
+    user.last_seen_at = timestamp
+
+
 def get_or_create_user(tg_user: dict) -> dict:
     telegram_id = tg_user["id"]
     timestamp = now_utc()
@@ -172,10 +293,7 @@ def get_or_create_user(tg_user: dict) -> dict:
             )
             session.add(user)
         else:
-            user.username = tg_user.get("username")
-            user.first_name = tg_user.get("first_name") or "Пользователь"
-            user.last_name = tg_user.get("last_name")
-            user.last_seen_at = timestamp
+            apply_telegram_profile(user, tg_user, timestamp)
 
         session.commit()
         session.refresh(user)
@@ -209,6 +327,106 @@ def get_or_create_user(tg_user: dict) -> dict:
         }
 
 
+def redeem_promo(tg_user: dict, raw_code: str) -> dict:
+    code = normalize_promo_code(raw_code)
+    if not PROMO_PATTERN.fullmatch(code):
+        raise HTTPException(status_code=400, detail="Некорректный формат промокода")
+
+    telegram_id = tg_user["id"]
+    timestamp = now_utc()
+
+    try:
+        with SessionLocal() as session:
+            with session.begin():
+                user = session.scalar(
+                    select(User)
+                    .where(User.telegram_id == telegram_id)
+                    .with_for_update()
+                )
+
+                if user is None:
+                    user = User(
+                        telegram_id=telegram_id,
+                        username=tg_user.get("username"),
+                        first_name=tg_user.get("first_name") or "Пользователь",
+                        last_name=tg_user.get("last_name"),
+                        balance=0,
+                        created_at=timestamp,
+                        last_seen_at=timestamp,
+                    )
+                    session.add(user)
+                    session.flush()
+                else:
+                    apply_telegram_profile(user, tg_user, timestamp)
+
+                promo = session.scalar(
+                    select(PromoCode)
+                    .where(PromoCode.code == code)
+                    .with_for_update()
+                )
+
+                if promo is None or not promo.is_active:
+                    raise HTTPException(status_code=404, detail="Промокод не найден")
+
+                if promo.expires_at is not None and promo.expires_at <= timestamp:
+                    raise HTTPException(status_code=410, detail="Срок действия промокода истёк")
+
+                already_used = session.scalar(
+                    select(PromoRedemption.id).where(
+                        PromoRedemption.promo_id == promo.id,
+                        PromoRedemption.telegram_id == telegram_id,
+                    )
+                )
+                if already_used is not None:
+                    raise HTTPException(status_code=409, detail="Вы уже активировали этот промокод")
+
+                if promo.max_uses is not None and promo.uses_count >= promo.max_uses:
+                    raise HTTPException(status_code=410, detail="Лимит активаций промокода исчерпан")
+
+                if promo.reward_amount <= 0:
+                    raise HTTPException(status_code=500, detail="Промокод настроен некорректно")
+
+                reward = promo.reward_amount
+                user.balance += reward
+                promo.uses_count += 1
+
+                transaction = Transaction(
+                    telegram_id=telegram_id,
+                    amount=reward,
+                    operation_type="promo",
+                    description=f"Промокод {promo.code}",
+                    created_at=timestamp,
+                )
+                session.add(transaction)
+                session.flush()
+
+                session.add(
+                    PromoRedemption(
+                        promo_id=promo.id,
+                        telegram_id=telegram_id,
+                        reward_amount=reward,
+                        created_at=timestamp,
+                    )
+                )
+
+                new_balance = user.balance
+                transaction_id = transaction.id
+
+            return {
+                "reward": reward,
+                "balance": new_balance,
+                "transaction": {
+                    "id": transaction_id,
+                    "amount": reward,
+                    "operation_type": "promo",
+                    "description": f"Промокод {code}",
+                    "created_at": timestamp.isoformat(),
+                },
+            }
+    except IntegrityError as exc:
+        raise HTTPException(status_code=409, detail="Вы уже активировали этот промокод") from exc
+
+
 @app.get("/api/health")
 async def health():
     return {
@@ -227,3 +445,15 @@ async def me(
 ):
     tg_user = verify_init_data(x_telegram_init_data or "")
     return {"ok": True, **get_or_create_user(tg_user)}
+
+
+@app.post("/api/promo/redeem")
+async def promo_redeem(
+    payload: PromoRedeemRequest,
+    x_telegram_init_data: str | None = Header(
+        default=None,
+        alias="X-Telegram-Init-Data",
+    ),
+):
+    tg_user = verify_init_data(x_telegram_init_data or "")
+    return {"ok": True, **redeem_promo(tg_user, payload.code)}
