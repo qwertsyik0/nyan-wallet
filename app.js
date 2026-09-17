@@ -9,11 +9,68 @@ if (tg) {
 const usernameEl = document.getElementById("username");
 const balanceEl = document.getElementById("balance");
 const historyEl = document.querySelector(".history");
+const walletView = document.getElementById("wallet-view");
+const earnView = document.getElementById("earn-view");
+const earnButton = document.getElementById("earn-button");
+const earnBack = document.getElementById("earn-back");
+const promoCode = document.getElementById("promo-code");
+const promoActivate = document.getElementById("promo-activate");
+const promoStatus = document.getElementById("promo-status");
 
 const unsafeUser = tg?.initDataUnsafe?.user;
 if (unsafeUser) {
     usernameEl.textContent = unsafeUser.first_name || unsafeUser.username || "пользователь";
 }
+
+function openEarnView() {
+    walletView.classList.add("hidden");
+    earnView.classList.remove("hidden");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    if (tg?.BackButton) {
+        tg.BackButton.show();
+    }
+
+    tg?.HapticFeedback?.impactOccurred?.("light");
+}
+
+function closeEarnView() {
+    earnView.classList.add("hidden");
+    walletView.classList.remove("hidden");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    if (tg?.BackButton) {
+        tg.BackButton.hide();
+    }
+}
+
+earnButton?.addEventListener("click", openEarnView);
+earnBack?.addEventListener("click", closeEarnView);
+
+if (tg?.BackButton?.onClick) {
+    tg.BackButton.onClick(() => {
+        if (!earnView.classList.contains("hidden")) {
+            closeEarnView();
+        }
+    });
+}
+
+promoActivate?.addEventListener("click", () => {
+    const code = promoCode.value.trim();
+
+    if (!code) {
+        promoStatus.textContent = "Введите промокод.";
+        promoCode.focus();
+        return;
+    }
+
+    promoStatus.textContent = "Проверку промокодов подключим следующим этапом.";
+    tg?.HapticFeedback?.notificationOccurred?.("warning");
+});
+
+promoCode?.addEventListener("input", () => {
+    promoStatus.textContent = "";
+});
 
 function renderTransactions(items) {
     const old = document.querySelector(".history .empty");
