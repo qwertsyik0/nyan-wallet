@@ -23,6 +23,7 @@ from sqlalchemy import (
     UniqueConstraint,
     create_engine,
     func,
+    or_,
     select,
 )
 from sqlalchemy.exc import IntegrityError
@@ -141,9 +142,17 @@ class OwnerGrantRequest(BaseModel):
     reason: str | None = Field(default=None, max_length=200)
 
 
+class OwnerPromoCreateRequest(BaseModel):
+    code: str = Field(min_length=2, max_length=32)
+    reward_amount: int = Field(ge=1, le=10_000_000)
+    max_uses: int | None = Field(default=None, ge=1, le=1_000_000)
+    expires_at: datetime | None = None
+    description: str | None = Field(default=None, max_length=200)
+
+
 Base.metadata.create_all(engine)
 
-app = FastAPI(title="Nyan Wallet API", version="1.3.0")
+app = FastAPI(title="Nyan Wallet API", version="1.4.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -171,6 +180,53 @@ def require_owner(tg_user: dict) -> None:
 
 def normalize_promo_code(value: str) -> str:
     return value.strip().upper()
+
+
+def normalize_datetime(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def serialize_transaction(tx: Transaction) -> dict:
+    return {
+        "id": tx.id,
+        "amount": tx.amount,
+        "operation_type": tx.operation_type,
+        "description": tx.description,
+        "created_at": tx.created_at.isoformat(),
+    }
+
+
+def serialize_user(user: User) -> dict:
+    owner = is_owner(user.telegram_id)
+    return {
+        "telegram_id": user.telegram_id,
+        "username": user.username,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "balance": user.balance,
+        "is_owner": owner,
+        "unlimited_balance": owner,
+        "created_at": user.created_at.isoformat(),
+        "last_seen_at": user.last_seen_at.isoformat(),
+    }
+
+
+def serialize_promo(promo: PromoCode) -> dict:
+    return {
+        "id": promo.id,
+        "code": promo.code,
+        "reward_amount": promo.reward_amount,
+        "max_uses": promo.max_uses,
+        "uses_count": promo.uses_count,
+        "is_active": promo.is_active,
+        "description": promo.description,
+        "created_at": promo.created_at.isoformat(),
+        "expires_at": promo.expires_at.isoformat() if promo.expires_at else None,
+    }
 
 
 def seed_bootstrap_promo() -> None:
@@ -296,20 +352,6 @@ def apply_telegram_profile(user: User, tg_user: dict, timestamp: datetime) -> No
     user.last_seen_at = timestamp
 
 
-def serialize_user(user: User) -> dict:
-    owner = is_owner(user.telegram_id)
-    return {
-        "telegram_id": user.telegram_id,
-        "username": user.username,
-        "first_name": user.first_name,
-        "last_name": user.last_name,
-        "balance": user.balance,
-        "is_owner": owner,
-        "unlimited_balance": owner,
-        "created_at": user.created_at.isoformat(),
-    }
-
-
 def get_or_create_user(tg_user: dict) -> dict:
     telegram_id = tg_user["id"]
     timestamp = now_utc()
@@ -343,16 +385,7 @@ def get_or_create_user(tg_user: dict) -> dict:
 
         return {
             "user": serialize_user(user),
-            "transactions": [
-                {
-                    "id": tx.id,
-                    "amount": tx.amount,
-                    "operation_type": tx.operation_type,
-                    "description": tx.description,
-                    "created_at": tx.created_at.isoformat(),
-                }
-                for tx in transactions
-            ],
+            "transactions": [serialize_transaction(tx) for tx in transactions],
         }
 
 
@@ -397,7 +430,8 @@ def redeem_promo(tg_user: dict, raw_code: str) -> dict:
                 if promo is None or not promo.is_active:
                     raise HTTPException(status_code=404, detail="Промокод не найден")
 
-                if promo.expires_at is not None and promo.expires_at <= timestamp:
+                expires_at = normalize_datetime(promo.expires_at)
+                if expires_at is not None and expires_at <= timestamp:
                     raise HTTPException(status_code=410, detail="Срок действия промокода истёк")
 
                 already_used = session.scalar(
@@ -517,6 +551,146 @@ def grant_lapcoins(tg_user: dict, payload: OwnerGrantRequest) -> dict:
     return result
 
 
+def debit_lapcoins(tg_user: dict, payload: OwnerGrantRequest) -> dict:
+    require_owner(tg_user)
+    timestamp = now_utc()
+    reason = (payload.reason or "").strip()
+
+    with SessionLocal() as session:
+        with session.begin():
+            target_user = find_target_user(session, payload.target, lock=True)
+            if target_user is None:
+                raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+            if is_owner(target_user.telegram_id):
+                raise HTTPException(status_code=400, detail="У владельца бесконечный баланс")
+
+            if target_user.balance < payload.amount:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Недостаточно лапкоинов. Баланс пользователя: {target_user.balance} 🐾",
+                )
+
+            target_user.balance -= payload.amount
+            description = reason or "Списание владельцем"
+
+            transaction = Transaction(
+                telegram_id=target_user.telegram_id,
+                amount=-payload.amount,
+                operation_type="owner_debit",
+                description=description,
+                created_at=timestamp,
+            )
+            session.add(transaction)
+            session.flush()
+
+            result = {
+                "telegram_id": target_user.telegram_id,
+                "username": target_user.username,
+                "first_name": target_user.first_name,
+                "amount": payload.amount,
+                "balance": target_user.balance,
+                "reason": reason or None,
+                "transaction_id": transaction.id,
+            }
+
+    return result
+
+
+def list_owner_users(tg_user: dict, query_text: str) -> list[dict]:
+    require_owner(tg_user)
+    query_text = query_text.strip().lstrip("@")
+
+    with SessionLocal() as session:
+        query = select(User)
+
+        if query_text:
+            if query_text.isdigit():
+                query = query.where(User.telegram_id == int(query_text))
+            else:
+                pattern = f"%{query_text}%"
+                query = query.where(
+                    or_(
+                        User.username.ilike(pattern),
+                        User.first_name.ilike(pattern),
+                        User.last_name.ilike(pattern),
+                    )
+                )
+
+        users = session.scalars(
+            query.order_by(User.last_seen_at.desc()).limit(50)
+        ).all()
+        return [serialize_user(user) for user in users]
+
+
+def get_owner_user_detail(tg_user: dict, telegram_id: int) -> dict:
+    require_owner(tg_user)
+
+    with SessionLocal() as session:
+        user = session.get(User, telegram_id)
+        if user is None:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+        transactions = session.scalars(
+            select(Transaction)
+            .where(Transaction.telegram_id == telegram_id)
+            .order_by(Transaction.id.desc())
+            .limit(50)
+        ).all()
+
+        return {
+            "user": serialize_user(user),
+            "transactions": [serialize_transaction(tx) for tx in transactions],
+        }
+
+
+def create_owner_promo(tg_user: dict, payload: OwnerPromoCreateRequest) -> dict:
+    require_owner(tg_user)
+    timestamp = now_utc()
+    code = normalize_promo_code(payload.code)
+
+    if not PROMO_PATTERN.fullmatch(code):
+        raise HTTPException(
+            status_code=400,
+            detail="Код должен содержать 2–32 символа: латиница, цифры, _ или -",
+        )
+
+    expires_at = normalize_datetime(payload.expires_at)
+    if expires_at is not None and expires_at <= timestamp:
+        raise HTTPException(status_code=400, detail="Дата окончания должна быть в будущем")
+
+    description = (payload.description or "").strip() or None
+
+    try:
+        with SessionLocal() as session:
+            promo = PromoCode(
+                code=code,
+                reward_amount=payload.reward_amount,
+                max_uses=payload.max_uses,
+                uses_count=0,
+                is_active=True,
+                description=description,
+                created_at=timestamp,
+                expires_at=expires_at,
+            )
+            session.add(promo)
+            session.commit()
+            session.refresh(promo)
+            return serialize_promo(promo)
+    except IntegrityError as exc:
+        raise HTTPException(status_code=409, detail="Такой промокод уже существует") from exc
+
+
+def list_owner_promos(tg_user: dict) -> list[dict]:
+    require_owner(tg_user)
+
+    with SessionLocal() as session:
+        promos = session.scalars(
+            select(PromoCode).order_by(PromoCode.id.desc()).limit(50)
+        ).all()
+        return [serialize_promo(promo) for promo in promos]
+
+
 @app.get("/api/health")
 async def health():
     return {
@@ -549,6 +723,30 @@ async def promo_redeem(
     return {"ok": True, **redeem_promo(tg_user, payload.code)}
 
 
+@app.get("/api/owner/users")
+async def owner_users(
+    q: str = "",
+    x_telegram_init_data: str | None = Header(
+        default=None,
+        alias="X-Telegram-Init-Data",
+    ),
+):
+    tg_user = verify_init_data(x_telegram_init_data or "")
+    return {"ok": True, "users": list_owner_users(tg_user, q)}
+
+
+@app.get("/api/owner/users/{telegram_id}")
+async def owner_user_detail(
+    telegram_id: int,
+    x_telegram_init_data: str | None = Header(
+        default=None,
+        alias="X-Telegram-Init-Data",
+    ),
+):
+    tg_user = verify_init_data(x_telegram_init_data or "")
+    return {"ok": True, **get_owner_user_detail(tg_user, telegram_id)}
+
+
 @app.post("/api/owner/grant")
 async def owner_grant(
     payload: OwnerGrantRequest,
@@ -559,3 +757,38 @@ async def owner_grant(
 ):
     tg_user = verify_init_data(x_telegram_init_data or "")
     return {"ok": True, "grant": grant_lapcoins(tg_user, payload)}
+
+
+@app.post("/api/owner/debit")
+async def owner_debit(
+    payload: OwnerGrantRequest,
+    x_telegram_init_data: str | None = Header(
+        default=None,
+        alias="X-Telegram-Init-Data",
+    ),
+):
+    tg_user = verify_init_data(x_telegram_init_data or "")
+    return {"ok": True, "debit": debit_lapcoins(tg_user, payload)}
+
+
+@app.get("/api/owner/promos")
+async def owner_promos(
+    x_telegram_init_data: str | None = Header(
+        default=None,
+        alias="X-Telegram-Init-Data",
+    ),
+):
+    tg_user = verify_init_data(x_telegram_init_data or "")
+    return {"ok": True, "promos": list_owner_promos(tg_user)}
+
+
+@app.post("/api/owner/promos")
+async def owner_promo_create(
+    payload: OwnerPromoCreateRequest,
+    x_telegram_init_data: str | None = Header(
+        default=None,
+        alias="X-Telegram-Init-Data",
+    ),
+):
+    tg_user = verify_init_data(x_telegram_init_data or "")
+    return {"ok": True, "promo": create_owner_promo(tg_user, payload)}
