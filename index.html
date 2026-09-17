@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Nyan Wallet</title>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -218,7 +221,13 @@
     </main>
 </div>
 
-<script src="./app.js?v=20260917-7"></script>
+<script>
+    window.__nyanInitialLoadFallback = window.setTimeout(() => {
+        document.getElementById("loading-view")?.classList.add("hidden");
+        document.getElementById("wallet-view")?.classList.remove("hidden");
+    }, 18000);
+</script>
+<script src="./app.js?v=20260918-2"></script>
 <script type="module" src="./features.js?v=20260917-1"></script>
 <script src="./purchase_toast.js?v=20260917-1"></script>
 <script type="module" src="./advanced_features.js?v=20260917-1"></script>
