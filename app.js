@@ -20,17 +20,53 @@ const ownerBack = document.getElementById("owner-back");
 const promoCode = document.getElementById("promo-code");
 const promoActivate = document.getElementById("promo-activate");
 const promoStatus = document.getElementById("promo-status");
-const ownerTarget = document.getElementById("owner-target");
+
+const ownerUserSearch = document.getElementById("owner-user-search");
+const ownerUserSearchButton = document.getElementById("owner-user-search-button");
+const ownerUsersStatus = document.getElementById("owner-users-status");
+const ownerUsersList = document.getElementById("owner-users-list");
+const ownerUserCard = document.getElementById("owner-user-card");
+const selectedUserName = document.getElementById("selected-user-name");
+const selectedUserMeta = document.getElementById("selected-user-meta");
+const selectedUserBalance = document.getElementById("selected-user-balance");
 const ownerAmount = document.getElementById("owner-amount");
 const ownerReason = document.getElementById("owner-reason");
 const ownerGrant = document.getElementById("owner-grant");
+const ownerDebit = document.getElementById("owner-debit");
 const ownerStatus = document.getElementById("owner-status");
+const ownerUserHistory = document.getElementById("owner-user-history");
+
+const ownerPromoCode = document.getElementById("owner-promo-code");
+const ownerPromoReward = document.getElementById("owner-promo-reward");
+const ownerPromoLimit = document.getElementById("owner-promo-limit");
+const ownerPromoExpires = document.getElementById("owner-promo-expires");
+const ownerPromoDescription = document.getElementById("owner-promo-description");
+const ownerPromoCreate = document.getElementById("owner-promo-create");
+const ownerPromoStatus = document.getElementById("owner-promo-status");
+const ownerPromoList = document.getElementById("owner-promo-list");
 
 let currentUser = null;
+let selectedOwnerUserId = null;
 
 const unsafeUser = tg?.initDataUnsafe?.user;
 if (unsafeUser) {
     usernameEl.textContent = unsafeUser.first_name || unsafeUser.username || "пользователь";
+}
+
+function authHeaders(json = false) {
+    const headers = {
+        "X-Telegram-Init-Data": tg?.initData || "",
+    };
+    if (json) headers["Content-Type"] = "application/json";
+    return headers;
+}
+
+async function readJson(response) {
+    try {
+        return await response.json();
+    } catch (_) {
+        return {};
+    }
 }
 
 function showWalletView() {
@@ -39,9 +75,7 @@ function showWalletView() {
     walletView.classList.remove("hidden");
     window.scrollTo({ top: 0, behavior: "smooth" });
 
-    if (tg?.BackButton) {
-        tg.BackButton.hide();
-    }
+    if (tg?.BackButton) tg.BackButton.hide();
 }
 
 function openEarnView() {
@@ -50,28 +84,23 @@ function openEarnView() {
     earnView.classList.remove("hidden");
     window.scrollTo({ top: 0, behavior: "smooth" });
 
-    if (tg?.BackButton) {
-        tg.BackButton.show();
-    }
-
+    if (tg?.BackButton) tg.BackButton.show();
     tg?.HapticFeedback?.impactOccurred?.("light");
 }
 
 function openOwnerView() {
-    if (!currentUser?.is_owner) {
-        return;
-    }
+    if (!currentUser?.is_owner) return;
 
     walletView.classList.add("hidden");
     earnView.classList.add("hidden");
     ownerView.classList.remove("hidden");
     window.scrollTo({ top: 0, behavior: "smooth" });
 
-    if (tg?.BackButton) {
-        tg.BackButton.show();
-    }
-
+    if (tg?.BackButton) tg.BackButton.show();
     tg?.HapticFeedback?.impactOccurred?.("light");
+
+    loadOwnerUsers();
+    loadOwnerPromos();
 }
 
 earnButton?.addEventListener("click", openEarnView);
@@ -108,33 +137,22 @@ async function activatePromo() {
     try {
         const response = await fetch(`${API_BASE}/api/promo/redeem`, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-Telegram-Init-Data": tg.initData,
-            },
+            headers: authHeaders(true),
             body: JSON.stringify({ code }),
         });
+        const data = await readJson(response);
 
-        let data = {};
-        try {
-            data = await response.json();
-        } catch (_) {
-            data = {};
-        }
-
-        if (!response.ok) {
-            throw new Error(data?.detail || "Не удалось активировать промокод");
-        }
+        if (!response.ok) throw new Error(data?.detail || "Не удалось активировать промокод");
 
         if (!currentUser?.unlimited_balance) {
             balanceEl.textContent = data.balance ?? balanceEl.textContent;
         }
+
         promoCode.value = "";
         promoStatus.textContent = currentUser?.unlimited_balance
             ? `Готово: +${data.reward} 🐾`
             : `Готово: +${data.reward} 🐾. Баланс: ${data.balance} 🐾`;
         tg?.HapticFeedback?.notificationOccurred?.("success");
-
         await loadWallet();
     } catch (error) {
         promoStatus.textContent = error.message || "Не удалось активировать промокод";
@@ -146,102 +164,59 @@ async function activatePromo() {
 }
 
 promoActivate?.addEventListener("click", activatePromo);
-
 promoCode?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-        activatePromo();
-    }
+    if (event.key === "Enter") activatePromo();
 });
-
 promoCode?.addEventListener("input", () => {
     promoStatus.textContent = "";
 });
 
-async function grantLapcoins() {
-    const target = ownerTarget.value.trim();
-    const amount = Number.parseInt(ownerAmount.value, 10);
-    const reason = ownerReason.value.trim();
-
-    if (!target) {
-        ownerStatus.textContent = "Укажите @username или Telegram ID.";
-        ownerTarget.focus();
-        return;
-    }
-
-    if (!Number.isInteger(amount) || amount < 1 || amount > 10000000) {
-        ownerStatus.textContent = "Укажите количество от 1 до 10 000 000.";
-        ownerAmount.focus();
-        return;
-    }
-
-    if (!tg?.initData) {
-        ownerStatus.textContent = "Откройте кошелёк через Telegram.";
-        return;
-    }
-
-    ownerGrant.disabled = true;
-    ownerGrant.textContent = "Начисляем…";
-    ownerStatus.textContent = "";
-
-    try {
-        const response = await fetch(`${API_BASE}/api/owner/grant`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-Telegram-Init-Data": tg.initData,
-            },
-            body: JSON.stringify({
-                target,
-                amount,
-                reason: reason || null,
-            }),
-        });
-
-        let data = {};
-        try {
-            data = await response.json();
-        } catch (_) {
-            data = {};
-        }
-
-        if (!response.ok) {
-            throw new Error(data?.detail || "Не удалось начислить лапкоины");
-        }
-
-        const grant = data.grant;
-        const recipient = grant.username
-            ? `@${grant.username}`
-            : grant.first_name || String(grant.telegram_id);
-
-        ownerStatus.textContent = `Готово: ${recipient} получил +${grant.amount} 🐾. Баланс: ${grant.balance} 🐾`;
-        ownerAmount.value = "";
-        ownerReason.value = "";
-        tg?.HapticFeedback?.notificationOccurred?.("success");
-
-        if (currentUser && grant.telegram_id === currentUser.telegram_id) {
-            await loadWallet();
-        }
-    } catch (error) {
-        ownerStatus.textContent = error.message || "Не удалось начислить лапкоины";
-        tg?.HapticFeedback?.notificationOccurred?.("error");
-    } finally {
-        ownerGrant.disabled = false;
-        ownerGrant.textContent = "Начислить";
-    }
+function formatDate(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleString("ru-RU", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
 }
 
-ownerGrant?.addEventListener("click", grantLapcoins);
+function operationLabel(type) {
+    const labels = {
+        promo: "Промокод",
+        owner_grant: "Начисление",
+        owner_debit: "Списание",
+    };
+    return labels[type] || "Операция";
+}
 
-ownerReason?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-        grantLapcoins();
-    }
-});
+function createTransactionRow(tx, compact = false) {
+    const row = document.createElement("div");
+    row.className = compact ? "transaction-row compact" : "transaction-row";
 
-for (const input of [ownerTarget, ownerAmount, ownerReason]) {
-    input?.addEventListener("input", () => {
-        ownerStatus.textContent = "";
-    });
+    const info = document.createElement("div");
+    info.className = "transaction-info";
+
+    const text = document.createElement("div");
+    text.className = "transaction-text";
+    text.textContent = tx.description || operationLabel(tx.operation_type);
+
+    const meta = document.createElement("div");
+    meta.className = "transaction-meta";
+    const parts = [operationLabel(tx.operation_type), formatDate(tx.created_at)].filter(Boolean);
+    meta.textContent = parts.join(" · ");
+
+    const amount = document.createElement("div");
+    amount.className = `transaction-amount ${tx.amount < 0 ? "negative" : "positive"}`;
+    amount.textContent = `${tx.amount > 0 ? "+" : ""}${tx.amount} 🐾`;
+
+    info.appendChild(text);
+    info.appendChild(meta);
+    row.appendChild(info);
+    row.appendChild(amount);
+    return row;
 }
 
 function renderTransactions(items) {
@@ -265,22 +240,300 @@ function renderTransactions(items) {
         return;
     }
 
-    for (const tx of items) {
-        const row = document.createElement("div");
-        row.className = "transaction-row";
+    for (const tx of items) list.appendChild(createTransactionRow(tx));
+}
 
-        const amount = document.createElement("div");
-        amount.className = "transaction-amount";
-        amount.textContent = `${tx.amount > 0 ? "+" : ""}${tx.amount} 🐾`;
+function displayUserName(user) {
+    if (user.username) return `@${user.username}`;
+    const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
+    return fullName || `ID ${user.telegram_id}`;
+}
 
-        const text = document.createElement("div");
-        text.className = "transaction-text";
-        text.textContent = tx.description || tx.operation_type || "Операция";
+async function loadOwnerUsers(query = ownerUserSearch?.value.trim() || "") {
+    if (!currentUser?.is_owner || !tg?.initData) return;
 
-        row.appendChild(text);
-        row.appendChild(amount);
-        list.appendChild(row);
+    ownerUsersStatus.textContent = "Загружаем…";
+    ownerUsersList.innerHTML = "";
+
+    try {
+        const response = await fetch(`${API_BASE}/api/owner/users?q=${encodeURIComponent(query)}`, {
+            headers: authHeaders(),
+        });
+        const data = await readJson(response);
+        if (!response.ok) throw new Error(data?.detail || "Не удалось загрузить пользователей");
+
+        ownerUsersStatus.textContent = data.users.length ? `Найдено: ${data.users.length}` : "Ничего не найдено";
+
+        for (const user of data.users) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "owner-user-row";
+            button.dataset.userId = String(user.telegram_id);
+
+            const left = document.createElement("div");
+            left.className = "owner-user-row-main";
+
+            const name = document.createElement("div");
+            name.className = "owner-user-row-name";
+            name.textContent = displayUserName(user);
+
+            const meta = document.createElement("div");
+            meta.className = "owner-user-row-meta";
+            meta.textContent = `ID ${user.telegram_id} · ${formatDate(user.last_seen_at) || "нет активности"}`;
+
+            const balance = document.createElement("div");
+            balance.className = "owner-user-row-balance";
+            balance.textContent = user.unlimited_balance ? "∞ 🐾" : `${user.balance} 🐾`;
+
+            left.appendChild(name);
+            left.appendChild(meta);
+            button.appendChild(left);
+            button.appendChild(balance);
+            button.addEventListener("click", () => selectOwnerUser(user.telegram_id));
+            ownerUsersList.appendChild(button);
+        }
+    } catch (error) {
+        ownerUsersStatus.textContent = error.message || "Не удалось загрузить пользователей";
     }
+}
+
+async function selectOwnerUser(telegramId) {
+    if (!currentUser?.is_owner || !tg?.initData) return;
+
+    ownerStatus.textContent = "";
+    ownerUserHistory.innerHTML = "";
+
+    try {
+        const response = await fetch(`${API_BASE}/api/owner/users/${telegramId}`, {
+            headers: authHeaders(),
+        });
+        const data = await readJson(response);
+        if (!response.ok) throw new Error(data?.detail || "Не удалось открыть пользователя");
+
+        const user = data.user;
+        selectedOwnerUserId = user.telegram_id;
+        selectedUserName.textContent = displayUserName(user);
+        selectedUserMeta.textContent = `Telegram ID ${user.telegram_id}${user.last_seen_at ? ` · был в кошельке ${formatDate(user.last_seen_at)}` : ""}`;
+        selectedUserBalance.textContent = user.unlimited_balance ? "∞ 🐾" : `${user.balance} 🐾`;
+        ownerUserCard.hidden = false;
+
+        if (!data.transactions.length) {
+            const empty = document.createElement("div");
+            empty.className = "admin-empty";
+            empty.textContent = "Операций пока нет";
+            ownerUserHistory.appendChild(empty);
+        } else {
+            for (const tx of data.transactions) {
+                ownerUserHistory.appendChild(createTransactionRow(tx, true));
+            }
+        }
+
+        ownerUserCard.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (error) {
+        ownerStatus.textContent = error.message || "Не удалось открыть пользователя";
+    }
+}
+
+ownerUserSearchButton?.addEventListener("click", () => loadOwnerUsers());
+ownerUserSearch?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") loadOwnerUsers();
+});
+
+async function adjustSelectedUser(action) {
+    if (!selectedOwnerUserId) {
+        ownerStatus.textContent = "Сначала выберите пользователя.";
+        return;
+    }
+
+    const amount = Number.parseInt(ownerAmount.value, 10);
+    const reason = ownerReason.value.trim();
+
+    if (!Number.isInteger(amount) || amount < 1 || amount > 10000000) {
+        ownerStatus.textContent = "Укажите количество от 1 до 10 000 000.";
+        ownerAmount.focus();
+        return;
+    }
+
+    ownerGrant.disabled = true;
+    ownerDebit.disabled = true;
+    ownerStatus.textContent = action === "grant" ? "Начисляем…" : "Списываем…";
+
+    try {
+        const response = await fetch(`${API_BASE}/api/owner/${action}`, {
+            method: "POST",
+            headers: authHeaders(true),
+            body: JSON.stringify({
+                target: String(selectedOwnerUserId),
+                amount,
+                reason: reason || null,
+            }),
+        });
+        const data = await readJson(response);
+        if (!response.ok) throw new Error(data?.detail || "Операция не выполнена");
+
+        const result = action === "grant" ? data.grant : data.debit;
+        ownerStatus.textContent = action === "grant"
+            ? `Начислено +${result.amount} 🐾. Баланс: ${result.balance} 🐾`
+            : `Списано ${result.amount} 🐾. Баланс: ${result.balance} 🐾`;
+
+        ownerAmount.value = "";
+        ownerReason.value = "";
+        tg?.HapticFeedback?.notificationOccurred?.("success");
+
+        await selectOwnerUser(selectedOwnerUserId);
+        await loadOwnerUsers();
+    } catch (error) {
+        ownerStatus.textContent = error.message || "Операция не выполнена";
+        tg?.HapticFeedback?.notificationOccurred?.("error");
+    } finally {
+        ownerGrant.disabled = false;
+        ownerDebit.disabled = false;
+    }
+}
+
+ownerGrant?.addEventListener("click", () => adjustSelectedUser("grant"));
+ownerDebit?.addEventListener("click", () => adjustSelectedUser("debit"));
+
+for (const input of [ownerAmount, ownerReason]) {
+    input?.addEventListener("input", () => {
+        ownerStatus.textContent = "";
+    });
+}
+
+function renderPromoList(items) {
+    ownerPromoList.innerHTML = "";
+
+    if (!items || !items.length) {
+        const empty = document.createElement("div");
+        empty.className = "admin-empty";
+        empty.textContent = "Промокодов пока нет";
+        ownerPromoList.appendChild(empty);
+        return;
+    }
+
+    for (const promo of items) {
+        const row = document.createElement("div");
+        row.className = "owner-promo-row";
+
+        const main = document.createElement("div");
+        main.className = "owner-promo-main";
+
+        const code = document.createElement("div");
+        code.className = "owner-promo-code";
+        code.textContent = promo.code;
+
+        const meta = document.createElement("div");
+        meta.className = "owner-promo-meta";
+        const limit = promo.max_uses == null ? "без лимита" : `${promo.uses_count}/${promo.max_uses}`;
+        const expiry = promo.expires_at ? ` · до ${formatDate(promo.expires_at)}` : "";
+        meta.textContent = `${promo.uses_count} активаций · ${limit}${expiry}`;
+
+        const reward = document.createElement("div");
+        reward.className = "owner-promo-reward";
+        reward.textContent = `+${promo.reward_amount} 🐾`;
+
+        main.appendChild(code);
+        main.appendChild(meta);
+        row.appendChild(main);
+        row.appendChild(reward);
+        ownerPromoList.appendChild(row);
+    }
+}
+
+async function loadOwnerPromos() {
+    if (!currentUser?.is_owner || !tg?.initData) return;
+
+    try {
+        const response = await fetch(`${API_BASE}/api/owner/promos`, {
+            headers: authHeaders(),
+        });
+        const data = await readJson(response);
+        if (!response.ok) throw new Error(data?.detail || "Не удалось загрузить промокоды");
+        renderPromoList(data.promos || []);
+    } catch (error) {
+        ownerPromoStatus.textContent = error.message || "Не удалось загрузить промокоды";
+    }
+}
+
+async function createOwnerPromo() {
+    const code = ownerPromoCode.value.trim().toUpperCase();
+    const rewardAmount = Number.parseInt(ownerPromoReward.value, 10);
+    const limitRaw = ownerPromoLimit.value.trim();
+    const maxUses = limitRaw ? Number.parseInt(limitRaw, 10) : null;
+    const expiresRaw = ownerPromoExpires.value;
+    const description = ownerPromoDescription.value.trim();
+
+    if (!/^[A-Z0-9_-]{2,32}$/.test(code)) {
+        ownerPromoStatus.textContent = "Код: 2–32 символа, латиница, цифры, _ или -.";
+        ownerPromoCode.focus();
+        return;
+    }
+
+    if (!Number.isInteger(rewardAmount) || rewardAmount < 1 || rewardAmount > 10000000) {
+        ownerPromoStatus.textContent = "Укажите награду от 1 до 10 000 000 🐾.";
+        ownerPromoReward.focus();
+        return;
+    }
+
+    if (maxUses !== null && (!Number.isInteger(maxUses) || maxUses < 1 || maxUses > 1000000)) {
+        ownerPromoStatus.textContent = "Лимит активаций должен быть от 1 до 1 000 000.";
+        ownerPromoLimit.focus();
+        return;
+    }
+
+    let expiresAt = null;
+    if (expiresRaw) {
+        const date = new Date(expiresRaw);
+        if (Number.isNaN(date.getTime()) || date.getTime() <= Date.now()) {
+            ownerPromoStatus.textContent = "Укажите будущую дату окончания.";
+            ownerPromoExpires.focus();
+            return;
+        }
+        expiresAt = date.toISOString();
+    }
+
+    ownerPromoCreate.disabled = true;
+    ownerPromoCreate.textContent = "Создаём…";
+    ownerPromoStatus.textContent = "";
+
+    try {
+        const response = await fetch(`${API_BASE}/api/owner/promos`, {
+            method: "POST",
+            headers: authHeaders(true),
+            body: JSON.stringify({
+                code,
+                reward_amount: rewardAmount,
+                max_uses: maxUses,
+                expires_at: expiresAt,
+                description: description || null,
+            }),
+        });
+        const data = await readJson(response);
+        if (!response.ok) throw new Error(data?.detail || "Не удалось создать промокод");
+
+        ownerPromoStatus.textContent = `Промокод ${data.promo.code} создан: +${data.promo.reward_amount} 🐾`;
+        ownerPromoCode.value = "";
+        ownerPromoReward.value = "";
+        ownerPromoLimit.value = "";
+        ownerPromoExpires.value = "";
+        ownerPromoDescription.value = "";
+        tg?.HapticFeedback?.notificationOccurred?.("success");
+        await loadOwnerPromos();
+    } catch (error) {
+        ownerPromoStatus.textContent = error.message || "Не удалось создать промокод";
+        tg?.HapticFeedback?.notificationOccurred?.("error");
+    } finally {
+        ownerPromoCreate.disabled = false;
+        ownerPromoCreate.textContent = "Создать промокод";
+    }
+}
+
+ownerPromoCreate?.addEventListener("click", createOwnerPromo);
+
+for (const input of [ownerPromoCode, ownerPromoReward, ownerPromoLimit, ownerPromoExpires, ownerPromoDescription]) {
+    input?.addEventListener("input", () => {
+        ownerPromoStatus.textContent = "";
+    });
 }
 
 function applyUserState(user) {
@@ -306,16 +559,11 @@ async function loadWallet() {
 
     try {
         const response = await fetch(`${API_BASE}/api/me`, {
-            headers: {
-                "X-Telegram-Init-Data": tg.initData,
-            },
+            headers: authHeaders(),
         });
+        const data = await readJson(response);
 
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data?.detail || "Ошибка загрузки кошелька");
-        }
+        if (!response.ok) throw new Error(data?.detail || "Ошибка загрузки кошелька");
 
         applyUserState(data.user);
         renderTransactions(data.transactions || []);
