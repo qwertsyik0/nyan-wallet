@@ -6,7 +6,7 @@
     <title>Nyan Wallet</title>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="./style.css?v=20260917-2">
+    <link rel="stylesheet" href="./style.css?v=20260917-3">
 </head>
 <body>
 
@@ -23,7 +23,7 @@
                 <span id="balance">0</span>
                 <span class="currency">🐾</span>
             </div>
-            <div class="currency-name">лапкоинов</div>
+            <div class="currency-name" id="currency-name">лапкоинов</div>
         </section>
 
         <section class="actions">
@@ -36,6 +36,29 @@
                 <span>＋</span>
                 Заработать
             </button>
+        </section>
+
+        <section id="owner-panel" class="owner-panel" hidden>
+            <div class="owner-title">Управление владельца</div>
+            <div class="owner-subtitle">Начислить лапкоины пользователю</div>
+
+            <label class="owner-field">
+                <span>Пользователь</span>
+                <input id="owner-target" type="text" autocomplete="off" placeholder="@username или Telegram ID" maxlength="64">
+            </label>
+
+            <label class="owner-field">
+                <span>Количество</span>
+                <input id="owner-amount" type="number" inputmode="numeric" min="1" max="10000000" placeholder="Например, 50">
+            </label>
+
+            <label class="owner-field">
+                <span>Причина <small>необязательно</small></span>
+                <input id="owner-reason" type="text" autocomplete="off" placeholder="Например, за отзыв" maxlength="200">
+            </label>
+
+            <button id="owner-grant" class="owner-grant-button" type="button">Начислить</button>
+            <div id="owner-status" class="owner-status" aria-live="polite"></div>
         </section>
 
         <section class="history">
@@ -119,6 +142,6 @@
     </main>
 </div>
 
-<script src="./app.js?v=20260917-3"></script>
+<script src="./app.js?v=20260917-4"></script>
 </body>
 </html>
