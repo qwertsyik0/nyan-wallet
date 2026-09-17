@@ -8,6 +8,7 @@ if (tg) {
 
 const usernameEl = document.getElementById("username");
 const balanceEl = document.getElementById("balance");
+const currencyNameEl = document.getElementById("currency-name");
 const historyEl = document.querySelector(".history");
 const walletView = document.getElementById("wallet-view");
 const earnView = document.getElementById("earn-view");
@@ -16,6 +17,14 @@ const earnBack = document.getElementById("earn-back");
 const promoCode = document.getElementById("promo-code");
 const promoActivate = document.getElementById("promo-activate");
 const promoStatus = document.getElementById("promo-status");
+const ownerPanel = document.getElementById("owner-panel");
+const ownerTarget = document.getElementById("owner-target");
+const ownerAmount = document.getElementById("owner-amount");
+const ownerReason = document.getElementById("owner-reason");
+const ownerGrant = document.getElementById("owner-grant");
+const ownerStatus = document.getElementById("owner-status");
+
+let currentUser = null;
 
 const unsafeUser = tg?.initDataUnsafe?.user;
 if (unsafeUser) {
@@ -94,9 +103,13 @@ async function activatePromo() {
             throw new Error(data?.detail || "Не удалось активировать промокод");
         }
 
-        balanceEl.textContent = data.balance ?? balanceEl.textContent;
+        if (!currentUser?.unlimited_balance) {
+            balanceEl.textContent = data.balance ?? balanceEl.textContent;
+        }
         promoCode.value = "";
-        promoStatus.textContent = `Готово: +${data.reward} 🐾. Баланс: ${data.balance} 🐾`;
+        promoStatus.textContent = currentUser?.unlimited_balance
+            ? `Готово: +${data.reward} 🐾`
+            : `Готово: +${data.reward} 🐾. Баланс: ${data.balance} 🐾`;
         tg?.HapticFeedback?.notificationOccurred?.("success");
 
         await loadWallet();
@@ -120,6 +133,93 @@ promoCode?.addEventListener("keydown", (event) => {
 promoCode?.addEventListener("input", () => {
     promoStatus.textContent = "";
 });
+
+async function grantLapcoins() {
+    const target = ownerTarget.value.trim();
+    const amount = Number.parseInt(ownerAmount.value, 10);
+    const reason = ownerReason.value.trim();
+
+    if (!target) {
+        ownerStatus.textContent = "Укажите @username или Telegram ID.";
+        ownerTarget.focus();
+        return;
+    }
+
+    if (!Number.isInteger(amount) || amount < 1 || amount > 10000000) {
+        ownerStatus.textContent = "Укажите количество от 1 до 10 000 000.";
+        ownerAmount.focus();
+        return;
+    }
+
+    if (!tg?.initData) {
+        ownerStatus.textContent = "Откройте кошелёк через Telegram.";
+        return;
+    }
+
+    ownerGrant.disabled = true;
+    ownerGrant.textContent = "Начисляем…";
+    ownerStatus.textContent = "";
+
+    try {
+        const response = await fetch(`${API_BASE}/api/owner/grant`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Telegram-Init-Data": tg.initData,
+            },
+            body: JSON.stringify({
+                target,
+                amount,
+                reason: reason || null,
+            }),
+        });
+
+        let data = {};
+        try {
+            data = await response.json();
+        } catch (_) {
+            data = {};
+        }
+
+        if (!response.ok) {
+            throw new Error(data?.detail || "Не удалось начислить лапкоины");
+        }
+
+        const grant = data.grant;
+        const recipient = grant.username
+            ? `@${grant.username}`
+            : grant.first_name || String(grant.telegram_id);
+
+        ownerStatus.textContent = `Готово: ${recipient} получил +${grant.amount} 🐾. Баланс: ${grant.balance} 🐾`;
+        ownerAmount.value = "";
+        ownerReason.value = "";
+        tg?.HapticFeedback?.notificationOccurred?.("success");
+
+        if (currentUser && grant.telegram_id === currentUser.telegram_id) {
+            await loadWallet();
+        }
+    } catch (error) {
+        ownerStatus.textContent = error.message || "Не удалось начислить лапкоины";
+        tg?.HapticFeedback?.notificationOccurred?.("error");
+    } finally {
+        ownerGrant.disabled = false;
+        ownerGrant.textContent = "Начислить";
+    }
+}
+
+ownerGrant?.addEventListener("click", grantLapcoins);
+
+ownerReason?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+        grantLapcoins();
+    }
+});
+
+for (const input of [ownerTarget, ownerAmount, ownerReason]) {
+    input?.addEventListener("input", () => {
+        ownerStatus.textContent = "";
+    });
+}
 
 function renderTransactions(items) {
     const old = document.querySelector(".history .empty");
@@ -160,6 +260,21 @@ function renderTransactions(items) {
     }
 }
 
+function applyUserState(user) {
+    currentUser = user;
+    usernameEl.textContent = user.first_name || user.username || "пользователь";
+
+    if (user.unlimited_balance) {
+        balanceEl.textContent = "∞";
+        currencyNameEl.textContent = "лапкоинов · владелец";
+        ownerPanel.hidden = false;
+    } else {
+        balanceEl.textContent = user.balance ?? 0;
+        currencyNameEl.textContent = "лапкоинов";
+        ownerPanel.hidden = true;
+    }
+}
+
 async function loadWallet() {
     if (!tg?.initData) {
         balanceEl.textContent = "0";
@@ -179,9 +294,7 @@ async function loadWallet() {
             throw new Error(data?.detail || "Ошибка загрузки кошелька");
         }
 
-        const user = data.user;
-        balanceEl.textContent = user.balance ?? 0;
-        usernameEl.textContent = user.first_name || user.username || "пользователь";
+        applyUserState(data.user);
         renderTransactions(data.transactions || []);
     } catch (error) {
         console.error("Nyan Wallet API error:", error);
