@@ -6,12 +6,19 @@
     <title>Nyan Wallet</title>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="./style.css?v=20260917-6">
+    <link rel="stylesheet" href="./style.css?v=20260917-7">
 </head>
 <body>
 
 <div class="app">
-    <main id="wallet-view" class="view">
+    <main id="loading-view" class="loading-view" aria-live="polite">
+        <div class="loading-mark">🐾</div>
+        <div class="loading-title">Nyan Wallet</div>
+        <div class="loading-text">загружаем кошелёк</div>
+        <div class="loading-spinner" aria-hidden="true"></div>
+    </main>
+
+    <main id="wallet-view" class="view hidden">
         <header>
             <div class="logo">Nyan Wallet</div>
             <div class="username" id="username">кошелёк Нян</div>
@@ -211,6 +218,6 @@
     </main>
 </div>
 
-<script src="./app.js?v=20260917-6"></script>
+<script src="./app.js?v=20260917-7"></script>
 </body>
 </html>
