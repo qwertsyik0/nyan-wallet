@@ -84,7 +84,8 @@ button {
     cursor: pointer;
 }
 
-button[hidden] {
+button[hidden],
+section[hidden] {
     display: none;
 }
 
@@ -145,10 +146,27 @@ button span {
     padding: 14px 16px;
 }
 
+.transaction-row.compact {
+    border-radius: 15px;
+    padding: 12px 13px;
+}
+
+.transaction-info {
+    min-width: 0;
+    flex: 1;
+}
+
 .transaction-text {
     min-width: 0;
     font-size: 14px;
     color: #704156;
+    overflow-wrap: anywhere;
+}
+
+.transaction-meta {
+    margin-top: 5px;
+    font-size: 11px;
+    color: #b08899;
 }
 
 .transaction-amount {
@@ -157,12 +175,17 @@ button span {
     color: #922954;
 }
 
-.owner-panel {
+.transaction-amount.negative {
+    color: #8a4f63;
+}
+
+.admin-section {
+    margin-top: 14px;
     padding: 20px;
-    background: linear-gradient(145deg, #fff, #fff5f8);
+    background: linear-gradient(145deg, #fff, #fff8fa);
     border: 1px solid #efd5e1;
     border-radius: 24px;
-    box-shadow: 0 12px 32px rgba(137, 41, 82, 0.07);
+    box-shadow: 0 12px 32px rgba(137, 41, 82, 0.06);
 }
 
 .owner-title {
@@ -175,6 +198,7 @@ button span {
     margin-top: 5px;
     margin-bottom: 16px;
     font-size: 13px;
+    line-height: 1.4;
     color: #a67589;
 }
 
@@ -197,8 +221,10 @@ button span {
     color: #b48c9e;
 }
 
-.owner-field input {
+.owner-field input,
+.admin-search-row input {
     width: 100%;
+    min-width: 0;
     border: 1px solid #efd8e2;
     outline: none;
     background: #fff;
@@ -208,14 +234,114 @@ button span {
     font-size: 14px;
 }
 
-.owner-field input:focus {
+.owner-field input:focus,
+.admin-search-row input:focus {
     border-color: #dca4bc;
 }
 
-.owner-grant-button {
+.admin-search-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+}
+
+.admin-search-row button {
+    width: auto;
+    padding: 14px 16px;
+    border-radius: 15px;
+}
+
+.owner-users-list,
+.owner-promo-list,
+.owner-user-history {
+    display: grid;
+    gap: 9px;
+    margin-top: 12px;
+}
+
+.owner-user-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 13px 14px;
+    text-align: left;
+    background: #fff;
+    border: 1px solid #f0dce5;
+    border-radius: 16px;
+}
+
+.owner-user-row-main {
+    min-width: 0;
+}
+
+.owner-user-row-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #6d304a;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.owner-user-row-meta,
+.owner-promo-meta {
+    margin-top: 4px;
+    font-size: 11px;
+    color: #aa8092;
+}
+
+.owner-user-row-balance,
+.owner-promo-reward {
+    flex: 0 0 auto;
+    font-size: 13px;
+    font-weight: 700;
+    color: #922954;
+}
+
+.selected-user-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.selected-user-head .owner-subtitle {
+    margin-bottom: 0;
+}
+
+.selected-user-balance {
+    flex: 0 0 auto;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: #fff0f6;
+    color: #922954;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.owner-two-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.owner-adjust-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
     margin-top: 15px;
+}
+
+.owner-grant-button {
     background: #922954;
     color: #fff;
+}
+
+.owner-debit-button {
+    background: #fff;
+    border: 1px solid #dfbbc9;
+    color: #7e4059;
 }
 
 .owner-status {
@@ -224,6 +350,45 @@ button span {
     font-size: 12px;
     line-height: 1.4;
     color: #96647a;
+}
+
+.owner-history-title {
+    margin-top: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #7e4059;
+}
+
+.owner-promo-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 13px 14px;
+    background: #fff;
+    border: 1px solid #f0dce5;
+    border-radius: 16px;
+}
+
+.owner-promo-main {
+    min-width: 0;
+}
+
+.owner-promo-code {
+    font-size: 14px;
+    font-weight: 700;
+    color: #6d304a;
+    overflow-wrap: anywhere;
+}
+
+.admin-empty {
+    padding: 16px;
+    border-radius: 15px;
+    background: #fff;
+    border: 1px dashed #efd8e2;
+    text-align: center;
+    font-size: 12px;
+    color: #ad8294;
 }
 
 .subpage-header {
@@ -383,12 +548,21 @@ button span {
     color: #b18899;
 }
 
+@media (max-width: 420px) {
+    .owner-two-columns,
+    .owner-adjust-actions {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 380px) {
-    .promo-row {
+    .promo-row,
+    .admin-search-row {
         grid-template-columns: 1fr;
     }
 
-    .promo-row button {
+    .promo-row button,
+    .admin-search-row button {
         width: 100%;
     }
 
