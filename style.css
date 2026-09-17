@@ -1,0 +1,103 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background:
+        radial-gradient(circle at top, #fff7fa 0%, #fff 55%);
+    color: #5e263d;
+}
+
+.app {
+    max-width: 520px;
+    margin: auto;
+    min-height: 100vh;
+    padding: 24px 18px;
+}
+
+header {
+    margin-bottom: 30px;
+}
+
+.logo {
+    font-size: 28px;
+    font-weight: 700;
+    color: #a62f62;
+}
+
+.username {
+    margin-top: 5px;
+    font-size: 14px;
+    color: #aa728a;
+}
+
+.balance-card {
+    background: linear-gradient(145deg, #fff, #fff1f6);
+    border: 1px solid #f6dce7;
+    border-radius: 28px;
+    padding: 28px;
+    box-shadow: 0 14px 40px rgba(137, 41, 82, 0.08);
+}
+
+.balance-label {
+    font-size: 14px;
+    color: #a87088;
+}
+
+.balance {
+    margin-top: 10px;
+    font-size: 46px;
+    font-weight: 700;
+    color: #8f2955;
+}
+
+.currency {
+    font-size: 30px;
+}
+
+.currency-name {
+    margin-top: 5px;
+    color: #bb7f98;
+}
+
+.actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 18px;
+}
+
+button {
+    border: 0;
+    background: #fff0f6;
+    color: #922954;
+    border-radius: 18px;
+    padding: 16px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+button span {
+    margin-right: 6px;
+}
+
+.history {
+    margin-top: 30px;
+}
+
+.history h2 {
+    font-size: 18px;
+}
+
+.empty {
+    margin-top: 15px;
+    background: #fff;
+    border: 1px solid #f2dce5;
+    border-radius: 20px;
+    padding: 25px;
+    text-align: center;
+    color: #aa8092;
+}
