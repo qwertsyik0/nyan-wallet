@@ -6,6 +6,7 @@ if (tg) {
     tg.expand();
 }
 
+const loadingView = document.getElementById("loading-view");
 const usernameEl = document.getElementById("username");
 const balanceEl = document.getElementById("balance");
 const currencyNameEl = document.getElementById("currency-name");
@@ -47,6 +48,7 @@ const ownerPromoList = document.getElementById("owner-promo-list");
 
 let currentUser = null;
 let selectedOwnerUserId = null;
+let initialLoadFinished = false;
 
 const unsafeUser = tg?.initDataUnsafe?.user;
 if (unsafeUser) {
@@ -69,7 +71,15 @@ async function readJson(response) {
     }
 }
 
+function finishInitialLoad() {
+    if (initialLoadFinished) return;
+    initialLoadFinished = true;
+    loadingView?.classList.add("hidden");
+    walletView.classList.remove("hidden");
+}
+
 function showWalletView() {
+    loadingView?.classList.add("hidden");
     earnView.classList.add("hidden");
     ownerView.classList.add("hidden");
     walletView.classList.remove("hidden");
@@ -554,6 +564,7 @@ function applyUserState(user) {
 async function loadWallet() {
     if (!tg?.initData) {
         balanceEl.textContent = "0";
+        finishInitialLoad();
         return;
     }
 
@@ -570,6 +581,8 @@ async function loadWallet() {
     } catch (error) {
         console.error("Nyan Wallet API error:", error);
         balanceEl.textContent = "0";
+    } finally {
+        finishInitialLoad();
     }
 }
 
