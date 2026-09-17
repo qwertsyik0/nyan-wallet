@@ -55,7 +55,7 @@ if (tg?.BackButton?.onClick) {
     });
 }
 
-promoActivate?.addEventListener("click", () => {
+async function activatePromo() {
     const code = promoCode.value.trim();
 
     if (!code) {
@@ -64,8 +64,57 @@ promoActivate?.addEventListener("click", () => {
         return;
     }
 
-    promoStatus.textContent = "Проверку промокодов подключим следующим этапом.";
-    tg?.HapticFeedback?.notificationOccurred?.("warning");
+    if (!tg?.initData) {
+        promoStatus.textContent = "Откройте кошелёк через Telegram.";
+        return;
+    }
+
+    promoActivate.disabled = true;
+    promoActivate.textContent = "Проверяем…";
+    promoStatus.textContent = "";
+
+    try {
+        const response = await fetch(`${API_BASE}/api/promo/redeem`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Telegram-Init-Data": tg.initData,
+            },
+            body: JSON.stringify({ code }),
+        });
+
+        let data = {};
+        try {
+            data = await response.json();
+        } catch (_) {
+            data = {};
+        }
+
+        if (!response.ok) {
+            throw new Error(data?.detail || "Не удалось активировать промокод");
+        }
+
+        balanceEl.textContent = data.balance ?? balanceEl.textContent;
+        promoCode.value = "";
+        promoStatus.textContent = `Готово: +${data.reward} 🐾. Баланс: ${data.balance} 🐾`;
+        tg?.HapticFeedback?.notificationOccurred?.("success");
+
+        await loadWallet();
+    } catch (error) {
+        promoStatus.textContent = error.message || "Не удалось активировать промокод";
+        tg?.HapticFeedback?.notificationOccurred?.("error");
+    } finally {
+        promoActivate.disabled = false;
+        promoActivate.textContent = "Активировать";
+    }
+}
+
+promoActivate?.addEventListener("click", activatePromo);
+
+promoCode?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+        activatePromo();
+    }
 });
 
 promoCode?.addEventListener("input", () => {
