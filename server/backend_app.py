@@ -22,6 +22,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     create_engine,
+    func,
     select,
 )
 from sqlalchemy.exc import IntegrityError
@@ -32,11 +33,18 @@ load_dotenv(ROOT / ".env")
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 DATABASE_URL = os.getenv("DATABASE_URL") or f"sqlite:///{ROOT / 'wallet.db'}"
+OWNER_TELEGRAM_ID_RAW = os.getenv("OWNER_TELEGRAM_ID", "").strip()
 
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN отсутствует")
 
-# Render may provide postgres://; SQLAlchemy/psycopg expects postgresql+psycopg://
+OWNER_TELEGRAM_ID: int | None = None
+if OWNER_TELEGRAM_ID_RAW:
+    try:
+        OWNER_TELEGRAM_ID = int(OWNER_TELEGRAM_ID_RAW)
+    except ValueError as exc:
+        raise RuntimeError("OWNER_TELEGRAM_ID должен быть числом") from exc
+
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
 elif DATABASE_URL.startswith("postgresql://"):
@@ -127,9 +135,15 @@ class PromoRedeemRequest(BaseModel):
     code: str = Field(min_length=1, max_length=32)
 
 
+class OwnerGrantRequest(BaseModel):
+    target: str = Field(min_length=1, max_length=64)
+    amount: int = Field(ge=1, le=10_000_000)
+    reason: str | None = Field(default=None, max_length=200)
+
+
 Base.metadata.create_all(engine)
 
-app = FastAPI(title="Nyan Wallet API", version="1.2.0")
+app = FastAPI(title="Nyan Wallet API", version="1.3.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -139,12 +153,20 @@ app.add_middleware(
     allow_headers=["Content-Type", "X-Telegram-Init-Data"],
 )
 
-
 PROMO_PATTERN = re.compile(r"^[A-Z0-9_-]{2,32}$")
 
 
 def now_utc() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def is_owner(telegram_id: int) -> bool:
+    return OWNER_TELEGRAM_ID is not None and telegram_id == OWNER_TELEGRAM_ID
+
+
+def require_owner(tg_user: dict) -> None:
+    if not is_owner(tg_user["id"]):
+        raise HTTPException(status_code=403, detail="Доступ только для владельца")
 
 
 def normalize_promo_code(value: str) -> str:
@@ -274,6 +296,20 @@ def apply_telegram_profile(user: User, tg_user: dict, timestamp: datetime) -> No
     user.last_seen_at = timestamp
 
 
+def serialize_user(user: User) -> dict:
+    owner = is_owner(user.telegram_id)
+    return {
+        "telegram_id": user.telegram_id,
+        "username": user.username,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "balance": user.balance,
+        "is_owner": owner,
+        "unlimited_balance": owner,
+        "created_at": user.created_at.isoformat(),
+    }
+
+
 def get_or_create_user(tg_user: dict) -> dict:
     telegram_id = tg_user["id"]
     timestamp = now_utc()
@@ -306,14 +342,7 @@ def get_or_create_user(tg_user: dict) -> dict:
         ).all()
 
         return {
-            "user": {
-                "telegram_id": user.telegram_id,
-                "username": user.username,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "balance": user.balance,
-                "created_at": user.created_at.isoformat(),
-            },
+            "user": serialize_user(user),
             "transactions": [
                 {
                     "id": tx.id,
@@ -427,6 +456,67 @@ def redeem_promo(tg_user: dict, raw_code: str) -> dict:
         raise HTTPException(status_code=409, detail="Вы уже активировали этот промокод") from exc
 
 
+def find_target_user(session, raw_target: str, lock: bool = False) -> User | None:
+    target = raw_target.strip()
+    if not target:
+        return None
+
+    if target.startswith("@"):
+        target = target[1:]
+
+    query = select(User)
+
+    if target.isdigit():
+        query = query.where(User.telegram_id == int(target))
+    else:
+        query = query.where(func.lower(User.username) == target.lower())
+
+    if lock:
+        query = query.with_for_update()
+
+    return session.scalar(query)
+
+
+def grant_lapcoins(tg_user: dict, payload: OwnerGrantRequest) -> dict:
+    require_owner(tg_user)
+    timestamp = now_utc()
+    reason = (payload.reason or "").strip()
+
+    with SessionLocal() as session:
+        with session.begin():
+            target_user = find_target_user(session, payload.target, lock=True)
+            if target_user is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Пользователь не найден. Он должен хотя бы один раз открыть Nyan Wallet.",
+                )
+
+            target_user.balance += payload.amount
+            description = reason or "Начисление владельцем"
+
+            transaction = Transaction(
+                telegram_id=target_user.telegram_id,
+                amount=payload.amount,
+                operation_type="owner_grant",
+                description=description,
+                created_at=timestamp,
+            )
+            session.add(transaction)
+            session.flush()
+
+            result = {
+                "telegram_id": target_user.telegram_id,
+                "username": target_user.username,
+                "first_name": target_user.first_name,
+                "amount": payload.amount,
+                "balance": target_user.balance,
+                "reason": reason or None,
+                "transaction_id": transaction.id,
+            }
+
+    return result
+
+
 @app.get("/api/health")
 async def health():
     return {
@@ -457,3 +547,15 @@ async def promo_redeem(
 ):
     tg_user = verify_init_data(x_telegram_init_data or "")
     return {"ok": True, **redeem_promo(tg_user, payload.code)}
+
+
+@app.post("/api/owner/grant")
+async def owner_grant(
+    payload: OwnerGrantRequest,
+    x_telegram_init_data: str | None = Header(
+        default=None,
+        alias="X-Telegram-Init-Data",
+    ),
+):
+    tg_user = verify_init_data(x_telegram_init_data or "")
+    return {"ok": True, "grant": grant_lapcoins(tg_user, payload)}
