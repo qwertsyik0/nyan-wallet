@@ -124,7 +124,9 @@ async def handle_discussion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if message.is_automatic_forward:
         await asyncio.sleep(random.uniform(1.5, 3.5))
         try:
-            await message.reply_text(choose_phrase("post", POST_COMMENTS))
+            await message.reply_text(
+                choose_phrase("post", POST_COMMENTS) + "\n\n@nyancash_bot"
+            )
         except Exception:
             logger.exception("Не удалось оставить первый комментарий")
         return
@@ -151,7 +153,9 @@ async def handle_discussion(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         await asyncio.sleep(random.uniform(1.0, 2.8))
-        await message.reply_text(choose_phrase("reply", REPLIES))
+        await message.reply_text(
+            choose_phrase("reply", REPLIES) + "\n\n@nyancash_bot"
+        )
     except Exception:
         logger.exception("Не удалось ответить в комментариях")
         return
