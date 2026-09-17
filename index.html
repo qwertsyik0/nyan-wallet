@@ -6,7 +6,7 @@
     <title>Nyan Wallet</title>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="./style.css?v=20260917-4">
+    <link rel="stylesheet" href="./style.css?v=20260917-6">
 </head>
 <body>
 
@@ -57,14 +57,27 @@
             </div>
         </div>
 
-        <section id="owner-panel" class="owner-panel">
-            <div class="owner-title">Начислить лапкоины</div>
-            <div class="owner-subtitle">Начисление сразу появится в истории пользователя</div>
+        <section class="admin-section">
+            <div class="owner-title">Пользователи</div>
+            <div class="owner-subtitle">Поиск по @username, имени или Telegram ID</div>
 
-            <label class="owner-field">
-                <span>Пользователь</span>
-                <input id="owner-target" type="text" autocomplete="off" placeholder="@username или Telegram ID" maxlength="64">
-            </label>
+            <div class="admin-search-row">
+                <input id="owner-user-search" type="text" autocomplete="off" placeholder="Найти пользователя" maxlength="64">
+                <button id="owner-user-search-button" type="button">Найти</button>
+            </div>
+
+            <div id="owner-users-status" class="owner-status" aria-live="polite"></div>
+            <div id="owner-users-list" class="owner-users-list"></div>
+        </section>
+
+        <section id="owner-user-card" class="admin-section" hidden>
+            <div class="selected-user-head">
+                <div>
+                    <div id="selected-user-name" class="owner-title">Пользователь</div>
+                    <div id="selected-user-meta" class="owner-subtitle"></div>
+                </div>
+                <div id="selected-user-balance" class="selected-user-balance">0 🐾</div>
+            </div>
 
             <label class="owner-field">
                 <span>Количество</span>
@@ -76,8 +89,50 @@
                 <input id="owner-reason" type="text" autocomplete="off" placeholder="Например, за отзыв" maxlength="200">
             </label>
 
-            <button id="owner-grant" class="owner-grant-button" type="button">Начислить</button>
+            <div class="owner-adjust-actions">
+                <button id="owner-grant" class="owner-grant-button" type="button">Начислить</button>
+                <button id="owner-debit" class="owner-debit-button" type="button">Списать</button>
+            </div>
             <div id="owner-status" class="owner-status" aria-live="polite"></div>
+
+            <div class="owner-history-title">Последние операции пользователя</div>
+            <div id="owner-user-history" class="owner-user-history"></div>
+        </section>
+
+        <section class="admin-section">
+            <div class="owner-title">Промокоды</div>
+            <div class="owner-subtitle">Создать новый код на лапкоины</div>
+
+            <label class="owner-field">
+                <span>Код</span>
+                <input id="owner-promo-code" type="text" autocomplete="off" placeholder="Например, NYAN100" maxlength="32">
+            </label>
+
+            <div class="owner-two-columns">
+                <label class="owner-field">
+                    <span>Награда 🐾</span>
+                    <input id="owner-promo-reward" type="number" inputmode="numeric" min="1" max="10000000" placeholder="100">
+                </label>
+
+                <label class="owner-field">
+                    <span>Лимит активаций <small>необязательно</small></span>
+                    <input id="owner-promo-limit" type="number" inputmode="numeric" min="1" max="1000000" placeholder="Без лимита">
+                </label>
+            </div>
+
+            <label class="owner-field">
+                <span>Действует до <small>необязательно</small></span>
+                <input id="owner-promo-expires" type="datetime-local">
+            </label>
+
+            <label class="owner-field">
+                <span>Описание <small>необязательно</small></span>
+                <input id="owner-promo-description" type="text" autocomplete="off" placeholder="Например, осенний промокод" maxlength="200">
+            </label>
+
+            <button id="owner-promo-create" class="owner-grant-button" type="button">Создать промокод</button>
+            <div id="owner-promo-status" class="owner-status" aria-live="polite"></div>
+            <div id="owner-promo-list" class="owner-promo-list"></div>
         </section>
     </main>
 
@@ -156,6 +211,6 @@
     </main>
 </div>
 
-<script src="./app.js?v=20260917-5"></script>
+<script src="./app.js?v=20260917-6"></script>
 </body>
 </html>
