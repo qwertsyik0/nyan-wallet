@@ -84,7 +84,12 @@ button {
     cursor: pointer;
 }
 
-button:active {
+button:disabled {
+    cursor: default;
+    opacity: 0.65;
+}
+
+button:active:not(:disabled) {
     transform: scale(0.99);
 }
 
@@ -141,6 +146,80 @@ button span {
     white-space: nowrap;
     font-weight: 700;
     color: #922954;
+}
+
+.owner-panel {
+    margin-top: 18px;
+    padding: 20px;
+    background: linear-gradient(145deg, #fff, #fff5f8);
+    border: 1px solid #efd5e1;
+    border-radius: 24px;
+    box-shadow: 0 12px 32px rgba(137, 41, 82, 0.07);
+}
+
+.owner-panel[hidden] {
+    display: none;
+}
+
+.owner-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #7e284c;
+}
+
+.owner-subtitle {
+    margin-top: 5px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: #a67589;
+}
+
+.owner-field {
+    display: block;
+    margin-top: 12px;
+}
+
+.owner-field > span {
+    display: block;
+    margin: 0 2px 7px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #88556c;
+}
+
+.owner-field small {
+    font-size: 11px;
+    font-weight: 400;
+    color: #b48c9e;
+}
+
+.owner-field input {
+    width: 100%;
+    border: 1px solid #efd8e2;
+    outline: none;
+    background: #fff;
+    color: #5e263d;
+    border-radius: 15px;
+    padding: 14px;
+    font-size: 14px;
+}
+
+.owner-field input:focus {
+    border-color: #dca4bc;
+}
+
+.owner-grant-button {
+    margin-top: 15px;
+    background: #922954;
+    color: #fff;
+}
+
+.owner-status {
+    min-height: 18px;
+    margin-top: 10px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #96647a;
 }
 
 .subpage-header {
