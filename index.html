@@ -6,7 +6,7 @@
     <title>Nyan Wallet</title>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="./style.css?v=20260917-2">
 </head>
 <body>
 
@@ -27,7 +27,12 @@
         </section>
 
         <section class="actions">
-            <button id="earn-button" class="primary-action" type="button">
+            <button
+                id="earn-button"
+                class="primary-action"
+                type="button"
+                onclick="document.getElementById('wallet-view').classList.add('hidden'); document.getElementById('earn-view').classList.remove('hidden'); window.scrollTo(0, 0);"
+            >
                 <span>＋</span>
                 Заработать
             </button>
@@ -41,7 +46,13 @@
 
     <main id="earn-view" class="view hidden">
         <div class="subpage-header">
-            <button id="earn-back" class="back-button" type="button" aria-label="Назад">‹</button>
+            <button
+                id="earn-back"
+                class="back-button"
+                type="button"
+                aria-label="Назад"
+                onclick="document.getElementById('earn-view').classList.add('hidden'); document.getElementById('wallet-view').classList.remove('hidden'); window.scrollTo(0, 0);"
+            >‹</button>
             <div>
                 <div class="page-title">Заработать лапкоины</div>
                 <div class="page-subtitle">Способы получать 🐾 в экосистеме Нян</div>
@@ -108,6 +119,6 @@
     </main>
 </div>
 
-<script src="./app.js"></script>
+<script src="./app.js?v=20260917-2"></script>
 </body>
 </html>
