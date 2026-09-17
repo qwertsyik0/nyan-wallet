@@ -13,9 +13,11 @@ from .promo_notify import register_promo_notify
 from .instant_notifications import register_instant_notifications
 from .advanced_features import register_advanced_features
 from .release_hardening import register_release_hardening
+from .achievements import register_achievements
 
 register_extended_features(backend_app.app)
 register_promo_notify(backend_app.app)
 register_instant_notifications()
 register_advanced_features(backend_app.app)
 register_release_hardening(backend_app.app)
+register_achievements(backend_app.app)
