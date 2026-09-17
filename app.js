@@ -49,18 +49,6 @@ const ownerPromoList = document.getElementById("owner-promo-list");
 let currentUser = null;
 let selectedOwnerUserId = null;
 let initialLoadFinished = false;
-const WALLET_REQUEST_TIMEOUT_MS = 15000;
-
-async function fetchWithTimeout(url, options = {}, timeoutMs = WALLET_REQUEST_TIMEOUT_MS) {
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
-
-    try {
-        return await fetch(url, { ...options, signal: controller.signal });
-    } finally {
-        window.clearTimeout(timeoutId);
-    }
-}
 
 const unsafeUser = tg?.initDataUnsafe?.user;
 if (unsafeUser) {
@@ -86,7 +74,6 @@ async function readJson(response) {
 function finishInitialLoad() {
     if (initialLoadFinished) return;
     initialLoadFinished = true;
-    window.clearTimeout(window.__nyanInitialLoadFallback);
     loadingView?.classList.add("hidden");
     walletView.classList.remove("hidden");
 }
@@ -582,7 +569,7 @@ async function loadWallet() {
     }
 
     try {
-        const response = await fetchWithTimeout(`${API_BASE}/api/me`, {
+        const response = await fetch(`${API_BASE}/api/me`, {
             headers: authHeaders(),
         });
         const data = await readJson(response);
