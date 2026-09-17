@@ -38,6 +38,7 @@ def read_chat_id():
 
 discussion_chat_id = read_chat_id()
 last_phrase = {"post": None, "reply": None}
+human_message_count = 0
 
 POST_COMMENTS = (
     "Нян Кэш уже тут и ставит лапку одобрения 🐾",
@@ -108,6 +109,8 @@ async def bind_comments(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_discussion(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global human_message_count
+
     message = update.effective_message
     chat = update.effective_chat
 
@@ -133,6 +136,10 @@ async def handle_discussion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if message.text and message.text.startswith("/"):
         return
     if message.text is None and message.caption is None and message.effective_attachment is None:
+        return
+
+    human_message_count += 1
+    if human_message_count % 3 != 0:
         return
 
     try:
