@@ -6,50 +6,108 @@
     <title>Nyan Wallet</title>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
     <link rel="stylesheet" href="./style.css">
 </head>
-
 <body>
 
 <div class="app">
+    <main id="wallet-view" class="view">
+        <header>
+            <div class="logo">Nyan Wallet</div>
+            <div class="username" id="username">кошелёк Нян</div>
+        </header>
 
-    <header>
-        <div class="logo">Nyan Wallet</div>
-        <div class="username" id="username">кошелёк Нян</div>
-    </header>
+        <section class="balance-card">
+            <div class="balance-label">ваш баланс</div>
+            <div class="balance">
+                <span id="balance">0</span>
+                <span class="currency">🐾</span>
+            </div>
+            <div class="currency-name">лапкоинов</div>
+        </section>
 
-    <section class="balance-card">
-        <div class="balance-label">ваш баланс</div>
+        <section class="actions">
+            <button id="earn-button" class="primary-action" type="button">
+                <span>＋</span>
+                Заработать
+            </button>
+        </section>
 
-        <div class="balance">
-            <span id="balance">0</span>
-            <span class="currency">🐾</span>
+        <section class="history">
+            <h2>Последние операции</h2>
+            <div class="empty">Здесь появится история ваших операций</div>
+        </section>
+    </main>
+
+    <main id="earn-view" class="view hidden">
+        <div class="subpage-header">
+            <button id="earn-back" class="back-button" type="button" aria-label="Назад">‹</button>
+            <div>
+                <div class="page-title">Заработать лапкоины</div>
+                <div class="page-subtitle">Способы получать 🐾 в экосистеме Нян</div>
+            </div>
         </div>
 
-        <div class="currency-name">лапкоинов</div>
-    </section>
+        <section class="earn-list">
+            <article class="earn-card">
+                <div class="earn-icon">🛍️</div>
+                <div class="earn-content">
+                    <div class="earn-topline">
+                        <h3>Покупки в Нян Шопе</h3>
+                        <span class="reward-badge">5%</span>
+                    </div>
+                    <p>Получайте лапкоины с каждой покупки. Например, покупка на 100 ₽ даст +5 🐾.</p>
+                </div>
+            </article>
 
-    <section class="actions">
-        <button>
-            <span>＋</span>
-            Заработать
-        </button>
-    </section>
+            <article class="earn-card">
+                <div class="earn-icon">🎁</div>
+                <div class="earn-content">
+                    <div class="earn-topline">
+                        <h3>Первая покупка</h3>
+                        <span class="reward-badge">+25 🐾</span>
+                    </div>
+                    <p>Разовый бонус за первую покупку в Нян Шопе.</p>
+                </div>
+            </article>
 
-    <section class="history">
+            <article class="earn-card">
+                <div class="earn-icon">💬</div>
+                <div class="earn-content">
+                    <div class="earn-topline">
+                        <h3>Отзыв</h3>
+                        <span class="reward-badge">+10 🐾</span>
+                    </div>
+                    <p>Оставьте подтверждённый отзыв о покупке и получите награду.</p>
+                </div>
+            </article>
 
-        <h2>Последние операции</h2>
+            <article class="earn-card">
+                <div class="earn-icon">✨</div>
+                <div class="earn-content">
+                    <div class="earn-topline">
+                        <h3>Опросы и активности</h3>
+                        <span class="reward-badge">+5–100 🐾</span>
+                    </div>
+                    <p>Участвуйте в отдельных опросах, событиях и активностях Нян.</p>
+                </div>
+            </article>
+        </section>
 
-        <div class="empty">
-            Здесь появится история ваших операций
-        </div>
+        <section class="promo-card">
+            <div class="promo-title">Есть промокод?</div>
+            <div class="promo-subtitle">Некоторые коды дают дополнительные лапкоины.</div>
+            <div class="promo-row">
+                <input id="promo-code" type="text" inputmode="text" autocomplete="off" placeholder="Введите код" maxlength="32">
+                <button id="promo-activate" type="button">Активировать</button>
+            </div>
+            <div id="promo-status" class="promo-status" aria-live="polite"></div>
+        </section>
 
-    </section>
-
+        <div class="earn-note">Лапкоины нельзя купить за реальные деньги или обменять обратно на деньги.</div>
+    </main>
 </div>
 
 <script src="./app.js"></script>
-
 </body>
 </html>
