@@ -10,7 +10,6 @@ COMMENTS_CODE = r'''import asyncio
 import logging
 import os
 import random
-import time
 from pathlib import Path
 
 from dotenv import load_dotenv, set_key
@@ -39,8 +38,6 @@ def read_chat_id():
 
 discussion_chat_id = read_chat_id()
 last_phrase = {"post": None, "reply": None}
-last_chat_reply_at = 0.0
-last_user_reply_at = {}
 
 POST_COMMENTS = (
     "Нян Кэш уже тут и ставит лапку одобрения 🐾",
@@ -111,8 +108,6 @@ async def bind_comments(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_discussion(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global last_chat_reply_at
-
     message = update.effective_message
     chat = update.effective_chat
 
@@ -137,33 +132,16 @@ async def handle_discussion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if message.text and message.text.startswith("/"):
         return
-    if message.reply_to_message is None:
-        return
-    if not (message.text or message.caption):
-        return
-
-    now = time.monotonic()
-
-    if now - last_chat_reply_at < 20:
-        return
-    if now - last_user_reply_at.get(user.id, 0.0) < 120:
-        return
-    if random.random() > 0.45:
+    if message.text is None and message.caption is None and message.effective_attachment is None:
         return
 
     try:
-        await asyncio.sleep(random.uniform(1.0, 2.8))
         await message.reply_text(
             choose_phrase("reply", REPLIES) + "\n\n@nyancash_bot"
         )
     except Exception:
         logger.exception("Не удалось ответить в комментариях")
         return
-
-    sent_at = time.monotonic()
-    last_chat_reply_at = sent_at
-    last_user_reply_at[user.id] = sent_at
-
 
 def register_comments_handlers(app: Application):
     app.add_handler(CommandHandler("bindcomments", bind_comments), group=0)
