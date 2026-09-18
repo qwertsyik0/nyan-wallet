@@ -68,7 +68,7 @@ jobs:
           src = gzip.decompress(base64.b64decode(Path("bot_addons/giveaway_bot.py.gz.b64").read_bytes(), validate=True)).decode("utf-8")
           lines = src.splitlines()
           for i, line in enumerate(lines, 1):
-              if "def register_giveaway_handlers" in line or "async def giveaway_callback" in line or "async def giveaways_command" in line:
+              if "def register_giveaway_handlers" in line or "async def callback_handler" in line or "async def giveaways_command" in line or "async def _tg(" in line:
                   print(f"=== {i}: {line} ===")
                   for no in range(max(1, i-10), min(len(lines), i+85)+1):
                       print(f"{no}: {lines[no-1]}")
