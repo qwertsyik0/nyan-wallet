@@ -725,7 +725,13 @@ def telegram_api(method: str, payload: dict, timeout: int = 12):
     return data.get("result")
 
 
-def giveaway_keyboard(public_id: str, closed: bool = False) -> dict:
+def giveaway_keyboard(public_id: str, closed: bool = False, paused: bool = False) -> dict:
+    if paused:
+        return {
+            "inline_keyboard": [[
+                {"text": "Розыгрыш временно приостановлен", "callback_data": f"nyg:paused:{public_id}"}
+            ]]
+        }
     if closed:
         return {
             "inline_keyboard": [[
@@ -884,7 +890,11 @@ def replace_giveaway_posts_locked(
     ).all()
 
     closed = giveaway.status in {"awaiting_results", "completed", "cancelled"}
-    keyboard = giveaway_keyboard(giveaway.public_id or "", closed=closed)
+    keyboard = giveaway_keyboard(
+        giveaway.public_id or "",
+        closed=closed,
+        paused=giveaway.status == "paused",
+    )
     sent: list[tuple[int, list[int]]] = []
     new_posts: list[GiveawayPost] = []
     timestamp = now_utc()
@@ -1056,7 +1066,11 @@ def sync_giveaway_buttons(session, giveaway: Giveaway, closed: bool) -> None:
         if current is None or post.message_id > current.message_id:
             last_by_chat[post.chat_id] = post
 
-    keyboard = giveaway_keyboard(giveaway.public_id or "", closed=closed)
+    keyboard = giveaway_keyboard(
+        giveaway.public_id or "",
+        closed=closed,
+        paused=giveaway.status == "paused",
+    )
     timestamp = now_utc()
     for post in last_by_chat.values():
         try:
@@ -2003,7 +2017,7 @@ async def internal_giveaway_pause(
                 raise HTTPException(status_code=409, detail="На паузу можно поставить только активный розыгрыш")
             row.status = "paused"
             row.updated_at = now_utc()
-            sync_giveaway_buttons(session, row, closed=True)
+            sync_giveaway_buttons(session, row, closed=False)
     return {"ok": True, "status": "paused"}
 
 
@@ -2280,6 +2294,7 @@ async def owner_giveaway_pause(
                 raise HTTPException(status_code=409, detail="На паузу можно поставить только активный розыгрыш")
             row.status = "paused"
             row.updated_at = now_utc()
+            sync_giveaway_buttons(session, row, closed=False)
     return {"ok": True, "status": "paused"}
 
 
