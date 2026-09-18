@@ -115,6 +115,7 @@ def _stats(session: Session, telegram_id: int) -> dict[str, int]:
             core.Transaction.telegram_id == telegram_id,
             core.Transaction.amount > 0,
             core.Transaction.operation_type != "achievement",
+            ~core.Transaction.operation_type.in_(("reward_refund", "giveaway_refund", "giveaway_manual_refund")),
         )
     ) or 0
     positive_tx = session.scalar(
@@ -122,6 +123,7 @@ def _stats(session: Session, telegram_id: int) -> dict[str, int]:
             core.Transaction.telegram_id == telegram_id,
             core.Transaction.amount > 0,
             core.Transaction.operation_type != "achievement",
+            ~core.Transaction.operation_type.in_(("reward_refund", "giveaway_refund", "giveaway_manual_refund")),
         )
     ) or 0
     requests = session.scalar(
