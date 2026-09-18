@@ -524,18 +524,20 @@ def validate_rank_benefits(raw: dict[str, dict]) -> dict[str, dict]:
             raise HTTPException(status_code=400, detail="Некорректные преимущества рангов")
         bonus = int(value.get("bonus_free_tickets", 0))
         discount = int(value.get("discount_percent", 0))
-        max_tickets = int(value.get("max_tickets", 10))
+        max_raw = value.get("max_tickets")
+        max_tickets = int(max_raw) if max_raw is not None else None
         if not 0 <= bonus <= 9:
             raise HTTPException(status_code=400, detail=f"Бесплатные билеты для {rank}: от 0 до 9")
         if not 0 <= discount <= 100:
             raise HTTPException(status_code=400, detail=f"Скидка для {rank}: от 0 до 100%")
-        if not 1 <= max_tickets <= 10:
+        if max_tickets is not None and not 1 <= max_tickets <= 10:
             raise HTTPException(status_code=400, detail=f"Лимит билетов для {rank}: от 1 до 10")
         result[rank] = {
             "bonus_free_tickets": bonus,
             "discount_percent": discount,
-            "max_tickets": max_tickets,
         }
+        if max_tickets is not None:
+            result[rank]["max_tickets"] = max_tickets
     return result
 
 
@@ -546,6 +548,7 @@ def validate_conditions(raw: dict) -> dict:
         "min_balance",
         "min_purchase_count",
         "min_shop_spend_rub",
+        "min_shop_spend_kopecks",
         "min_lapcoins_spent",
         "min_account_age_days",
         "achievement_key",
@@ -561,7 +564,12 @@ def validate_conditions(raw: dict) -> dict:
             if value < 0 or value > 100_000_000:
                 raise HTTPException(status_code=400, detail=f"Некорректное условие: {key}")
             result[key] = value
-    if raw.get("min_shop_spend_rub") is not None:
+    if raw.get("min_shop_spend_kopecks") is not None:
+        value = int(raw["min_shop_spend_kopecks"])
+        if value < 0 or value > 10_000_000_000:
+            raise HTTPException(status_code=400, detail="Некорректная сумма покупок")
+        result["min_shop_spend_kopecks"] = value
+    elif raw.get("min_shop_spend_rub") is not None:
         try:
             result["min_shop_spend_kopecks"] = parse_amount_kopecks(str(raw["min_shop_spend_rub"]))
         except ValueError as exc:
@@ -889,7 +897,6 @@ def join_impl(session, giveaway: Giveaway, user: core.User, source_chat_id: int 
         raise HTTPException(status_code=503 if retryable else 409, detail=reason or "Условия участия не выполнены")
 
     existing = ticket_count(session, giveaway.id, user.telegram_id)
-    participant = get_or_create_participant(session, giveaway, user, source_chat_id)
     if existing > 0:
         limit, _ = user_ticket_limit(session, giveaway, user.telegram_id)
         return {
@@ -910,6 +917,7 @@ def join_impl(session, giveaway: Giveaway, user: core.User, source_chat_id: int 
             "limit": user_ticket_limit(session, giveaway, user.telegram_id)[0],
         }
 
+    participant = get_or_create_participant(session, giveaway, user, source_chat_id)
     global_existing = ticket_count(session, giveaway.id)
     if giveaway.global_ticket_limit is not None:
         free_count = min(free_count, max(0, giveaway.global_ticket_limit - global_existing))
@@ -929,11 +937,6 @@ def join_impl(session, giveaway: Giveaway, user: core.User, source_chat_id: int 
 
 
 def purchase_tickets_impl(session, giveaway: Giveaway, user: core.User, count: int, request_key: str, source_chat_id: int | None = None) -> dict:
-    ensure_joinable(session, giveaway)
-    ok, reason, retryable = eligibility(session, giveaway, user, check_subscriptions=True)
-    if not ok:
-        raise HTTPException(status_code=503 if retryable else 409, detail=reason or "Условия участия не выполнены")
-
     previous = session.scalar(
         select(GiveawayTicketPurchase).where(
             GiveawayTicketPurchase.giveaway_id == giveaway.id,
@@ -950,6 +953,11 @@ def purchase_tickets_impl(session, giveaway: Giveaway, user: core.User, count: i
             "balance": previous.balance_after,
             "tickets": ticket_count(session, giveaway.id, user.telegram_id),
         }
+
+    ensure_joinable(session, giveaway)
+    ok, reason, retryable = eligibility(session, giveaway, user, check_subscriptions=True)
+    if not ok:
+        raise HTTPException(status_code=503 if retryable else 409, detail=reason or "Условия участия не выполнены")
 
     if giveaway.kind == "free" and not giveaway.allow_extra_tickets:
         raise HTTPException(status_code=409, detail="Дополнительные билеты в этом розыгрыше отключены")
@@ -1615,7 +1623,13 @@ async def owner_giveaway_cancel(
                 return {"ok": True, "status": "cancelled", "already_cancelled": True}
             if row.status == "completed":
                 raise HTTPException(status_code=409, detail="Завершённый розыгрыш нельзя отменить")
-            tickets = session.scalars(active_ticket_query(row.id)).all()
+            tickets = session.scalars(
+                select(GiveawayTicket).where(
+                    GiveawayTicket.giveaway_id == row.id,
+                    GiveawayTicket.paid_amount > 0,
+                    GiveawayTicket.refunded_at.is_(None),
+                )
+            ).all()
             refunded = refund_ticket_amounts(
                 session,
                 row,
