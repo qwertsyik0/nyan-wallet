@@ -259,11 +259,51 @@ async def profile(x_telegram_init_data: str | None = Header(default=None, alias=
     with core.SessionLocal() as session:
         code = ensure_ref_code(session, tg["id"])
         cfg = settings(session)
-        earned = session.scalar(select(func.coalesce(func.sum(core.Transaction.amount), 0)).where(core.Transaction.telegram_id == tg["id"], core.Transaction.amount > 0)) or 0
+        user = session.scalar(select(core.User).where(core.User.telegram_id == tg["id"]))
+        earned = session.scalar(
+            select(func.coalesce(func.sum(core.Transaction.amount), 0)).where(
+                core.Transaction.telegram_id == tg["id"],
+                core.Transaction.amount > 0,
+            )
+        ) or 0
+        spent_raw = session.scalar(
+            select(func.coalesce(func.sum(core.Transaction.amount), 0)).where(
+                core.Transaction.telegram_id == tg["id"],
+                core.Transaction.amount < 0,
+            )
+        ) or 0
         invited = session.scalar(select(func.count()).select_from(Referral).where(Referral.inviter_id == tg["id"])) or 0
+        fulfilled = session.scalar(
+            select(func.count()).select_from(SpendRequest).where(
+                SpendRequest.telegram_id == tg["id"],
+                SpendRequest.status == "fulfilled",
+            )
+        ) or 0
+        promo_uses = session.scalar(
+            select(func.count()).select_from(core.PromoRedemption).where(
+                core.PromoRedemption.telegram_id == tg["id"]
+            )
+        ) or 0
         used = session.scalar(select(Referral.id).where(Referral.invited_id == tg["id"])) is not None
         session.commit()
-        return {"ok": True, "level": level_data(int(earned), cfg), "referral": {"code": code.code, "invited_count": int(invited), "already_used_code": used}}
+        return {
+            "ok": True,
+            "level": level_data(int(earned), cfg),
+            "referral": {
+                "code": code.code,
+                "invited_count": int(invited),
+                "already_used_code": used,
+            },
+            "stats": {
+                "balance": int(user.balance) if user else 0,
+                "unlimited_balance": bool(user.unlimited_balance) if user else False,
+                "lifetime_earned": int(earned),
+                "lifetime_spent": abs(int(spent_raw)),
+                "fulfilled_rewards": int(fulfilled),
+                "promo_uses": int(promo_uses),
+                "invited_count": int(invited),
+            },
+        }
 
 
 @router.post("/api/referrals/apply")
