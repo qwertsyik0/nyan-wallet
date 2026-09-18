@@ -45,6 +45,28 @@ def adapt_giveaway_source(source: bytes) -> bytes:
 
     replacements = [
         (
+            '    if data.startswith("nyg:j:"):\n',
+            '    if data.startswith("nyg:buy:"):\n'
+            '        public_id = data.split(":", 2)[2]\n'
+            '        user = q.from_user\n'
+            '        web_url = f"https://qwertsyik0.github.io/nyan-wallet/?giveaway={public_id}"\n'
+            '        try:\n'
+            '            await _tg("sendMessage", {\n'
+            '                "chat_id": user.id,\n'
+            '                "text": f"🎟 Покупка билетов\\n\\nРозыгрыш {public_id}",\n'
+            '                "reply_markup": {"inline_keyboard": [[{\n'
+            '                    "text": "🎟 Открыть покупку билетов",\n'
+            '                    "web_app": {"url": web_url},\n'
+            '                }]]},\n'
+            '            })\n'
+            '            await q.answer("Кнопка покупки отправлена в личные сообщения.", show_alert=True)\n'
+            '        except Exception:\n'
+            '            await q.answer("Не могу написать вам. Откройте @nyancash_bot, нажмите Start и повторите.", show_alert=True)\n'
+            '        return\n'
+            '    if data.startswith("nyg:j:"):\n',
+            1,
+        ),
+        (
             '    copied_ids = await _copy_preview(state, _owner_id())\n'
             '    # Use the successful bot-authored preview as the canonical source. This makes\n'
             '    # scheduled publication independent from the owner\'s original message and\n'
@@ -94,6 +116,8 @@ def adapt_giveaway_source(source: bytes) -> bytes:
         raise InstallError("После адаптации в giveaway_bot.py осталось старое ограничение билетов")
     if 'state["post"] = {"source_chat_id": _owner_id(), "message_ids": copied_ids}' in text:
         raise InstallError("После адаптации предпросмотр всё ещё заменяет оригинальный источник поста")
+    if 'if data.startswith("nyg:buy:"):' not in text or '"web_app": {"url": web_url}' not in text:
+        raise InstallError("После адаптации отсутствует надёжный маршрут покупки билетов")
 
     try:
         compile(text, "giveaway_bot.py", "exec")
