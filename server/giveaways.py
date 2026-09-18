@@ -1988,6 +1988,106 @@ async def internal_giveaway_activate(
             return {"ok": True, "status": "active"}
 
 
+
+@router.post("/api/internal/giveaways/{public_id}/pause")
+async def internal_giveaway_pause(
+    public_id: str,
+    x_nyan_bot_key: str | None = Header(default=None, alias="X-Nyan-Bot-Key"),
+):
+    require_bot_key(x_nyan_bot_key)
+    with core.SessionLocal() as session:
+        with session.begin():
+            row = get_giveaway_locked(session, public_id)
+            refresh_state(session, row)
+            if row.status != "active":
+                raise HTTPException(status_code=409, detail="На паузу можно поставить только активный розыгрыш")
+            row.status = "paused"
+            row.updated_at = now_utc()
+            sync_giveaway_buttons(session, row, closed=True)
+    return {"ok": True, "status": "paused"}
+
+
+@router.post("/api/internal/giveaways/{public_id}/resume")
+async def internal_giveaway_resume(
+    public_id: str,
+    x_nyan_bot_key: str | None = Header(default=None, alias="X-Nyan-Bot-Key"),
+):
+    require_bot_key(x_nyan_bot_key)
+    with core.SessionLocal() as session:
+        with session.begin():
+            row = get_giveaway_locked(session, public_id)
+            if row.status != "paused":
+                raise HTTPException(status_code=409, detail="Розыгрыш не находится на паузе")
+            row.status = "active"
+            row.updated_at = now_utc()
+            refresh_state(session, row)
+            if row.status == "active":
+                sync_giveaway_buttons(session, row, closed=False)
+            else:
+                sync_giveaway_buttons(session, row, closed=True)
+            status = row.status
+    return {"ok": True, "status": status}
+
+
+@router.post("/api/internal/giveaways/{public_id}/close")
+async def internal_giveaway_close(
+    public_id: str,
+    x_nyan_bot_key: str | None = Header(default=None, alias="X-Nyan-Bot-Key"),
+):
+    require_bot_key(x_nyan_bot_key)
+    with core.SessionLocal() as session:
+        with session.begin():
+            row = get_giveaway_locked(session, public_id)
+            if row.status not in {"active", "paused", "scheduled"}:
+                raise HTTPException(status_code=409, detail="Этот розыгрыш нельзя завершить сейчас")
+            row.status = "awaiting_results"
+            row.closed_at = now_utc()
+            row.updated_at = now_utc()
+            sync_giveaway_buttons(session, row, closed=True)
+            row.owner_notified_at = None
+    return {"ok": True, "status": "awaiting_results"}
+
+
+@router.post("/api/internal/giveaways/{public_id}/cancel")
+async def internal_giveaway_cancel(
+    public_id: str,
+    x_nyan_bot_key: str | None = Header(default=None, alias="X-Nyan-Bot-Key"),
+):
+    require_bot_key(x_nyan_bot_key)
+    with core.SessionLocal() as session:
+        with session.begin():
+            row = get_giveaway_locked(session, public_id)
+            if row.status == "cancelled":
+                return {"ok": True, "status": "cancelled", "already_cancelled": True, "refunded": {}}
+            if row.status == "completed":
+                raise HTTPException(status_code=409, detail="Завершённый розыгрыш нельзя отменить")
+            tickets = session.scalars(
+                select(GiveawayTicket).where(
+                    GiveawayTicket.giveaway_id == row.id,
+                    GiveawayTicket.paid_amount > 0,
+                    GiveawayTicket.refunded_at.is_(None),
+                )
+            ).all()
+            refunded = refund_ticket_amounts(
+                session,
+                row,
+                list(tickets),
+                f"Возврат за отменённый розыгрыш {row.public_id}",
+            )
+            timestamp = now_utc()
+            participants = session.scalars(
+                select(GiveawayParticipant).where(GiveawayParticipant.giveaway_id == row.id)
+            ).all()
+            for participant in participants:
+                participant.status = "cancelled"
+                participant.updated_at = timestamp
+            row.status = "cancelled"
+            row.cancelled_at = timestamp
+            row.updated_at = timestamp
+            sync_giveaway_buttons(session, row, closed=True)
+    return {"ok": True, "status": "cancelled", "refunded": refunded}
+
+
 @router.post("/api/owner/giveaways")
 async def owner_giveaway_create(
     payload: GiveawayCreatePayload,
