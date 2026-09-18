@@ -499,36 +499,48 @@
   }
 
   function observeDynamicUI() {
-    let rewardTimer = null;
-    const observer = new MutationObserver(mutations => {
-      let rewardChanged = false;
-      let achievementChanged = false;
-      for (const mutation of mutations) {
-        const target = mutation.target;
-        if (target?.id === "reward-list" || target?.closest?.("#reward-list")) rewardChanged = true;
-        if (target?.id === "ach-grid" || target?.closest?.("#ach-grid")) achievementChanged = true;
+    let rewardObserver = null;
+    let achievementObserver = null;
+    let attachAttempts = 0;
+
+    const attach = () => {
+      attachAttempts += 1;
+
+      const rewardList = document.getElementById("reward-list");
+      if (rewardList && !rewardObserver) {
+        let rewardTimer = null;
+        rewardObserver = new MutationObserver(() => {
+          clearTimeout(rewardTimer);
+          rewardTimer = setTimeout(enhanceRewards, 60);
+        });
+        rewardObserver.observe(rewardList, { childList:true, subtree:true });
       }
-      if (rewardChanged) {
-        clearTimeout(rewardTimer);
-        rewardTimer = setTimeout(enhanceRewards, 50);
-      }
-      if (achievementChanged) {
-        setTimeout(() => {
+
+      const achGrid = document.getElementById("ach-grid");
+      if (achGrid && !achievementObserver) {
+        achievementObserver = new MutationObserver(() => {
           enhanceAchievementCards();
-          renderProfileEnhancements();
-        }, 30);
+        });
+        achievementObserver.observe(achGrid, { childList:true, subtree:false });
       }
-      if (!document.getElementById("ny-home")) ensureHome();
-      ensureProfileEnhancements();
-    });
-    observer.observe(document.body, { childList:true, subtree:true });
+
+      if ((!rewardObserver || !achievementObserver) && attachAttempts < 16) {
+        setTimeout(attach, 250);
+      }
+    };
+
+    attach();
 
     const balance = document.getElementById("balance");
     if (balance) {
+      let balanceTimer = null;
       new MutationObserver(() => {
-        renderHome();
-        enhanceRewards();
-        renderProfileEnhancements();
+        clearTimeout(balanceTimer);
+        balanceTimer = setTimeout(() => {
+          renderHome();
+          enhanceRewards();
+          renderProfileEnhancements();
+        }, 50);
       }).observe(balance, { childList:true, characterData:true, subtree:true });
     }
   }
@@ -536,18 +548,19 @@
   function bindRefreshTriggers() {
     document.getElementById("adv-profile-button")?.addEventListener("click", () => {
       setTimeout(async () => {
-        await refreshData();
+        const profile = await getJson("/api/profile");
+        if (profile) profileData = profile;
         ensureProfileEnhancements();
         renderProfileEnhancements();
         enhanceAchievementCards();
-      }, 120);
+      }, 180);
     });
     document.getElementById("spend-button")?.addEventListener("click", () => {
       setTimeout(async () => {
         const catalog = await getJson("/api/catalog");
         if (catalog) catalogData = catalog;
         enhanceRewards();
-      }, 220);
+      }, 260);
     });
   }
 
