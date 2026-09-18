@@ -23,8 +23,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Compile backend and installer
-        run: |
-          python -m py_compile server/*.py tools/install_giveaway_bot.py
+        run: python -m py_compile server/*.py tools/install_giveaway_bot.py
       - name: Validate giveaway bot payload
         run: |
           python - <<'PY'
@@ -32,16 +31,10 @@ jobs:
           import gzip
           import hashlib
           from pathlib import Path
-
           encoded = Path("bot_addons/giveaway_bot.py.gz.b64").read_bytes()
-          if hashlib.sha256(encoded).hexdigest() != "d1ab94e7703e1fb5ba467586d54a02a5b3c56d382d1d49cc54b3c3ce9540800a":
-              raise SystemExit("giveaway payload base64 SHA256 mismatch")
-
+          assert hashlib.sha256(encoded).hexdigest() == "d1ab94e7703e1fb5ba467586d54a02a5b3c56d382d1d49cc54b3c3ce9540800a"
           source = gzip.decompress(base64.b64decode(encoded, validate=True))
-          if hashlib.sha256(source).hexdigest() != "b2c8fc0749bc0066509828c6b2f0fde92542a772ae9d68d2e8350b55e6567c98":
-              raise SystemExit("giveaway_bot.py SHA256 mismatch")
-
-          Path("/tmp/giveaway_bot.py").write_bytes(source)
+          assert hashlib.sha256(source).hexdigest() == "b2c8fc0749bc0066509828c6b2f0fde92542a772ae9d68d2e8350b55e6567c98"
           compile(source.decode("utf-8"), "giveaway_bot.py", "exec")
           print("giveaway_bot payload OK")
           PY
@@ -50,26 +43,10 @@ jobs:
           python - <<'PY'
           import importlib.util
           from pathlib import Path
-
-          spec = importlib.util.spec_from_file_location(
-              "installer",
-              Path("tools/install_giveaway_bot.py"),
-          )
+          spec = importlib.util.spec_from_file_location("installer", Path("tools/install_giveaway_bot.py"))
           module = importlib.util.module_from_spec(spec)
           spec.loader.exec_module(module)
-
-          source = """from telegram.ext import Application
-from dotenv import load_dotenv
-
-load_dotenv()
-
-def main():
-    app = Application.builder().token("x").build()
-    app.run_polling(drop_pending_updates=True)
-
-if __name__ == "__main__":
-    main()
-"""
+          source = "from telegram.ext import Application\nfrom dotenv import load_dotenv\n\nload_dotenv()\n\ndef main():\n    app = Application.builder().token('x').build()\n    app.run_polling(drop_pending_updates=True)\n\nif __name__ == '__main__':\n    main()\n"
           patched = module.patch_bot(source)
           assert patched.count("from giveaway_bot import register_giveaway_handlers") == 1
           assert patched.count("register_giveaway_handlers(app)") == 1
