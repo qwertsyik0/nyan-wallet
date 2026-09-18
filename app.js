@@ -54,6 +54,36 @@ let currentUser = null;
 let selectedOwnerUserId = null;
 let initialLoadFinished = false;
 
+function giveawayDeepLinkId() {
+    const candidates = [];
+    try {
+        const url = new URL(window.location.href);
+        candidates.push(url.searchParams.get("giveaway"));
+        candidates.push(url.searchParams.get("tgWebAppStartParam"));
+        candidates.push(url.searchParams.get("startapp"));
+        const hash = url.hash.startsWith("#") ? url.hash.slice(1) : url.hash;
+        const hashParams = new URLSearchParams(hash);
+        candidates.push(hashParams.get("tgWebAppStartParam"));
+        candidates.push(hashParams.get("startapp"));
+        candidates.push(hashParams.get("giveaway"));
+    } catch (_) {}
+
+    candidates.push(tg?.initDataUnsafe?.start_param || "");
+    for (const raw of candidates) {
+        const value = String(raw || "").trim();
+        if (/^NYG-\d{6,}$/.test(value)) return value;
+        const match = value.match(/^giveaway_(NYG-\d{6,})$/);
+        if (match) return match[1];
+    }
+    return null;
+}
+
+const initialGiveawayDeepLink = giveawayDeepLinkId();
+if (initialGiveawayDeepLink) {
+    window.__nyanGiveawayDeepLink = initialGiveawayDeepLink;
+    window.__nyanGiveawayDeepLinkActive = true;
+}
+
 const unsafeUser = tg?.initDataUnsafe?.user;
 if (unsafeUser) {
     usernameEl.textContent = unsafeUser.first_name || unsafeUser.username || "пользователь";
@@ -103,7 +133,9 @@ function finishInitialLoad() {
     if (initialLoadFinished) return;
     initialLoadFinished = true;
     loadingView?.classList.add("hidden");
-    walletView.classList.remove("hidden");
+    if (!window.__nyanGiveawayDeepLinkActive) {
+        walletView.classList.remove("hidden");
+    }
 }
 
 function showWalletView() {
