@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import html
 import hmac
 import json
 import re
@@ -340,6 +341,25 @@ class GiveawayResultPost(core.Base):
     source_message_id: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="published", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class GiveawayWinnerNotification(core.Base):
+    __tablename__ = "giveaway_winner_notifications"
+    __table_args__ = (
+        UniqueConstraint("result_id", name="uq_giveaway_winner_notification_result"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    giveaway_id: Mapped[int] = mapped_column(Integer, ForeignKey("giveaways.id", ondelete="CASCADE"), nullable=False, index=True)
+    result_id: Mapped[int] = mapped_column(Integer, ForeignKey("giveaway_results.id", ondelete="CASCADE"), nullable=False, index=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class OwnerResultPublishPayload(BaseModel):
+    channel_ids: list[int] = Field(default_factory=list, max_length=100)
 
 
 class PurchaseImportPayload(BaseModel):
@@ -1008,6 +1028,205 @@ def replace_giveaway_posts_locked(
     )
     giveaway.updated_at = timestamp
     return new_posts
+
+
+def canonical_results_html(session, giveaway: Giveaway) -> str:
+    rows = session.scalars(
+        select(GiveawayResult).where(
+            GiveawayResult.giveaway_id == giveaway.id,
+            GiveawayResult.status == "active",
+        ).order_by(GiveawayResult.position.asc(), GiveawayResult.id.asc())
+    ).all()
+    if not rows:
+        raise HTTPException(status_code=409, detail="Список победителей пуст")
+
+    lines = [f"<b>Итоги розыгрыша</b>", f"<b>{html.escape(giveaway.title)}</b>", ""]
+    for row in rows:
+        user = session.get(core.User, row.telegram_id)
+        if user and user.username:
+            who = "@" + html.escape(user.username)
+        else:
+            name = "Победитель"
+            if user:
+                name = " ".join(filter(None, [user.first_name, user.last_name])) or "Победитель"
+            who = f'<a href="tg://user?id={row.telegram_id}">{html.escape(name)}</a>'
+        lines.append(
+            f"<b>{row.position} место:</b> {who}\n"
+            f"{html.escape(row.prize_text)}\n"
+            f"Билет #{int(row.ticket_number):06d}"
+        )
+    return "\n\n".join(lines)
+
+
+def notify_winners_best_effort(session, giveaway: Giveaway) -> None:
+    rows = session.scalars(
+        select(GiveawayResult).where(
+            GiveawayResult.giveaway_id == giveaway.id,
+            GiveawayResult.status == "active",
+        ).order_by(GiveawayResult.position.asc())
+    ).all()
+    timestamp = now_utc()
+    for row in rows:
+        record = session.scalar(
+            select(GiveawayWinnerNotification).where(
+                GiveawayWinnerNotification.result_id == row.id
+            )
+        )
+        if record is not None and record.sent_at is not None:
+            continue
+        if record is None:
+            record = GiveawayWinnerNotification(
+                giveaway_id=giveaway.id,
+                result_id=row.id,
+                telegram_id=row.telegram_id,
+                sent_at=None,
+                last_error=None,
+                updated_at=timestamp,
+            )
+            session.add(record)
+            session.flush()
+        try:
+            telegram_api(
+                "sendMessage",
+                {
+                    "chat_id": row.telegram_id,
+                    "text": (
+                        f"🎉 <b>Вы победили в розыгрыше!</b>\n\n"
+                        f"<b>{html.escape(giveaway.title)}</b>\n"
+                        f"{row.position} место: {html.escape(row.prize_text)}\n"
+                        f"Билет #{int(row.ticket_number):06d}"
+                    ),
+                    "parse_mode": "HTML",
+                    "disable_web_page_preview": True,
+                },
+                timeout=8,
+            )
+            record.sent_at = timestamp
+            record.last_error = None
+        except Exception as exc:
+            record.last_error = str(exc)[:2000]
+        record.updated_at = timestamp
+
+
+def publish_results_direct_locked(
+    session,
+    giveaway: Giveaway,
+    channel_ids: list[int],
+) -> list[GiveawayResultPost]:
+    if giveaway.status not in {"awaiting_results", "completed"}:
+        raise HTTPException(status_code=409, detail="Итоги можно публиковать только после выбора победителей")
+
+    text = canonical_results_html(session, giveaway)
+    allowed_channels = {
+        row.chat_id
+        for row in session.scalars(
+            select(GiveawayChannel).where(
+                GiveawayChannel.giveaway_id == giveaway.id,
+                GiveawayChannel.publish_enabled.is_(True),
+            )
+        ).all()
+    }
+    requested = []
+    raw_ids = channel_ids or sorted(allowed_channels)
+    for raw in raw_ids:
+        channel_id = int(raw)
+        if channel_id not in allowed_channels:
+            raise HTTPException(status_code=400, detail=f"Канал {channel_id} не относится к этому розыгрышу")
+        if channel_id not in requested:
+            requested.append(channel_id)
+    if not requested:
+        raise HTTPException(status_code=400, detail="У розыгрыша нет каналов для публикации итогов")
+
+    timestamp = now_utc()
+    rows: list[GiveawayResultPost] = []
+    sent_new: list[tuple[int, list[int]]] = []
+    try:
+        for channel_id in requested:
+            existing = session.scalar(
+                select(GiveawayResultPost).where(
+                    GiveawayResultPost.giveaway_id == giveaway.id,
+                    GiveawayResultPost.chat_id == channel_id,
+                    GiveawayResultPost.status.in_(("published", "stale")),
+                ).order_by(GiveawayResultPost.id.desc())
+            )
+            if existing is not None:
+                telegram_api(
+                    "editMessageText",
+                    {
+                        "chat_id": channel_id,
+                        "message_id": existing.message_id,
+                        "text": text,
+                        "parse_mode": "HTML",
+                        "disable_web_page_preview": True,
+                    },
+                )
+                existing.status = "published"
+                rows.append(existing)
+                continue
+
+            result = telegram_api(
+                "sendMessage",
+                {
+                    "chat_id": channel_id,
+                    "text": text,
+                    "parse_mode": "HTML",
+                    "disable_web_page_preview": True,
+                },
+            )
+            message_id = int(result["message_id"])
+            sent_new.append((channel_id, [message_id]))
+            row = GiveawayResultPost(
+                giveaway_id=giveaway.id,
+                chat_id=channel_id,
+                message_id=message_id,
+                source_chat_id=0,
+                source_message_id=0,
+                status="published",
+                created_at=timestamp,
+            )
+            session.add(row)
+            rows.append(row)
+        session.flush()
+        notify_winners_best_effort(session, giveaway)
+        return rows
+    except Exception as exc:
+        _cleanup_telegram_messages(sent_new)
+        if isinstance(exc, HTTPException):
+            raise
+        raise HTTPException(status_code=502, detail=f"Не удалось опубликовать итоги: {exc}") from exc
+
+
+def refresh_published_results_best_effort(session, giveaway: Giveaway) -> bool:
+    posts = session.scalars(
+        select(GiveawayResultPost).where(
+            GiveawayResultPost.giveaway_id == giveaway.id,
+            GiveawayResultPost.status.in_(("published", "stale")),
+        )
+    ).all()
+    if not posts:
+        return False
+    text = canonical_results_html(session, giveaway)
+    any_success = False
+    for post in posts:
+        try:
+            telegram_api(
+                "editMessageText",
+                {
+                    "chat_id": post.chat_id,
+                    "message_id": post.message_id,
+                    "text": text,
+                    "parse_mode": "HTML",
+                    "disable_web_page_preview": True,
+                },
+                timeout=8,
+            )
+            post.status = "published"
+            any_success = True
+        except Exception:
+            post.status = "stale"
+    if any_success:
+        notify_winners_best_effort(session, giveaway)
+    return any_success
 
 
 def publish_results_locked(
@@ -2890,11 +3109,39 @@ async def owner_result_replace(
                 old,
                 payload.reason,
             )
+            refreshed = refresh_published_results_best_effort(session, giveaway)
             return {
                 "ok": True,
                 "snapshot_sha256": snapshot_hash,
+                "publication_refreshed": refreshed,
                 "result": result_user_dict(session, new_result),
             }
+
+@router.post("/api/owner/giveaways/{public_id}/results/publish")
+async def owner_publish_results(
+    public_id: str,
+    payload: OwnerResultPublishPayload,
+    x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
+):
+    require_owner(x_telegram_init_data)
+    with core.SessionLocal() as session:
+        with session.begin():
+            giveaway = get_giveaway_locked(session, public_id)
+            rows = publish_results_direct_locked(
+                session,
+                giveaway,
+                [int(value) for value in payload.channel_ids],
+            )
+            giveaway.status = "completed"
+            giveaway.completed_at = giveaway.completed_at or now_utc()
+            giveaway.updated_at = now_utc()
+            sync_giveaway_buttons(session, giveaway, closed=True)
+            response = [
+                {"chat_id": row.chat_id, "message_id": row.message_id}
+                for row in rows
+            ]
+    return {"ok": True, "published": response, "status": "completed"}
+
 
 @router.post("/api/owner/giveaways/{public_id}/complete")
 async def owner_giveaway_complete(
@@ -2916,6 +3163,14 @@ async def owner_giveaway_complete(
             ) or 0
             if int(active_results) != int(prizes) or int(prizes) == 0:
                 raise HTTPException(status_code=409, detail="Сначала сформируйте полный список победителей")
+            published = session.scalar(
+                select(func.count()).select_from(GiveawayResultPost).where(
+                    GiveawayResultPost.giveaway_id == giveaway.id,
+                    GiveawayResultPost.status == "published",
+                )
+            ) or 0
+            if int(published) == 0:
+                raise HTTPException(status_code=409, detail="Сначала опубликуйте итоги хотя бы в один канал")
             giveaway.status = "completed"
             giveaway.completed_at = now_utc()
             giveaway.updated_at = now_utc()
@@ -3225,9 +3480,11 @@ async def internal_result_replace(
                 old,
                 payload.reason,
             )
+            refreshed = refresh_published_results_best_effort(session, giveaway)
             return {
                 "ok": True,
                 "snapshot_sha256": snapshot_hash,
+                "publication_refreshed": refreshed,
                 "result": result_user_dict(session, new_result),
             }
 
@@ -3274,6 +3531,7 @@ async def internal_publish_results(
                 giveaway.completed_at = now_utc()
                 giveaway.updated_at = now_utc()
                 sync_giveaway_buttons(session, giveaway, closed=True)
+            notify_winners_best_effort(session, giveaway)
             response = [
                 {"chat_id": row.chat_id, "message_id": row.message_id}
                 for row in rows
