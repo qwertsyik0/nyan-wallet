@@ -38,6 +38,28 @@ jobs:
           compile(source.decode("utf-8"), "giveaway_bot.py", "exec")
           print("giveaway_bot payload OK")
           PY
+      - name: Audit giveaway bot feature markers
+        run: |
+          python - <<'PY'
+          import ast, base64, gzip
+          from pathlib import Path
+          src = gzip.decompress(base64.b64decode(Path("bot_addons/giveaway_bot.py.gz.b64").read_bytes(), validate=True)).decode("utf-8")
+          tree = ast.parse(src)
+          names = sorted({
+              node.name for node in ast.walk(tree)
+              if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+              and any(key in node.name.lower() for key in ("give", "channel", "media", "result", "winner", "preview", "wizard", "cancel"))
+          })
+          print("FUNCTIONS:", " | ".join(names))
+          for no, line in enumerate(src.splitlines(), 1):
+              low = line.lower()
+              if any(key in low for key in (
+                  "chatmemberhandler", "my_chat_member", "media_group_id", "copy_message",
+                  "preview", "предпросмотр", "album", "альбом", "custom_emoji",
+                  "nyg:", "nygo:", "nygw:", "results/publish", "replace-post"
+              )):
+                  print(f"{no}: {line}")
+          PY
       - name: Test installer patch safety
         run: |
           python - <<'PY'
