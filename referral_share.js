@@ -3,6 +3,9 @@
     const API = "https://nyan-wallet-api.onrender.com";
     const BOT_URL = "https://t.me/nyancash_bot";
     let referralCode = null;
+    let codePromise = null;
+    let enhanceRunning = false;
+    let enhanceTimer = null;
 
     function headers() {
         return { "X-Telegram-Init-Data": tg?.initData || "" };
@@ -50,15 +53,21 @@
     async function getCode() {
         if (referralCode) return referralCode;
         if (!tg?.initData) return null;
-        try {
-            const response = await fetch(`${API}/api/profile`, { headers: headers() });
-            const data = await response.json();
-            if (!response.ok) return null;
-            referralCode = data?.referral?.code || null;
-            return referralCode;
-        } catch (_) {
-            return null;
-        }
+        if (codePromise) return codePromise;
+        codePromise = (async () => {
+            try {
+                const response = await fetch(`${API}/api/profile`, { headers: headers() });
+                const data = await response.json();
+                if (!response.ok) return null;
+                referralCode = data?.referral?.code || null;
+                return referralCode;
+            } catch (_) {
+                return null;
+            } finally {
+                codePromise = null;
+            }
+        })();
+        return codePromise;
     }
 
     function shareText(code) {
@@ -131,37 +140,59 @@
     }
 
     async function enhanceReferralBox() {
+        if (enhanceRunning) return;
         const box = document.getElementById("adv-referral-box");
         if (!box || box.querySelector("#ref-share-actions")) return;
+        enhanceRunning = true;
+        try {
+            let code = null;
+            const title = box.querySelector(".adv-row-title");
+            if (title) {
+                const match = title.textContent.match(/Ваш код:\s*([A-Z0-9_-]+)/i);
+                if (match) code = match[1].toUpperCase();
+            }
+            if (!code) code = await getCode();
+            if (!code || !document.body.contains(box) || box.querySelector("#ref-share-actions")) return;
+            referralCode = code;
 
-        let code = null;
-        const title = box.querySelector(".adv-row-title");
-        if (title) {
-            const match = title.textContent.match(/Ваш код:\s*([A-Z0-9_-]+)/i);
-            if (match) code = match[1].toUpperCase();
+            const target = box.querySelector(".adv-row .adv-actions") || box.querySelector(".adv-row") || box;
+            const actions = document.createElement("div");
+            actions.id = "ref-share-actions";
+            actions.className = "ref-share-actions";
+            actions.innerHTML = `
+              <button id="ref-share-button" type="button">Поделиться</button>
+              <button id="ref-qr-button" class="ref-share-secondary" type="button">QR-код</button>`;
+            target.insertAdjacentElement("afterend", actions);
+
+            actions.querySelector("#ref-share-button")?.addEventListener("click", () => share(code));
+            actions.querySelector("#ref-qr-button")?.addEventListener("click", () => showQr(code));
+        } finally {
+            enhanceRunning = false;
         }
-        if (!code) code = await getCode();
-        if (!code || !document.body.contains(box) || box.querySelector("#ref-share-actions")) return;
-        referralCode = code;
+    }
 
-        const target = box.querySelector(".adv-row .adv-actions") || box.querySelector(".adv-row") || box;
-        const actions = document.createElement("div");
-        actions.id = "ref-share-actions";
-        actions.className = "ref-share-actions";
-        actions.innerHTML = `
-          <button id="ref-share-button" type="button">Поделиться</button>
-          <button id="ref-qr-button" class="ref-share-secondary" type="button">QR-код</button>`;
-        target.insertAdjacentElement("afterend", actions);
-
-        actions.querySelector("#ref-share-button")?.addEventListener("click", () => share(code));
-        actions.querySelector("#ref-qr-button")?.addEventListener("click", () => showQr(code));
+    function scheduleEnhance(delay = 120) {
+        clearTimeout(enhanceTimer);
+        enhanceTimer = setTimeout(() => void enhanceReferralBox(), delay);
     }
 
     function watch() {
         addStyles();
-        enhanceReferralBox();
-        const observer = new MutationObserver(() => enhanceReferralBox());
-        observer.observe(document.body, { childList: true, subtree: true });
+        scheduleEnhance(50);
+
+        document.getElementById("adv-profile-button")?.addEventListener("click", () => {
+            scheduleEnhance(300);
+            setTimeout(() => scheduleEnhance(0), 900);
+        });
+
+        let tries = 0;
+        const timer = setInterval(() => {
+            tries += 1;
+            if (document.querySelector("#adv-referral-box .adv-row-title") || tries >= 12) {
+                clearInterval(timer);
+                scheduleEnhance(0);
+            }
+        }, 250);
     }
 
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", watch, { once: true });
