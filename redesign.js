@@ -278,7 +278,11 @@
     filters.innerHTML = [
       ["all", "Все"],
       ["stars", "Stars"],
-      ["premium", "Premium"],
+      ["shop", "Нян Шоп"],
+      ["gifts", "Подарки"],
+      ["giveaways", "Розыгрыши"],
+      ["boosts", "Бонусы"],
+      ["design", "Оформление"],
       ["limited", "Лимитированные"],
     ].map(([key, label]) => `<button type="button" class="ny-filter ${key === "all" ? "active" : ""}" data-filter="${key}">${label}</button>`).join("");
     list.insertAdjacentElement("beforebegin", filters);
@@ -293,12 +297,13 @@
 
   function rewardCategory(reward) {
     const title = (reward?.title || "").toLowerCase();
-    const limited = reward?.stock_limit != null || reward?.available_until;
-    return {
-      stars: title.includes("star"),
-      premium: title.includes("premium"),
-      limited: Boolean(limited),
-    };
+    const limited = reward?.stock_limit != null || reward?.available_until || title.includes("лимитирован");
+    const shop = title.includes("скидк") || title.includes("гаранти") || title.includes("замена аккаунта") || title.includes("физический аккаунт");
+    const gifts = title.includes("подарок");
+    const giveaways = title.includes("билет") || title.includes("розыгрыш");
+    const boosts = title.includes("x2 лапкоин") || title.includes("vip");
+    const design = title.includes("кошельк") || title.includes("фон") || title.includes("значок рядом");
+    return { stars: title.includes("star"), shop, gifts, giveaways, boosts, design, limited: Boolean(limited) };
   }
 
   function catalogByTitle(title) {
@@ -319,7 +324,11 @@
         if (!reward) continue;
         const category = rewardCategory(reward);
         card.dataset.nyStars = category.stars ? "1" : "0";
-        card.dataset.nyPremium = category.premium ? "1" : "0";
+        card.dataset.nyShop = category.shop ? "1" : "0";
+        card.dataset.nyGifts = category.gifts ? "1" : "0";
+        card.dataset.nyGiveaways = category.giveaways ? "1" : "0";
+        card.dataset.nyBoosts = category.boosts ? "1" : "0";
+        card.dataset.nyDesign = category.design ? "1" : "0";
         card.dataset.nyLimited = category.limited ? "1" : "0";
         card.dataset.nyRewardTitle = reward.title;
         card.classList.add("ny-reward-detail-trigger");
@@ -339,7 +348,7 @@
           extra.dataset.nySignature = signature;
           extra.innerHTML = `
             <div class="ny-reward-tags">
-              <span class="ny-reward-tag">${category.stars ? "Stars" : category.premium ? "Premium" : "Награда"}</span>
+              <span class="ny-reward-tag">${category.stars ? "Stars" : "Награда"}</span>
               ${category.limited ? '<span class="ny-reward-tag limited">Лимитированная</span>' : ""}
               <span class="ny-reward-tag ${enough ? "ready" : "short"}">${enough ? "Доступно" : "Не хватает"}</span>
             </div>
@@ -375,7 +384,11 @@
     for (const card of list.querySelectorAll(".feature-card")) {
       let show = true;
       if (activeRewardFilter === "stars") show = card.dataset.nyStars === "1";
-      if (activeRewardFilter === "premium") show = card.dataset.nyPremium === "1";
+      if (activeRewardFilter === "shop") show = card.dataset.nyShop === "1";
+      if (activeRewardFilter === "gifts") show = card.dataset.nyGifts === "1";
+      if (activeRewardFilter === "giveaways") show = card.dataset.nyGiveaways === "1";
+      if (activeRewardFilter === "boosts") show = card.dataset.nyBoosts === "1";
+      if (activeRewardFilter === "design") show = card.dataset.nyDesign === "1";
       if (activeRewardFilter === "limited") show = card.dataset.nyLimited === "1";
       card.hidden = !show;
     }
