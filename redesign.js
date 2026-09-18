@@ -390,7 +390,10 @@
       if (activeRewardFilter === "boosts") show = card.dataset.nyBoosts === "1";
       if (activeRewardFilter === "design") show = card.dataset.nyDesign === "1";
       if (activeRewardFilter === "limited") show = card.dataset.nyLimited === "1";
+      // CSS for .feature-card sets display:flex, which can override the
+      // browser's default [hidden]{display:none}. Set display explicitly.
       card.hidden = !show;
+      card.style.display = show ? "" : "none";
     }
   }
 
