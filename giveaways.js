@@ -329,7 +329,13 @@
     if (g.status === "awaiting_results" && !(d.results || []).some(function (x) { return x.status === "active"; })) controls += '<button class="nyg-primary" data-oa="draw">Выбрать победителей</button>';
     if ((d.results || []).some(function (x) { return x.status === "active"; })) controls += '<button class="nyg-secondary" data-oa="annul">Аннулировать результаты</button>';
     const activeResults = (d.results || []).filter(function (x) { return x.status === "active"; }).length;
-    if (g.status === "awaiting_results" && activeResults === (g.prizes || []).length && activeResults > 0) controls += '<button class="nyg-success" data-oa="complete">Зафиксировать результаты</button>';
+    const publishedResults = (d.result_posts || []).some(function (x) { return x.status === "published"; });
+    const staleResults = (d.result_posts || []).some(function (x) { return x.status === "stale"; });
+    if (activeResults === (g.prizes || []).length && activeResults > 0 && ["awaiting_results","completed"].includes(g.status)) {
+      controls += '<button class="nyg-success" data-oa="publish-results">' +
+        (publishedResults || staleResults ? 'Обновить итоги в каналах' : 'Опубликовать итоги во все каналы') +
+        '</button>';
+    }
     if (!["completed","cancelled"].includes(g.status)) controls += '<button class="nyg-danger" data-oa="cancel">Отменить розыгрыш</button>';
 
     const ranks = Object.entries(s.rank_distribution || {}).map(function (x) {
@@ -373,8 +379,24 @@
           if (!(await ask("Точно отменить розыгрыш? Это действие закроет участие."))) return;
         }
         if (a === "annul") { const r = promptText("Причина аннулирования результатов"); if (!r) return; body = { reason: r }; }
+        if (a === "publish-results") {
+          const channels = (d.giveaway.channels || []).filter(function (x) { return x.publish_enabled; });
+          const names = channels.map(function (x) { return x.username ? "@" + x.username : x.title; }).join(", ");
+          if (!channels.length) { status.textContent = "Нет каналов для публикации итогов"; status.className = "nyg-message error"; return; }
+          if (!(await ask("Опубликовать итоги в каналы: " + names + "?"))) return;
+          body = { channel_ids: channels.map(function (x) { return x.chat_id; }) };
+        }
         b.disabled = true; status.textContent = "Выполняем…";
-        try { await ownerAction(id, a === "annul" ? "results/annul" : a, body); await openOwnerDetail(id); }
+        try {
+          if (a === "publish-results") {
+            await api("/api/owner/giveaways/" + encodeURIComponent(id) + "/results/publish", {
+              method: "POST", body: JSON.stringify(body)
+            });
+          } else {
+            await ownerAction(id, a === "annul" ? "results/annul" : a, body);
+          }
+          await openOwnerDetail(id);
+        }
         catch (e) { status.textContent = e.message; status.className = "nyg-message error"; }
         finally { b.disabled = false; }
       });
@@ -385,9 +407,11 @@
         const r = promptText("Причина перевыбора победителя"); if (!r) return;
         b.disabled = true;
         try {
-          await api("/api/owner/giveaways/" + encodeURIComponent(id) + "/results/" + encodeURIComponent(b.dataset.replace) + "/replace", {
+          const response = await api("/api/owner/giveaways/" + encodeURIComponent(id) + "/results/" + encodeURIComponent(b.dataset.replace) + "/replace", {
             method: "POST", body: JSON.stringify({ reason: r })
-          }); await openOwnerDetail(id);
+          });
+          if (response.publication_refreshed && tg && tg.showAlert) tg.showAlert("Победитель перевыбран. Опубликованные итоги обновлены.");
+          await openOwnerDetail(id);
         } catch (e) { status.textContent = e.message; status.className = "nyg-message error"; }
         finally { b.disabled = false; }
       });
