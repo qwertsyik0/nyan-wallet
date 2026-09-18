@@ -24,6 +24,7 @@ EXPECTED_B64_SHA256 = "d1ab94e7703e1fb5ba467586d54a02a5b3c56d382d1d49cc54b3c3ce9
 EXPECTED_SOURCE_SHA256 = "b2c8fc0749bc0066509828c6b2f0fde92542a772ae9d68d2e8350b55e6567c98"
 OWNER_TELEGRAM_ID = "6289461565"
 API_BASE = "https://nyan-wallet-api.onrender.com"
+MAX_TICKETS_PER_USER = 1000
 IMPORT_LINE = "from giveaway_bot import register_giveaway_handlers"
 REGISTER_NAME = "register_giveaway_handlers"
 
@@ -34,6 +35,58 @@ class InstallError(RuntimeError):
 
 def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def adapt_giveaway_source(source: bytes) -> bytes:
+    try:
+        text = source.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise InstallError("giveaway_bot.py должен быть в UTF-8") from exc
+
+    replacements = [
+        (
+            'if value is None or value < 1 or value > 10:',
+            f'if value is None or value < 1 or value > {MAX_TICKETS_PER_USER}:',
+            1,
+        ),
+        (
+            'if not 1 <= value <= 10:',
+            f'if not 1 <= value <= {MAX_TICKETS_PER_USER}:',
+            1,
+        ),
+        (
+            'raise ValueError("Лимит должен быть от 1 до 10.")',
+            f'raise ValueError("Лимит должен быть от 1 до {MAX_TICKETS_PER_USER}.")',
+            2,
+        ),
+        (
+            'if not 0 <= value <= 9:',
+            f'if not 0 <= value <= {MAX_TICKETS_PER_USER}:',
+            1,
+        ),
+        (
+            'raise ValueError("Бонусных билетов: от 0 до 9.")',
+            f'raise ValueError("Бонусных билетов: от 0 до {MAX_TICKETS_PER_USER}.")',
+            1,
+        ),
+    ]
+
+    for old, new, expected in replacements:
+        actual = text.count(old)
+        if actual != expected:
+            raise InstallError(
+                f"Структура giveaway_bot.py изменилась: ожидалось {expected} вхождений {old!r}, найдено {actual}"
+            )
+        text = text.replace(old, new)
+
+    if 'Лимит должен быть от 1 до 10.' in text or 'Бонусных билетов: от 0 до 9.' in text:
+        raise InstallError("После адаптации в giveaway_bot.py осталось старое ограничение билетов")
+
+    try:
+        compile(text, "giveaway_bot.py", "exec")
+    except Exception as exc:
+        raise InstallError(f"Адаптированный giveaway_bot.py не компилируется: {exc}") from exc
+    return text.encode("utf-8")
 
 
 def download_payload() -> bytes:
@@ -62,7 +115,7 @@ def download_payload() -> bytes:
         compile(source.decode("utf-8"), "giveaway_bot.py", "exec")
     except Exception as exc:
         raise InstallError(f"giveaway_bot.py не проходит синтаксическую проверку: {exc}") from exc
-    return source
+    return adapt_giveaway_source(source)
 
 
 def choose_python(root: Path) -> Path:
@@ -343,7 +396,8 @@ def main() -> int:
 
     print("✅ Модуль розыгрышей установлен и проверен")
     print(f"✅ python-telegram-bot: {version}")
-    print(f"✅ giveaway_bot.py SHA256: {EXPECTED_SOURCE_SHA256}")
+    print(f"✅ исходный giveaway_bot.py SHA256 проверен: {EXPECTED_SOURCE_SHA256}")
+    print(f"✅ установленный giveaway_bot.py SHA256: {sha256_bytes(source_bytes)}")
     print("✅ bot.py и giveaway_bot.py прошли py_compile + import smoke-test")
     if bot_backup:
         print(f"📦 Бэкап bot.py: {bot_backup.name}")
