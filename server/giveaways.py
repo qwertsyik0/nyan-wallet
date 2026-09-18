@@ -1046,6 +1046,7 @@ def canonical_results_html(session, giveaway: Giveaway) -> str:
             f"🎁 <b>Приз:</b> {html.escape(row.prize_text)}\n"
             f"🎟 <b>Билет:</b> #{int(row.ticket_number):06d}"
         )
+    lines.append("🎁 <b>Приз будет выдан организаторами.</b>")
     return "\n\n".join(lines)
 
 
