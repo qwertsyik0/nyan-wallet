@@ -1610,7 +1610,10 @@ def refund_ticket_amounts(session, giveaway: Giveaway, ticket_rows: list[Giveawa
     return dict(totals)
 
 
-def eligible_pool(session, giveaway: Giveaway) -> tuple[list[GiveawayTicket], list[tuple[GiveawayParticipant, str]]]:
+def eligible_participant_ids(
+    session,
+    giveaway: Giveaway,
+) -> tuple[set[int], list[tuple[GiveawayParticipant, str]]]:
     participants = session.scalars(
         select(GiveawayParticipant).where(
             GiveawayParticipant.giveaway_id == giveaway.id,
@@ -1622,8 +1625,6 @@ def eligible_pool(session, giveaway: Giveaway) -> tuple[list[GiveawayTicket], li
     rejected: list[tuple[GiveawayParticipant, str]] = []
     locally_eligible: list[GiveawayParticipant] = []
 
-    # First evaluate every condition backed by our own database. This keeps
-    # Telegram network calls out of the path for users who already fail locally.
     for participant in participants:
         user = session.get(core.User, participant.telegram_id)
         if user is None:
@@ -1646,63 +1647,159 @@ def eligible_pool(session, giveaway: Giveaway) -> tuple[list[GiveawayTicket], li
 
     if not required_channels:
         accepted_ids.update(participant.telegram_id for participant in locally_eligible)
-    elif locally_eligible:
-        checks = [
-            (participant.telegram_id, channel.chat_id)
-            for participant in locally_eligible
-            for channel in required_channels
-        ]
-        workers = min(24, max(1, len(checks)))
-        membership: dict[tuple[int, int], tuple[bool | None, str | None]] = {}
-        with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="nyg-member") as executor:
+        return accepted_ids, rejected
+
+    # Telegram membership checks are done in bounded batches. This prevents a
+    # large giveaway from allocating one future for every user/channel pair.
+    batch_size = 100
+    workers = min(24, max(1, len(required_channels) * min(batch_size, max(1, len(locally_eligible)))))
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="nyg-member") as executor:
+        for offset in range(0, len(locally_eligible), batch_size):
+            batch = locally_eligible[offset : offset + batch_size]
             futures = {
-                executor.submit(telegram_membership, chat_id, telegram_id): (telegram_id, chat_id)
-                for telegram_id, chat_id in checks
+                executor.submit(telegram_membership, channel.chat_id, participant.telegram_id): (
+                    participant.telegram_id,
+                    channel.chat_id,
+                )
+                for participant in batch
+                for channel in required_channels
             }
+            membership: dict[tuple[int, int], tuple[bool | None, str | None]] = {}
             for future, key in futures.items():
                 try:
                     membership[key] = future.result()
                 except Exception:
                     membership[key] = (None, "Не удалось проверить подписку")
 
-        # Preserve channel order so the same first failing condition is reported
-        # consistently, even though network checks were parallel.
-        for participant in locally_eligible:
-            failed_reason = None
-            for channel in required_channels:
-                member, error = membership[(participant.telegram_id, channel.chat_id)]
-                label = f"@{channel.username}" if channel.username else channel.title
-                if member is None:
-                    raise HTTPException(
-                        status_code=503,
-                        detail=f"Не удалось проверить подписку на {label}. Попробуйте позже.",
-                    )
-                if not member:
-                    failed_reason = f"Вы не подписаны на {label}"
-                    break
-            if failed_reason:
-                rejected.append((participant, failed_reason))
-            else:
-                accepted_ids.add(participant.telegram_id)
+            for participant in batch:
+                failed_reason = None
+                for channel in required_channels:
+                    member, error = membership[(participant.telegram_id, channel.chat_id)]
+                    label = f"@{channel.username}" if channel.username else channel.title
+                    if member is None:
+                        raise HTTPException(
+                            status_code=503,
+                            detail=f"Не удалось проверить подписку на {label}. Попробуйте позже.",
+                        )
+                    if not member:
+                        failed_reason = f"Вы не подписаны на {label}"
+                        break
+                if failed_reason:
+                    rejected.append((participant, failed_reason))
+                else:
+                    accepted_ids.add(participant.telegram_id)
 
-    tickets = session.scalars(
-        select(GiveawayTicket).where(
+    return accepted_ids, rejected
+
+
+def eligible_weights(
+    session,
+    giveaway: Giveaway,
+) -> tuple[list[tuple[int, int]], list[tuple[GiveawayParticipant, str]]]:
+    accepted_ids, rejected = eligible_participant_ids(session, giveaway)
+    if not accepted_ids:
+        return [], rejected
+
+    rows = session.execute(
+        select(
+            GiveawayTicket.telegram_id,
+            func.count(GiveawayTicket.id),
+        )
+        .where(
             GiveawayTicket.giveaway_id == giveaway.id,
-            GiveawayTicket.telegram_id.in_(accepted_ids) if accepted_ids else False,
+            GiveawayTicket.telegram_id.in_(accepted_ids),
             GiveawayTicket.voided_at.is_(None),
             GiveawayTicket.refunded_at.is_(None),
-        ).order_by(GiveawayTicket.ticket_number.asc())
+        )
+        .group_by(GiveawayTicket.telegram_id)
+        .order_by(GiveawayTicket.telegram_id.asc())
     ).all()
-    return list(tickets), rejected
+    weights = [(int(telegram_id), int(count)) for telegram_id, count in rows if int(count) > 0]
+    return weights, rejected
 
 
-def selection_snapshot(tickets: list[GiveawayTicket]) -> tuple[str, str]:
-    payload = [
-        {"ticket_number": ticket.ticket_number, "telegram_id": ticket.telegram_id}
-        for ticket in tickets
-    ]
+def selection_snapshot(
+    session,
+    giveaway: Giveaway,
+    weights: list[tuple[int, int]],
+) -> tuple[str, str]:
+    accepted_ids = [telegram_id for telegram_id, count in weights if count > 0]
+    ticket_digest = hashlib.sha256()
+    if accepted_ids:
+        result = session.execute(
+            select(
+                GiveawayTicket.ticket_number,
+                GiveawayTicket.telegram_id,
+            )
+            .where(
+                GiveawayTicket.giveaway_id == giveaway.id,
+                GiveawayTicket.telegram_id.in_(accepted_ids),
+                GiveawayTicket.voided_at.is_(None),
+                GiveawayTicket.refunded_at.is_(None),
+            )
+            .order_by(GiveawayTicket.ticket_number.asc())
+        )
+        for ticket_number, telegram_id in result:
+            ticket_digest.update(f"{int(ticket_number)}:{int(telegram_id)};".encode("utf-8"))
+
+    payload = {
+        "weights": [
+            {"telegram_id": telegram_id, "ticket_count": count}
+            for telegram_id, count in weights
+            if count > 0
+        ],
+        "ticket_set_sha256": ticket_digest.hexdigest(),
+    }
     raw = json_dump(payload)
-    return raw, hashlib.sha256(raw.encode()).hexdigest()
+    return raw, hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def choose_weighted_ticket(
+    session,
+    giveaway: Giveaway,
+    weights: list[tuple[int, int]],
+    excluded_telegram_ids: set[int] | None = None,
+) -> GiveawayTicket:
+    excluded = excluded_telegram_ids or set()
+    available = [
+        (telegram_id, count)
+        for telegram_id, count in weights
+        if count > 0 and telegram_id not in excluded
+    ]
+    total = sum(count for _, count in available)
+    if total <= 0:
+        raise HTTPException(status_code=409, detail="Нет подходящих билетов для выбора")
+
+    needle = secrets.randbelow(total)
+    winner_id = None
+    winner_count = 0
+    cursor = 0
+    for telegram_id, count in available:
+        cursor += count
+        if needle < cursor:
+            winner_id = telegram_id
+            winner_count = count
+            break
+
+    if winner_id is None or winner_count <= 0:
+        raise HTTPException(status_code=500, detail="Не удалось выбрать победителя")
+
+    offset = secrets.randbelow(winner_count)
+    ticket = session.scalar(
+        select(GiveawayTicket)
+        .where(
+            GiveawayTicket.giveaway_id == giveaway.id,
+            GiveawayTicket.telegram_id == winner_id,
+            GiveawayTicket.voided_at.is_(None),
+            GiveawayTicket.refunded_at.is_(None),
+        )
+        .order_by(GiveawayTicket.ticket_number.asc())
+        .offset(offset)
+        .limit(1)
+    )
+    if ticket is None:
+        raise HTTPException(status_code=409, detail="Выбранный билет больше недоступен")
+    return ticket
 
 
 def result_user_dict(session, row: GiveawayResult) -> dict:
