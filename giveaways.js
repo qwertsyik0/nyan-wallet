@@ -57,6 +57,7 @@
   }
 
   function showWallet() {
+    window.__nyanGiveawayDeepLinkActive = false;
     hideViews();
     const wallet = document.getElementById("wallet-view");
     if (wallet) wallet.classList.remove("hidden");
@@ -564,17 +565,46 @@
   }
 
   function deepId() {
-    const q = new URLSearchParams(window.location.search).get("giveaway");
-    if (q && /^NYG-\d{6,}$/.test(q)) return q;
-    const s = tg && tg.initDataUnsafe ? (tg.initDataUnsafe.start_param || "") : "";
-    if (/^NYG-\d{6,}$/.test(s)) return s;
-    const m = s.match(/^giveaway_(NYG-\d{6,})$/); return m ? m[1] : null;
+    if (window.__nyanGiveawayDeepLink && /^NYG-\d{6,}$/.test(window.__nyanGiveawayDeepLink)) {
+      return window.__nyanGiveawayDeepLink;
+    }
+    const candidates = [];
+    try {
+      const url = new URL(window.location.href);
+      candidates.push(url.searchParams.get("giveaway"));
+      candidates.push(url.searchParams.get("tgWebAppStartParam"));
+      candidates.push(url.searchParams.get("startapp"));
+      const hash = url.hash.startsWith("#") ? url.hash.slice(1) : url.hash;
+      const hp = new URLSearchParams(hash);
+      candidates.push(hp.get("giveaway"));
+      candidates.push(hp.get("tgWebAppStartParam"));
+      candidates.push(hp.get("startapp"));
+    } catch (_) {}
+    candidates.push(tg && tg.initDataUnsafe ? (tg.initDataUnsafe.start_param || "") : "");
+
+    for (const raw of candidates) {
+      const value = String(raw || "").trim();
+      if (/^NYG-\d{6,}$/.test(value)) return value;
+      const match = value.match(/^giveaway_(NYG-\d{6,})$/);
+      if (match) return match[1];
+    }
+    return null;
   }
 
   function start() {
     ensureViews(); ensureButtons(); bindPurchaseAdmin(); bindGlobal();
     const id = deepId();
-    if (id && tg && tg.initData) setTimeout(function () { openDetail(id, "wallet-view"); }, 250);
+    if (id && tg && tg.initData) {
+      window.__nyanGiveawayDeepLink = id;
+      window.__nyanGiveawayDeepLinkActive = true;
+      openDetail(id, "wallet-view");
+      setTimeout(function () {
+        if (window.__nyanGiveawayDeepLinkActive && state.currentId === id) {
+          const detail = document.getElementById("nyg-detail-view");
+          if (detail && detail.classList.contains("hidden")) openDetail(id, "wallet-view");
+        }
+      }, 800);
+    }
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, {once:true});
