@@ -1,0 +1,130 @@
+:root{
+  --ny-bg:#fff9fb;
+  --ny-card:#fff;
+  --ny-text:#6e2147;
+  --ny-sub:#a66a84;
+  --ny-accent:#f35c9b;
+  --ny-accent-deep:#922954;
+  --ny-soft:#ffd6e7;
+  --ny-border:#efd8e2;
+  --ny-shadow:0 16px 42px rgba(114,34,70,.08);
+}
+body{
+  background:
+    radial-gradient(circle at 8% -8%,rgba(243,92,155,.09),transparent 30%),
+    radial-gradient(circle at 94% 6%,rgba(255,214,231,.55),transparent 26%),
+    var(--ny-bg);
+}
+.app{max-width:540px;padding-bottom:40px}
+#wallet-view>header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:18px}
+#wallet-view .logo{font-size:26px;letter-spacing:-.035em}
+#wallet-view .username{font-size:12px}
+.balance-card{border-radius:32px;box-shadow:0 22px 55px rgba(131,38,77,.14)}
+.actions{grid-template-columns:1fr 1fr}
+.actions .primary-action{grid-column:1/-1;background:linear-gradient(135deg,#f35c9b,#b93670);color:#fff;box-shadow:0 14px 30px rgba(190,54,112,.2)}
+.actions .owner-action{grid-column:1/-1}
+#adv-level-card{margin-top:12px}
+#adv-level-card .adv-level{margin-top:0;border-radius:20px;background:rgba(255,255,255,.86);box-shadow:0 10px 30px rgba(114,34,70,.05)}
+.ny-home{margin-top:14px}
+.ny-section{margin-top:14px;padding:18px;border:1px solid var(--ny-border);border-radius:24px;background:rgba(255,255,255,.9);box-shadow:var(--ny-shadow)}
+.ny-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:13px}
+.ny-section-title{font-size:16px;font-weight:850;color:var(--ny-text);letter-spacing:-.015em}
+.ny-section-link{width:auto;padding:0;background:transparent;color:var(--ny-sub);font-size:11px}
+.ny-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ny-stat{padding:12px 10px;border:1px solid #f1e1e8;border-radius:16px;background:linear-gradient(145deg,#fff,#fff8fb)}
+.ny-stat-value{font-size:18px;font-weight:850;color:var(--ny-text);letter-spacing:-.03em}
+.ny-stat-label{margin-top:4px;font-size:9px;line-height:1.25;color:var(--ny-sub)}
+.ny-quick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.ny-quick button{min-width:0;padding:12px 6px;border:1px solid #f0dce5;border-radius:17px;background:#fff;color:var(--ny-text);font-size:10px;box-shadow:none}
+.ny-quick-icon{display:grid;place-items:center;width:34px;height:34px;margin:0 auto 7px;border-radius:12px;background:#fff0f6;font-size:17px}
+.ny-goal{position:relative;overflow:hidden}
+.ny-goal::after{content:"";position:absolute;right:-35px;top:-45px;width:110px;height:110px;border:18px solid rgba(243,92,155,.06);border-radius:50%}
+.ny-goal-title{font-size:13px;font-weight:800;color:var(--ny-text)}
+.ny-goal-meta{margin-top:5px;font-size:11px;color:var(--ny-sub)}
+.ny-progress{height:7px;margin-top:11px;border-radius:999px;background:#f2e1e8;overflow:hidden}
+.ny-progress>span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#f35c9b,#a62f62)}
+.ny-goal button{position:relative;z-index:1;margin-top:12px;padding:10px 12px;border-radius:13px;background:#fff0f6;font-size:11px}
+.ny-event-card{padding:14px;border:1px solid #f0dce5;border-radius:17px;background:linear-gradient(145deg,#fff,#fff4f8)}
+.ny-event-badge{display:inline-flex;padding:5px 8px;border-radius:999px;background:#8f2955;color:#fff;font-size:9px;font-weight:800}
+.ny-event-title{margin-top:8px;font-size:13px;font-weight:800;color:var(--ny-text)}
+.ny-event-desc{margin-top:4px;font-size:10px;line-height:1.45;color:var(--ny-sub)}
+.ny-latest{display:grid;gap:8px}
+.ny-latest-item{padding:11px 12px;border:1px solid #f1e1e8;border-radius:15px;background:#fff}
+.ny-latest-title{font-size:11px;font-weight:800;color:var(--ny-text)}
+.ny-latest-meta{margin-top:3px;font-size:9px;color:var(--ny-sub)}
+.history{margin-top:18px}
+.history h2{font-size:16px;color:var(--ny-text)}
+.transaction-row{border-radius:17px;box-shadow:0 7px 22px rgba(114,34,70,.035)}
+
+.ny-profile-hero{display:flex;align-items:center;gap:13px;margin-bottom:14px;padding:18px;border:1px solid var(--ny-border);border-radius:24px;background:linear-gradient(145deg,#fff,#fff4f8);box-shadow:var(--ny-shadow)}
+.ny-avatar{width:58px;height:58px;min-width:58px;border-radius:20px;display:grid;place-items:center;overflow:hidden;background:linear-gradient(145deg,#fff,#ffdce9);border:1px solid #efcddd;color:var(--ny-accent-deep);font-size:20px;font-weight:850}
+.ny-avatar img{width:100%;height:100%;object-fit:cover}
+.ny-profile-main{min-width:0;flex:1}
+.ny-profile-name{font-size:18px;font-weight:850;color:var(--ny-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ny-profile-handle{margin-top:3px;font-size:10px;color:var(--ny-sub)}
+.ny-profile-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ny-chip{padding:5px 8px;border-radius:999px;background:#fff0f6;color:#8f2955;font-size:9px;font-weight:800}
+.ny-profile-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px}
+.ny-profile-stat{padding:13px;border:1px solid var(--ny-border);border-radius:17px;background:#fff}
+.ny-profile-stat b{display:block;font-size:18px;color:var(--ny-text)}
+.ny-profile-stat span{display:block;margin-top:4px;font-size:9px;color:var(--ny-sub)}
+#adv-profile-view .adv-panel{border-radius:22px;background:rgba(255,255,255,.93);box-shadow:0 10px 30px rgba(114,34,70,.045)}
+#adv-profile-view .adv-title{font-size:15px}
+#ny-profile-ach-preview{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.ny-ach-mini{padding:10px;border:1px solid #f0dce5;border-radius:15px;background:#fff;text-align:center}
+.ny-ach-mini .ach-svg{width:22px;height:22px;color:#a33a64}
+.ny-ach-mini-name{margin-top:5px;font-size:8px;font-weight:800;color:var(--ny-text)}
+
+#spend-view .page-subtitle{max-width:300px}
+#ny-reward-filters{display:flex;gap:7px;overflow:auto;padding:1px 1px 10px;scrollbar-width:none}
+#ny-reward-filters::-webkit-scrollbar{display:none}
+.ny-filter{width:auto;white-space:nowrap;padding:8px 11px;border:1px solid var(--ny-border);border-radius:999px;background:#fff;color:var(--ny-sub);font-size:10px}
+.ny-filter.active{background:#8f2955;border-color:#8f2955;color:#fff}
+#reward-list{grid-template-columns:1fr 1fr;gap:10px}
+#reward-list .feature-card{display:flex;flex-direction:column;min-height:210px;padding:14px;border-radius:21px;box-shadow:0 10px 26px rgba(114,34,70,.055)}
+#reward-list .feature-card-head{display:block}
+#reward-list .feature-card h3{font-size:14px;line-height:1.2}
+#reward-list .feature-card p{min-height:34px;font-size:10px}
+#reward-list .feature-price{display:inline-flex;margin-top:10px;padding:6px 8px}
+#reward-list .feature-card button{margin-top:auto;font-size:10px;padding:11px}
+.ny-reward-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+.ny-reward-tag{padding:4px 6px;border-radius:999px;background:#fff4f8;color:#95506d;font-size:8px;font-weight:800}
+.ny-reward-tag.limited{background:#fff0e8;color:#9a5b2e}
+.ny-reward-tag.ready{background:#edf8f1;color:#507a5d}
+.ny-reward-tag.short{background:#fff0f4;color:#9b4567}
+.ny-reward-progress{height:5px;margin-top:9px;border-radius:999px;background:#f0e1e7;overflow:hidden}
+.ny-reward-progress span{display:block;height:100%;background:#a83a66;border-radius:inherit}
+.ny-reward-missing{margin-top:5px;font-size:8px;color:var(--ny-sub)}
+.ny-reward-detail-trigger{cursor:pointer}
+.ny-modal-backdrop{position:fixed;inset:0;z-index:10020;display:flex;align-items:flex-end;justify-content:center;padding:14px;background:rgba(59,22,39,.28);backdrop-filter:blur(5px)}
+.ny-modal-backdrop[hidden]{display:none}
+.ny-modal{width:min(100%,480px);max-height:86vh;overflow:auto;padding:20px;border:1px solid var(--ny-border);border-radius:28px 28px 22px 22px;background:#fffafc;box-shadow:0 24px 70px rgba(69,22,43,.24)}
+.ny-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.ny-modal-title{font-size:20px;font-weight:900;color:var(--ny-text);letter-spacing:-.025em}
+.ny-modal-close{width:36px;height:36px;padding:0;border-radius:12px;font-size:21px}
+.ny-modal-sub{margin-top:7px;font-size:11px;line-height:1.55;color:var(--ny-sub)}
+.ny-modal-price{display:inline-flex;margin-top:13px;padding:8px 11px;border-radius:14px;background:#fff0f6;color:#8f2955;font-size:13px;font-weight:850}
+.ny-modal-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px}
+.ny-modal-meta>div{padding:11px;border:1px solid #f0dce5;border-radius:14px;background:#fff}
+.ny-modal-meta b{display:block;font-size:11px;color:var(--ny-text)}
+.ny-modal-meta span{display:block;margin-top:3px;font-size:9px;color:var(--ny-sub)}
+.ny-modal-primary{margin-top:15px;background:#8f2955;color:#fff}
+.ny-modal-primary:disabled{background:#eddce4;color:#b38b9c}
+.ny-modal-secondary{margin-top:8px;background:#fff;border:1px solid var(--ny-border)}
+
+#ny-achievement-modal .ny-ach-modal-icon{width:64px;height:64px;display:grid;place-items:center;margin:6px 0 14px;border-radius:20px;background:#fff0f6;color:#9b315e}
+#ny-achievement-modal .ny-ach-modal-icon .ach-svg{width:36px;height:36px}
+.ny-ach-rarity{display:inline-flex;margin-top:10px;padding:5px 8px;border-radius:999px;background:#fff3f7;color:#99506d;font-size:9px;font-weight:850;text-transform:uppercase;letter-spacing:.04em}
+.ny-ach-condition{margin-top:13px;padding:12px;border:1px solid #f0dce5;border-radius:15px;background:#fff}
+.ny-ach-condition b{display:block;font-size:10px;color:var(--ny-text)}
+.ny-ach-condition span{display:block;margin-top:4px;font-size:10px;line-height:1.45;color:var(--ny-sub)}
+.ach-card{transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease}
+.ach-card:hover{box-shadow:0 8px 22px rgba(114,34,70,.06)}
+.ach-toast{padding:14px 16px!important;border-radius:18px!important;background:linear-gradient(135deg,#7e284c,#a83a66)!important}
+
+@media(max-width:390px){
+  .ny-stats{grid-template-columns:1fr 1fr}
+  .ny-stat:last-child{grid-column:1/-1}
+  .ny-quick{grid-template-columns:1fr 1fr}
+  #reward-list{grid-template-columns:1fr}
+}
