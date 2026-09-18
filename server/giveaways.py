@@ -2786,76 +2786,34 @@ async def owner_giveaway_draw(
             refresh_state(session, giveaway)
             if giveaway.status != "awaiting_results":
                 raise HTTPException(status_code=409, detail="Сначала завершите приём участников")
-            active_results = session.scalar(
+            if session.scalar(
                 select(func.count()).select_from(GiveawayResult).where(
                     GiveawayResult.giveaway_id == giveaway.id,
                     GiveawayResult.status == "active",
                 )
-            ) or 0
-            if active_results:
+            ):
                 raise HTTPException(status_code=409, detail="Победители уже выбраны")
 
             prizes = session.scalars(
-                select(GiveawayPrize).where(GiveawayPrize.giveaway_id == giveaway.id).order_by(GiveawayPrize.position.asc())
+                select(GiveawayPrize)
+                .where(GiveawayPrize.giveaway_id == giveaway.id)
+                .order_by(GiveawayPrize.position.asc())
             ).all()
             if not prizes:
                 raise HTTPException(status_code=409, detail="В розыгрыше нет призовых мест")
 
-            pool, rejected = eligible_pool(session, giveaway)
-            for participant, reason in rejected:
-                participant.status = "excluded"
-                participant.exclusion_reason = reason
-                participant.updated_at = now_utc()
-
-            unique_people = {ticket.telegram_id for ticket in pool}
-            if len(unique_people) < len(prizes):
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"Допущено {len(unique_people)} участников, призовых мест {len(prizes)}. Решите вручную.",
-                )
-
-            snapshot_raw, snapshot_hash = selection_snapshot(pool)
-            event = GiveawaySelectionEvent(
-                giveaway_id=giveaway.id,
-                kind="full",
-                snapshot_json=snapshot_raw,
-                snapshot_sha256=snapshot_hash,
-                eligible_participants=len(unique_people),
-                eligible_tickets=len(pool),
-                reason=None,
-                created_at=now_utc(),
+            snapshot_hash, eligible_people, eligible_tickets, selected = execute_full_draw_locked(
+                session,
+                giveaway,
+                list(prizes),
             )
-            session.add(event)
-            session.flush()
-
-            available = list(pool)
-            selected = []
-            for prize in prizes:
-                ticket = secrets.choice(available)
-                result = GiveawayResult(
-                    giveaway_id=giveaway.id,
-                    selection_event_id=event.id,
-                    position=prize.position,
-                    telegram_id=ticket.telegram_id,
-                    ticket_number=ticket.ticket_number,
-                    prize_text=prize.prize_text,
-                    status="active",
-                    reason=None,
-                    selected_at=now_utc(),
-                )
-                session.add(result)
-                session.flush()
-                selected.append(result)
-                available = [item for item in available if item.telegram_id != ticket.telegram_id]
-
             return {
                 "ok": True,
                 "snapshot_sha256": snapshot_hash,
-                "eligible_participants": len(unique_people),
-                "eligible_tickets": len(pool),
+                "eligible_participants": eligible_people,
+                "eligible_tickets": eligible_tickets,
                 "results": [result_user_dict(session, result) for result in selected],
             }
-
 
 @router.post("/api/owner/giveaways/{public_id}/results/annul")
 async def owner_results_annul(
@@ -2905,69 +2863,17 @@ async def owner_result_replace(
             if old is None:
                 raise HTTPException(status_code=404, detail="Активный победитель этого места не найден")
 
-            pool, rejected = eligible_pool(session, giveaway)
-            for participant, reason in rejected:
-                participant.status = "excluded"
-                participant.exclusion_reason = reason
-                participant.updated_at = now_utc()
-
-            current_winner_ids = set(
-                session.scalars(
-                    select(GiveawayResult.telegram_id).where(
-                        GiveawayResult.giveaway_id == giveaway.id,
-                        GiveawayResult.status == "active",
-                    )
-                ).all()
+            snapshot_hash, new_result = execute_replacement_locked(
+                session,
+                giveaway,
+                old,
+                payload.reason,
             )
-            historically_replaced = set(
-                session.scalars(
-                    select(GiveawayResult.telegram_id).where(
-                        GiveawayResult.giveaway_id == giveaway.id,
-                        GiveawayResult.status == "replaced",
-                    )
-                ).all()
-            )
-            excluded = current_winner_ids | historically_replaced | {old.telegram_id}
-            available = [ticket for ticket in pool if ticket.telegram_id not in excluded]
-            if not available:
-                raise HTTPException(status_code=409, detail="Нет подходящих участников для перевыбора")
-
-            snapshot_raw, snapshot_hash = selection_snapshot(available)
-            event = GiveawaySelectionEvent(
-                giveaway_id=giveaway.id,
-                kind="replacement",
-                snapshot_json=snapshot_raw,
-                snapshot_sha256=snapshot_hash,
-                eligible_participants=len({ticket.telegram_id for ticket in available}),
-                eligible_tickets=len(available),
-                reason=payload.reason,
-                created_at=now_utc(),
-            )
-            session.add(event)
-            session.flush()
-
-            ticket = secrets.choice(available)
-            old.status = "replaced"
-            old.reason = payload.reason
-            new_result = GiveawayResult(
-                giveaway_id=giveaway.id,
-                selection_event_id=event.id,
-                position=position,
-                telegram_id=ticket.telegram_id,
-                ticket_number=ticket.ticket_number,
-                prize_text=old.prize_text,
-                status="active",
-                reason=None,
-                selected_at=now_utc(),
-            )
-            session.add(new_result)
-            session.flush()
             return {
                 "ok": True,
                 "snapshot_sha256": snapshot_hash,
                 "result": result_user_dict(session, new_result),
             }
-
 
 @router.post("/api/owner/giveaways/{public_id}/complete")
 async def owner_giveaway_complete(
@@ -3189,9 +3095,9 @@ async def internal_giveaway_preflight(
             ) or 0
         )
 
-        pool, rejected = eligible_pool(session, giveaway)
-        eligible_people = len({ticket.telegram_id for ticket in pool})
-        eligible_tickets = len(pool)
+        weights, rejected = eligible_weights(session, giveaway)
+        eligible_people = len(weights)
+        eligible_tickets = sum(count for _, count in weights)
         return {
             "ok": True,
             "registered_participants": registered_participants,
@@ -3202,7 +3108,6 @@ async def internal_giveaway_preflight(
             "prize_places": prizes,
             "enough_participants": eligible_people >= prizes and prizes > 0,
         }
-
 
 @router.post("/api/internal/giveaways/{public_id}/draw")
 async def internal_giveaway_draw(
@@ -3229,61 +3134,21 @@ async def internal_giveaway_draw(
                 .where(GiveawayPrize.giveaway_id == giveaway.id)
                 .order_by(GiveawayPrize.position.asc())
             ).all()
-            pool, rejected = eligible_pool(session, giveaway)
-            for participant, reason in rejected:
-                participant.status = "excluded"
-                participant.exclusion_reason = reason
-                participant.updated_at = now_utc()
+            if not prizes:
+                raise HTTPException(status_code=409, detail="В розыгрыше нет призовых мест")
 
-            unique_people = {ticket.telegram_id for ticket in pool}
-            if len(unique_people) < len(prizes):
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"Допущено {len(unique_people)} участников, призовых мест {len(prizes)}. Решите вручную.",
-                )
-
-            snapshot_raw, snapshot_hash = selection_snapshot(pool)
-            event = GiveawaySelectionEvent(
-                giveaway_id=giveaway.id,
-                kind="full",
-                snapshot_json=snapshot_raw,
-                snapshot_sha256=snapshot_hash,
-                eligible_participants=len(unique_people),
-                eligible_tickets=len(pool),
-                reason=None,
-                created_at=now_utc(),
+            snapshot_hash, eligible_people, eligible_tickets, selected = execute_full_draw_locked(
+                session,
+                giveaway,
+                list(prizes),
             )
-            session.add(event)
-            session.flush()
-
-            available = list(pool)
-            selected: list[GiveawayResult] = []
-            for prize in prizes:
-                ticket = secrets.choice(available)
-                result = GiveawayResult(
-                    giveaway_id=giveaway.id,
-                    selection_event_id=event.id,
-                    position=prize.position,
-                    telegram_id=ticket.telegram_id,
-                    ticket_number=ticket.ticket_number,
-                    prize_text=prize.prize_text,
-                    status="active",
-                    reason=None,
-                    selected_at=now_utc(),
-                )
-                session.add(result)
-                session.flush()
-                selected.append(result)
-                available = [item for item in available if item.telegram_id != ticket.telegram_id]
-
             return {
                 "ok": True,
                 "snapshot_sha256": snapshot_hash,
-                "eligible_participants": len(unique_people),
-                "eligible_tickets": len(pool),
+                "eligible_participants": eligible_people,
+                "eligible_tickets": eligible_tickets,
                 "results": [result_user_dict(session, result) for result in selected],
             }
-
 
 @router.post("/api/internal/giveaways/{public_id}/results/annul")
 async def internal_results_annul(
@@ -3333,68 +3198,17 @@ async def internal_result_replace(
             if old is None:
                 raise HTTPException(status_code=404, detail="Активный победитель этого места не найден")
 
-            pool, rejected = eligible_pool(session, giveaway)
-            for participant, reason in rejected:
-                participant.status = "excluded"
-                participant.exclusion_reason = reason
-                participant.updated_at = now_utc()
-
-            current_winner_ids = set(
-                session.scalars(
-                    select(GiveawayResult.telegram_id).where(
-                        GiveawayResult.giveaway_id == giveaway.id,
-                        GiveawayResult.status == "active",
-                    )
-                ).all()
+            snapshot_hash, new_result = execute_replacement_locked(
+                session,
+                giveaway,
+                old,
+                payload.reason,
             )
-            historically_replaced = set(
-                session.scalars(
-                    select(GiveawayResult.telegram_id).where(
-                        GiveawayResult.giveaway_id == giveaway.id,
-                        GiveawayResult.status == "replaced",
-                    )
-                ).all()
-            )
-            excluded = current_winner_ids | historically_replaced | {old.telegram_id}
-            available = [ticket for ticket in pool if ticket.telegram_id not in excluded]
-            if not available:
-                raise HTTPException(status_code=409, detail="Нет подходящих участников для перевыбора")
-
-            snapshot_raw, snapshot_hash = selection_snapshot(available)
-            event = GiveawaySelectionEvent(
-                giveaway_id=giveaway.id,
-                kind="replacement",
-                snapshot_json=snapshot_raw,
-                snapshot_sha256=snapshot_hash,
-                eligible_participants=len({ticket.telegram_id for ticket in available}),
-                eligible_tickets=len(available),
-                reason=payload.reason,
-                created_at=now_utc(),
-            )
-            session.add(event)
-            session.flush()
-            ticket = secrets.choice(available)
-            old.status = "replaced"
-            old.reason = payload.reason
-            new_result = GiveawayResult(
-                giveaway_id=giveaway.id,
-                selection_event_id=event.id,
-                position=position,
-                telegram_id=ticket.telegram_id,
-                ticket_number=ticket.ticket_number,
-                prize_text=old.prize_text,
-                status="active",
-                reason=None,
-                selected_at=now_utc(),
-            )
-            session.add(new_result)
-            session.flush()
             return {
                 "ok": True,
                 "snapshot_sha256": snapshot_hash,
                 "result": result_user_dict(session, new_result),
             }
-
 
 @router.post("/api/internal/giveaways/{public_id}/replace-post")
 async def internal_replace_post(
