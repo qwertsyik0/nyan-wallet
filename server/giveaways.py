@@ -43,6 +43,7 @@ _STATE_TASK: asyncio.Task | None = None
 
 RANKS = ("Новичок", "Постоянник", "VIP", "Легенда")
 MAX_TICKETS_PER_USER = 1000
+_runtime_button_refresh_done = False
 GIVEAWAY_STATUSES = {
     "draft",
     "scheduled",
@@ -789,7 +790,7 @@ def giveaway_keyboard(public_id: str, closed: bool = False, paused: bool = False
                 {"text": "Участвовать", "callback_data": f"nyg:j:{public_id}"},
                 {
                     "text": "Купить билеты",
-                    "url": f"https://t.me/nyancash_bot?startapp=giveaway_{public_id}",
+                    "callback_data": f"nyg:buy:{public_id}",
                 },
             ]
         ]
@@ -3538,8 +3539,26 @@ async def internal_register_post(
 
 
 def sweep_giveaway_states() -> None:
+    global _runtime_button_refresh_done
     timestamp = now_utc()
     notifications: list[str] = []
+
+    # Refresh existing active post keyboards once per backend process start.
+    # This safely migrates old "Купить билеты" buttons to the current callback flow.
+    if not _runtime_button_refresh_done:
+        try:
+            with core.SessionLocal() as session:
+                with session.begin():
+                    rows = session.scalars(
+                        select(Giveaway)
+                        .where(Giveaway.status.in_(("active", "paused")))
+                        .order_by(Giveaway.id.asc())
+                    ).all()
+                    for row in rows:
+                        sync_giveaway_buttons(session, row, closed=False)
+            _runtime_button_refresh_done = True
+        except Exception as exc:
+            notifications.append(f"Не удалось обновить кнопки активных розыгрышей: {exc}")
 
     # Scheduled giveaways are processed independently, so one Telegram failure
     # cannot roll back or block every other giveaway that is due.
