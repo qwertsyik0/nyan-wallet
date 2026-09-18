@@ -44,9 +44,13 @@ jobs:
           import base64, gzip, re
           from pathlib import Path
           src = gzip.decompress(base64.b64decode(Path("bot_addons/giveaway_bot.py.gz.b64").read_bytes())).decode("utf-8")
-          for no, line in enumerate(src.splitlines(), 1):
+          source_lines = src.splitlines()
+          for no, line in enumerate(source_lines, 1):
               if "per_user_limit" in line or "лимит" in line.lower() or "билет" in line.lower() and "10" in line:
                   print(f"{no}: {line}")
+          print("=== LIMIT CONTEXT ===")
+          for no in range(815, min(905, len(source_lines)) + 1):
+              print(f"{no}: {source_lines[no - 1]}")
           PY
       - name: Test installer patch safety
         run: |
