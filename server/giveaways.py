@@ -343,21 +343,6 @@ class GiveawayResultPost(core.Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
-class GiveawayWinnerNotification(core.Base):
-    __tablename__ = "giveaway_winner_notifications"
-    __table_args__ = (
-        UniqueConstraint("result_id", name="uq_giveaway_winner_notification_result"),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    giveaway_id: Mapped[int] = mapped_column(Integer, ForeignKey("giveaways.id", ondelete="CASCADE"), nullable=False, index=True)
-    result_id: Mapped[int] = mapped_column(Integer, ForeignKey("giveaway_results.id", ondelete="CASCADE"), nullable=False, index=True)
-    telegram_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
-    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-
-
 class OwnerResultPublishPayload(BaseModel):
     channel_ids: list[int] = Field(default_factory=list, max_length=100)
 
@@ -1040,7 +1025,11 @@ def canonical_results_html(session, giveaway: Giveaway) -> str:
     if not rows:
         raise HTTPException(status_code=409, detail="Список победителей пуст")
 
-    lines = [f"<b>Итоги розыгрыша</b>", f"<b>{html.escape(giveaway.title)}</b>", ""]
+    medals = {1: "🥇", 2: "🥈", 3: "🥉"}
+    lines = [
+        "🏆 <b>Итоги розыгрыша</b>",
+        f"🎉 <b>{html.escape(giveaway.title)}</b>",
+    ]
     for row in rows:
         user = session.get(core.User, row.telegram_id)
         if user and user.username:
@@ -1050,62 +1039,14 @@ def canonical_results_html(session, giveaway: Giveaway) -> str:
             if user:
                 name = " ".join(filter(None, [user.first_name, user.last_name])) or "Победитель"
             who = f'<a href="tg://user?id={row.telegram_id}">{html.escape(name)}</a>'
+
+        medal = medals.get(int(row.position), "🏅")
         lines.append(
-            f"<b>{row.position} место:</b> {who}\n"
-            f"{html.escape(row.prize_text)}\n"
-            f"Билет #{int(row.ticket_number):06d}"
+            f"{medal} <b>{int(row.position)} место:</b> {who}\n"
+            f"🎁 <b>Приз:</b> {html.escape(row.prize_text)}\n"
+            f"🎟 <b>Билет:</b> #{int(row.ticket_number):06d}"
         )
     return "\n\n".join(lines)
-
-
-def notify_winners_best_effort(session, giveaway: Giveaway) -> None:
-    rows = session.scalars(
-        select(GiveawayResult).where(
-            GiveawayResult.giveaway_id == giveaway.id,
-            GiveawayResult.status == "active",
-        ).order_by(GiveawayResult.position.asc())
-    ).all()
-    timestamp = now_utc()
-    for row in rows:
-        record = session.scalar(
-            select(GiveawayWinnerNotification).where(
-                GiveawayWinnerNotification.result_id == row.id
-            )
-        )
-        if record is not None and record.sent_at is not None:
-            continue
-        if record is None:
-            record = GiveawayWinnerNotification(
-                giveaway_id=giveaway.id,
-                result_id=row.id,
-                telegram_id=row.telegram_id,
-                sent_at=None,
-                last_error=None,
-                updated_at=timestamp,
-            )
-            session.add(record)
-            session.flush()
-        try:
-            telegram_api(
-                "sendMessage",
-                {
-                    "chat_id": row.telegram_id,
-                    "text": (
-                        f"🎉 <b>Вы победили в розыгрыше!</b>\n\n"
-                        f"<b>{html.escape(giveaway.title)}</b>\n"
-                        f"{row.position} место: {html.escape(row.prize_text)}\n"
-                        f"Билет #{int(row.ticket_number):06d}"
-                    ),
-                    "parse_mode": "HTML",
-                    "disable_web_page_preview": True,
-                },
-                timeout=8,
-            )
-            record.sent_at = timestamp
-            record.last_error = None
-        except Exception as exc:
-            record.last_error = str(exc)[:2000]
-        record.updated_at = timestamp
 
 
 def publish_results_direct_locked(
@@ -1187,7 +1128,6 @@ def publish_results_direct_locked(
             session.add(row)
             rows.append(row)
         session.flush()
-        notify_winners_best_effort(session, giveaway)
         return rows
     except Exception as exc:
         _cleanup_telegram_messages(sent_new)
@@ -1225,7 +1165,6 @@ def refresh_published_results_best_effort(session, giveaway: Giveaway) -> bool:
         except Exception:
             post.status = "stale"
     if any_success:
-        notify_winners_best_effort(session, giveaway)
     return any_success
 
 
@@ -3531,7 +3470,6 @@ async def internal_publish_results(
                 giveaway.completed_at = now_utc()
                 giveaway.updated_at = now_utc()
                 sync_giveaway_buttons(session, giveaway, closed=True)
-            notify_winners_best_effort(session, giveaway)
             response = [
                 {"chat_id": row.chat_id, "message_id": row.message_id}
                 for row in rows
