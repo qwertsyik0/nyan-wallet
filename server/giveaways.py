@@ -2105,6 +2105,29 @@ def result_user_dict(session, row: GiveawayResult) -> dict:
     }
 
 
+@router.get("/api/my-purchases")
+async def my_purchases(
+    x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
+):
+    tg = require_user(x_telegram_init_data)
+    telegram_id = int(tg["id"])
+    with core.SessionLocal() as session:
+        rows = session.scalars(
+            select(ShopPurchase)
+            .where(ShopPurchase.telegram_id == telegram_id)
+            .order_by(ShopPurchase.purchased_on.desc(), ShopPurchase.id.desc())
+            .limit(500)
+        ).all()
+        items = [purchase_dict(row) for row in rows]
+        total = sum(int(row.amount_kopecks) for row in rows)
+        return {
+            "ok": True,
+            "items": items,
+            "count": len(items),
+            "total_kopecks": total,
+        }
+
+
 @router.post("/api/owner/purchases/import")
 async def owner_purchase_import(
     payload: PurchaseImportPayload,
