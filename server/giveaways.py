@@ -150,6 +150,7 @@ class Giveaway(core.Base):
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    owner_notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
@@ -533,6 +534,7 @@ def giveaway_dict(session, row: Giveaway, include_private: bool = False) -> dict
         data["started_at"] = norm_dt(row.started_at).isoformat() if row.started_at else None
         data["closed_at"] = norm_dt(row.closed_at).isoformat() if row.closed_at else None
         data["completed_at"] = norm_dt(row.completed_at).isoformat() if row.completed_at else None
+        data["owner_notified_at"] = norm_dt(row.owner_notified_at).isoformat() if row.owner_notified_at else None
         data["cancelled_at"] = norm_dt(row.cancelled_at).isoformat() if row.cancelled_at else None
     return data
 
@@ -1869,6 +1871,56 @@ async def internal_channel_upsert(
     return {"ok": True, "added": added}
 
 
+@router.get("/api/internal/giveaway-meta")
+async def internal_giveaway_meta(
+    x_nyan_bot_key: str | None = Header(default=None, alias="X-Nyan-Bot-Key"),
+):
+    require_bot_key(x_nyan_bot_key)
+    return {
+        "ok": True,
+        "ranks": list(RANKS),
+        "achievements": [
+            {"key": key, "title": item["title"]}
+            for key, item in ACHIEVEMENT_BY_KEY.items()
+        ],
+    }
+
+
+@router.get("/api/internal/giveaways")
+async def internal_giveaway_list(
+    status: str | None = None,
+    x_nyan_bot_key: str | None = Header(default=None, alias="X-Nyan-Bot-Key"),
+):
+    require_bot_key(x_nyan_bot_key)
+    with core.SessionLocal() as session:
+        stmt = select(Giveaway).order_by(Giveaway.id.desc())
+        if status:
+            if status not in GIVEAWAY_STATUSES:
+                raise HTTPException(status_code=400, detail="Неизвестный статус")
+            stmt = stmt.where(Giveaway.status == status)
+        rows = session.scalars(stmt.limit(200)).all()
+        for row in rows:
+            refresh_state(session, row)
+        session.commit()
+        return {"ok": True, "items": [giveaway_dict(session, row, include_private=True) for row in rows]}
+
+
+@router.post("/api/internal/giveaways/{public_id}/update")
+async def internal_giveaway_update(
+    public_id: str,
+    payload: GiveawayUpdatePayload,
+    x_nyan_bot_key: str | None = Header(default=None, alias="X-Nyan-Bot-Key"),
+):
+    require_bot_key(x_nyan_bot_key)
+    with core.SessionLocal() as session:
+        with session.begin():
+            row = get_giveaway_locked(session, public_id)
+            if row.status in {"completed", "cancelled"}:
+                raise HTTPException(status_code=409, detail="Завершённый розыгрыш нельзя редактировать")
+            apply_giveaway_payload(session, row, payload, replacing=True)
+        return {"ok": True, "giveaway": giveaway_dict(session, row, include_private=True)}
+
+
 @router.post("/api/internal/giveaways")
 async def internal_giveaway_create(
     payload: GiveawayCreatePayload,
@@ -1899,6 +1951,7 @@ async def internal_giveaway_create(
                 started_at=None,
                 closed_at=None,
                 completed_at=None,
+                owner_notified_at=None,
                 cancelled_at=None,
             )
             session.add(row)
@@ -1965,6 +2018,7 @@ async def owner_giveaway_create(
                 started_at=None,
                 closed_at=None,
                 completed_at=None,
+                owner_notified_at=None,
                 cancelled_at=None,
             )
             session.add(row)
@@ -2695,8 +2749,209 @@ async def internal_giveaway_detail(
         if giveaway is None:
             raise HTTPException(status_code=404, detail="Розыгрыш не найден")
         refresh_state(session, giveaway)
+        results = session.scalars(
+            select(GiveawayResult)
+            .where(GiveawayResult.giveaway_id == giveaway.id)
+            .order_by(GiveawayResult.id.asc())
+        ).all()
         session.commit()
-        return {"ok": True, "giveaway": giveaway_dict(session, giveaway, include_private=True)}
+        return {
+            "ok": True,
+            "giveaway": giveaway_dict(session, giveaway, include_private=True),
+            "results": [result_user_dict(session, item) for item in results],
+        }
+
+
+@router.post("/api/internal/giveaways/{public_id}/draw")
+async def internal_giveaway_draw(
+    public_id: str,
+    x_nyan_bot_key: str | None = Header(default=None, alias="X-Nyan-Bot-Key"),
+):
+    require_bot_key(x_nyan_bot_key)
+    with core.SessionLocal() as session:
+        with session.begin():
+            giveaway = get_giveaway_locked(session, public_id)
+            refresh_state(session, giveaway)
+            if giveaway.status != "awaiting_results":
+                raise HTTPException(status_code=409, detail="Сначала завершите приём участников")
+            if session.scalar(
+                select(func.count()).select_from(GiveawayResult).where(
+                    GiveawayResult.giveaway_id == giveaway.id,
+                    GiveawayResult.status == "active",
+                )
+            ):
+                raise HTTPException(status_code=409, detail="Победители уже выбраны")
+
+            prizes = session.scalars(
+                select(GiveawayPrize)
+                .where(GiveawayPrize.giveaway_id == giveaway.id)
+                .order_by(GiveawayPrize.position.asc())
+            ).all()
+            pool, rejected = eligible_pool(session, giveaway)
+            for participant, reason in rejected:
+                participant.status = "excluded"
+                participant.exclusion_reason = reason
+                participant.updated_at = now_utc()
+
+            unique_people = {ticket.telegram_id for ticket in pool}
+            if len(unique_people) < len(prizes):
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Допущено {len(unique_people)} участников, призовых мест {len(prizes)}. Решите вручную.",
+                )
+
+            snapshot_raw, snapshot_hash = selection_snapshot(pool)
+            event = GiveawaySelectionEvent(
+                giveaway_id=giveaway.id,
+                kind="full",
+                snapshot_json=snapshot_raw,
+                snapshot_sha256=snapshot_hash,
+                eligible_participants=len(unique_people),
+                eligible_tickets=len(pool),
+                reason=None,
+                created_at=now_utc(),
+            )
+            session.add(event)
+            session.flush()
+
+            available = list(pool)
+            selected: list[GiveawayResult] = []
+            for prize in prizes:
+                ticket = secrets.choice(available)
+                result = GiveawayResult(
+                    giveaway_id=giveaway.id,
+                    selection_event_id=event.id,
+                    position=prize.position,
+                    telegram_id=ticket.telegram_id,
+                    ticket_number=ticket.ticket_number,
+                    prize_text=prize.prize_text,
+                    status="active",
+                    reason=None,
+                    selected_at=now_utc(),
+                )
+                session.add(result)
+                session.flush()
+                selected.append(result)
+                available = [item for item in available if item.telegram_id != ticket.telegram_id]
+
+            return {
+                "ok": True,
+                "snapshot_sha256": snapshot_hash,
+                "eligible_participants": len(unique_people),
+                "eligible_tickets": len(pool),
+                "results": [result_user_dict(session, result) for result in selected],
+            }
+
+
+@router.post("/api/internal/giveaways/{public_id}/results/annul")
+async def internal_results_annul(
+    public_id: str,
+    payload: ReasonPayload,
+    x_nyan_bot_key: str | None = Header(default=None, alias="X-Nyan-Bot-Key"),
+):
+    require_bot_key(x_nyan_bot_key)
+    with core.SessionLocal() as session:
+        with session.begin():
+            giveaway = get_giveaway_locked(session, public_id)
+            rows = session.scalars(
+                select(GiveawayResult).where(
+                    GiveawayResult.giveaway_id == giveaway.id,
+                    GiveawayResult.status == "active",
+                ).with_for_update()
+            ).all()
+            if not rows:
+                raise HTTPException(status_code=409, detail="Нет активных результатов")
+            for row in rows:
+                row.status = "annulled"
+                row.reason = payload.reason
+            giveaway.status = "awaiting_results"
+            giveaway.completed_at = None
+            giveaway.updated_at = now_utc()
+    return {"ok": True, "annulled": len(rows)}
+
+
+@router.post("/api/internal/giveaways/{public_id}/results/{position}/replace")
+async def internal_result_replace(
+    public_id: str,
+    position: int,
+    payload: ReasonPayload,
+    x_nyan_bot_key: str | None = Header(default=None, alias="X-Nyan-Bot-Key"),
+):
+    require_bot_key(x_nyan_bot_key)
+    with core.SessionLocal() as session:
+        with session.begin():
+            giveaway = get_giveaway_locked(session, public_id)
+            old = session.scalar(
+                select(GiveawayResult).where(
+                    GiveawayResult.giveaway_id == giveaway.id,
+                    GiveawayResult.position == position,
+                    GiveawayResult.status == "active",
+                ).order_by(GiveawayResult.id.desc()).with_for_update()
+            )
+            if old is None:
+                raise HTTPException(status_code=404, detail="Активный победитель этого места не найден")
+
+            pool, rejected = eligible_pool(session, giveaway)
+            for participant, reason in rejected:
+                participant.status = "excluded"
+                participant.exclusion_reason = reason
+                participant.updated_at = now_utc()
+
+            current_winner_ids = set(
+                session.scalars(
+                    select(GiveawayResult.telegram_id).where(
+                        GiveawayResult.giveaway_id == giveaway.id,
+                        GiveawayResult.status == "active",
+                    )
+                ).all()
+            )
+            historically_replaced = set(
+                session.scalars(
+                    select(GiveawayResult.telegram_id).where(
+                        GiveawayResult.giveaway_id == giveaway.id,
+                        GiveawayResult.status == "replaced",
+                    )
+                ).all()
+            )
+            excluded = current_winner_ids | historically_replaced | {old.telegram_id}
+            available = [ticket for ticket in pool if ticket.telegram_id not in excluded]
+            if not available:
+                raise HTTPException(status_code=409, detail="Нет подходящих участников для перевыбора")
+
+            snapshot_raw, snapshot_hash = selection_snapshot(available)
+            event = GiveawaySelectionEvent(
+                giveaway_id=giveaway.id,
+                kind="replacement",
+                snapshot_json=snapshot_raw,
+                snapshot_sha256=snapshot_hash,
+                eligible_participants=len({ticket.telegram_id for ticket in available}),
+                eligible_tickets=len(available),
+                reason=payload.reason,
+                created_at=now_utc(),
+            )
+            session.add(event)
+            session.flush()
+            ticket = secrets.choice(available)
+            old.status = "replaced"
+            old.reason = payload.reason
+            new_result = GiveawayResult(
+                giveaway_id=giveaway.id,
+                selection_event_id=event.id,
+                position=position,
+                telegram_id=ticket.telegram_id,
+                ticket_number=ticket.ticket_number,
+                prize_text=old.prize_text,
+                status="active",
+                reason=None,
+                selected_at=now_utc(),
+            )
+            session.add(new_result)
+            session.flush()
+            return {
+                "ok": True,
+                "snapshot_sha256": snapshot_hash,
+                "result": result_user_dict(session, new_result),
+            }
 
 
 @router.post("/api/internal/giveaways/{public_id}/replace-post")
@@ -2845,6 +3100,44 @@ def sweep_giveaway_states() -> None:
 
     for message in notifications:
         send_telegram_message(core.OWNER_TELEGRAM_ID, message)
+
+    # Awaiting-results rows can be created by the scheduler, a participant-limit
+    # request, or a manual close. Notify exactly once regardless of the source.
+    try:
+        with core.SessionLocal() as session:
+            pending = session.scalars(
+                select(Giveaway).where(
+                    Giveaway.status == "awaiting_results",
+                    Giveaway.owner_notified_at.is_(None),
+                ).order_by(Giveaway.id.asc())
+            ).all()
+            for row in pending:
+                try:
+                    telegram_api(
+                        "sendMessage",
+                        {
+                            "chat_id": core.OWNER_TELEGRAM_ID,
+                            "text": (
+                                f"Розыгрыш {row.public_id} завершён. "
+                                "Приём участников закрыт. Провести выбор победителей?"
+                            ),
+                            "reply_markup": {
+                                "inline_keyboard": [[
+                                    {
+                                        "text": "Выбрать победителей",
+                                        "callback_data": f"nygo:draw:{row.public_id}",
+                                    }
+                                ]]
+                            },
+                        },
+                    )
+                    row.owner_notified_at = now_utc()
+                    session.commit()
+                except Exception as exc:
+                    session.rollback()
+                    print(f"Nyan giveaway owner notification failed for {row.public_id}: {exc}")
+    except Exception as exc:
+        print(f"Nyan giveaway owner notification sweep failed: {exc}")
 
 
 async def _state_loop() -> None:
