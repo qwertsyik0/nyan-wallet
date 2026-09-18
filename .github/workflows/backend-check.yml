@@ -60,6 +60,16 @@ jobs:
               )):
                   print(f"{no}: {line}")
           PY
+      - name: Inspect custom emoji preview flow
+        run: |
+          python - <<'PY'
+          import base64, gzip
+          from pathlib import Path
+          src = gzip.decompress(base64.b64decode(Path("bot_addons/giveaway_bot.py.gz.b64").read_bytes(), validate=True)).decode("utf-8")
+          lines = src.splitlines()
+          for no in range(640, min(790, len(lines)) + 1):
+              print(f"{no}: {lines[no - 1]}")
+          PY
       - name: Test installer patch safety
         run: |
           python - <<'PY'
