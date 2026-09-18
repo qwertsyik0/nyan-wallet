@@ -60,16 +60,6 @@ jobs:
               )):
                   print(f"{no}: {line}")
           PY
-      - name: Inspect custom emoji preview flow
-        run: |
-          python - <<'PY'
-          import base64, gzip
-          from pathlib import Path
-          src = gzip.decompress(base64.b64decode(Path("bot_addons/giveaway_bot.py.gz.b64").read_bytes(), validate=True)).decode("utf-8")
-          lines = src.splitlines()
-          for no in range(640, min(790, len(lines)) + 1):
-              print(f"{no}: {lines[no - 1]}")
-          PY
       - name: Test installer patch safety
         run: |
           python - <<'PY'
@@ -94,8 +84,10 @@ jobs:
           assert "0 <= value <= 1000" in adapted
           assert "Лимит должен быть от 1 до 10." not in adapted
           assert "Бонусных билетов: от 0 до 9." not in adapted
+          assert 'state["post"] = {"source_chat_id": _owner_id(), "message_ids": copied_ids}' not in adapted
+          assert "Keep the owner's original message as the canonical publication source." in adapted
           compile(adapted, "giveaway_bot.py", "exec")
-          print("installer patch and ticket-limit adaptation OK")
+          print("installer patch, ticket-limit and premium-emoji source adaptation OK")
           PY
       - name: Check browser JavaScript syntax
         run: |
