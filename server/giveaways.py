@@ -1334,7 +1334,11 @@ def join_impl(session, giveaway: Giveaway, user: core.User, source_chat_id: int 
         raise HTTPException(status_code=409, detail="Общий лимит билетов исчерпан")
 
     numbers = add_ticket_rows(session, giveaway, participant, free_count, "free", 0, None)
+    before_status = giveaway.status
     refresh_state(session, giveaway)
+    if before_status == "active" and giveaway.status == "awaiting_results":
+        sync_giveaway_buttons(session, giveaway, closed=True)
+        giveaway.owner_notified_at = None
     return {
         "ok": True,
         "already_joined": False,
@@ -1417,7 +1421,11 @@ def purchase_tickets_impl(session, giveaway: Giveaway, user: core.User, count: i
     )
     session.add(purchase)
     session.flush()
+    before_status = giveaway.status
     refresh_state(session, giveaway)
+    if before_status == "active" and giveaway.status == "awaiting_results":
+        sync_giveaway_buttons(session, giveaway, closed=True)
+        giveaway.owner_notified_at = None
     return {
         "ok": True,
         "idempotent": False,
