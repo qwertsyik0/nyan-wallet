@@ -393,7 +393,7 @@
       // CSS for .feature-card sets display:flex, which can override the
       // browser's default [hidden]{display:none}. Set display explicitly.
       card.hidden = !show;
-      card.style.display = show ? "" : "none";
+      card.style.setProperty("display", show ? "flex" : "none", "important");
     }
   }
 
