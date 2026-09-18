@@ -21,3 +21,8 @@ jobs:
           python-version: "3.13"
       - name: Compile backend modules
         run: python -m py_compile server/*.py
+      - name: Check browser JavaScript syntax
+        run: |
+          for file in ./*.js; do
+            node --check "$file"
+          done
