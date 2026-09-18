@@ -41,6 +41,7 @@ _REGISTERED = False
 _STATE_TASK: asyncio.Task | None = None
 
 RANKS = ("Новичок", "Постоянник", "VIP", "Легенда")
+MAX_TICKETS_PER_USER = 1000
 GIVEAWAY_STATUSES = {
     "draft",
     "scheduled",
@@ -308,6 +309,25 @@ class GiveawayResult(core.Base):
     selected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class GiveawayRevision(core.Base):
+    __tablename__ = "giveaway_revisions"
+    __table_args__ = (
+        UniqueConstraint("giveaway_id", "revision_no", name="uq_giveaway_revision_no"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    giveaway_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("giveaways.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    revision_no: Mapped[int] = mapped_column(Integer, nullable=False)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    snapshot_json: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class GiveawayResultPost(core.Base):
     __tablename__ = "giveaway_result_posts"
     __table_args__ = (UniqueConstraint("giveaway_id", "chat_id", "message_id", name="uq_giveaway_result_post"),)
@@ -339,7 +359,7 @@ class GiveawayCreatePayload(BaseModel):
     kind: str
     ticket_price: int = Field(default=0, ge=0, le=10_000_000)
     allow_extra_tickets: bool = True
-    per_user_limit: int = Field(default=10, ge=1, le=10)
+    per_user_limit: int = Field(default=10, ge=1, le=MAX_TICKETS_PER_USER)
     global_ticket_limit: int | None = Field(default=None, ge=1, le=10_000_000)
     participant_limit: int | None = Field(default=None, ge=1, le=10_000_000)
     allowed_ranks: list[str] = Field(default_factory=list)
@@ -357,7 +377,7 @@ class GiveawayUpdatePayload(GiveawayCreatePayload):
 
 
 class TicketPurchasePayload(BaseModel):
-    count: int = Field(ge=1, le=10)
+    count: int = Field(ge=1, le=MAX_TICKETS_PER_USER)
     request_key: str = Field(min_length=8, max_length=80)
 
 
@@ -539,6 +559,26 @@ def giveaway_dict(session, row: Giveaway, include_private: bool = False) -> dict
     return data
 
 
+def record_giveaway_revision(session, row: Giveaway, kind: str) -> GiveawayRevision:
+    session.flush()
+    last_no = session.scalar(
+        select(func.coalesce(func.max(GiveawayRevision.revision_no), 0)).where(
+            GiveawayRevision.giveaway_id == row.id
+        )
+    ) or 0
+    snapshot = giveaway_dict(session, row, include_private=True)
+    revision = GiveawayRevision(
+        giveaway_id=row.id,
+        revision_no=int(last_no) + 1,
+        kind=kind,
+        snapshot_json=json_dump(snapshot),
+        created_at=now_utc(),
+    )
+    session.add(revision)
+    session.flush()
+    return revision
+
+
 def validate_ranks(values: list[str]) -> list[str]:
     result = []
     for value in values:
@@ -558,12 +598,12 @@ def validate_rank_benefits(raw: dict[str, dict]) -> dict[str, dict]:
         discount = int(value.get("discount_percent", 0))
         max_raw = value.get("max_tickets")
         max_tickets = int(max_raw) if max_raw is not None else None
-        if not 0 <= bonus <= 9:
-            raise HTTPException(status_code=400, detail=f"Бесплатные билеты для {rank}: от 0 до 9")
+        if not 0 <= bonus <= MAX_TICKETS_PER_USER:
+            raise HTTPException(status_code=400, detail=f"Бесплатные билеты для {rank}: от 0 до {MAX_TICKETS_PER_USER}")
         if not 0 <= discount <= 100:
             raise HTTPException(status_code=400, detail=f"Скидка для {rank}: от 0 до 100%")
-        if max_tickets is not None and not 1 <= max_tickets <= 10:
-            raise HTTPException(status_code=400, detail=f"Лимит билетов для {rank}: от 1 до 10")
+        if max_tickets is not None and not 1 <= max_tickets <= MAX_TICKETS_PER_USER:
+            raise HTTPException(status_code=400, detail=f"Лимит билетов для {rank}: от 1 до {MAX_TICKETS_PER_USER}")
         result[rank] = {
             "bonus_free_tickets": bonus,
             "discount_percent": discount,
@@ -664,7 +704,7 @@ def user_ticket_limit(session, giveaway: Giveaway, telegram_id: int) -> tuple[in
     benefits = json_load(giveaway.rank_benefits_json, {})
     config = benefits.get(rank, {}) if isinstance(benefits, dict) else {}
     configured = int(config.get("max_tickets", giveaway.per_user_limit))
-    return min(10, max(1, configured)), config
+    return min(MAX_TICKETS_PER_USER, max(1, configured)), config
 
 
 def user_ticket_price(session, giveaway: Giveaway, telegram_id: int) -> int:
@@ -676,7 +716,7 @@ def user_ticket_price(session, giveaway: Giveaway, telegram_id: int) -> int:
 def free_ticket_entitlement(session, giveaway: Giveaway, telegram_id: int) -> int:
     _, config = user_ticket_limit(session, giveaway, telegram_id)
     base = 1 if giveaway.kind == "free" else 0
-    bonus = min(9, max(0, int(config.get("bonus_free_tickets", 0))))
+    bonus = min(MAX_TICKETS_PER_USER, max(0, int(config.get("bonus_free_tickets", 0))))
     limit, _ = user_ticket_limit(session, giveaway, telegram_id)
     return min(limit, base + bonus)
 
@@ -1940,6 +1980,7 @@ async def internal_giveaway_update(
             if row.status in {"completed", "cancelled"}:
                 raise HTTPException(status_code=409, detail="Завершённый розыгрыш нельзя редактировать")
             apply_giveaway_payload(session, row, payload, replacing=True)
+            record_giveaway_revision(session, row, "updated")
         return {"ok": True, "giveaway": giveaway_dict(session, row, include_private=True)}
 
 
@@ -1980,6 +2021,7 @@ async def internal_giveaway_create(
             session.flush()
             row.public_id = f"NYG-{row.id:06d}"
             apply_giveaway_payload(session, row, payload, replacing=False)
+            record_giveaway_revision(session, row, "created")
         session.refresh(row)
         return {"ok": True, "giveaway": giveaway_dict(session, row, include_private=True)}
 
@@ -2147,6 +2189,7 @@ async def owner_giveaway_create(
             session.flush()
             row.public_id = f"NYG-{row.id:06d}"
             apply_giveaway_payload(session, row, payload, replacing=False)
+            record_giveaway_revision(session, row, "created")
             public_id = row.public_id
         session.refresh(row)
         return {"ok": True, "giveaway": giveaway_dict(session, row, include_private=True)}
@@ -2165,6 +2208,7 @@ async def owner_giveaway_update(
             if row.status in {"completed", "cancelled"}:
                 raise HTTPException(status_code=409, detail="Завершённый розыгрыш нельзя редактировать")
             apply_giveaway_payload(session, row, payload, replacing=True)
+            record_giveaway_revision(session, row, "updated")
         return {"ok": True, "giveaway": giveaway_dict(session, row, include_private=True)}
 
 
