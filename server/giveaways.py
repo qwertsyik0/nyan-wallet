@@ -2669,6 +2669,13 @@ async def owner_participant_adjust(
             giveaway = get_giveaway_locked(session, public_id)
             if giveaway.status in {"completed", "cancelled"}:
                 raise HTTPException(status_code=409, detail="Розыгрыш уже завершён")
+            if session.scalar(
+                select(func.count()).select_from(GiveawayResult).where(
+                    GiveawayResult.giveaway_id == giveaway.id,
+                    GiveawayResult.status == "active",
+                )
+            ):
+                raise HTTPException(status_code=409, detail="После выбора победителей билеты менять нельзя")
             user = core.find_target_user(session, payload.target, lock=True)
             if user is None:
                 raise HTTPException(status_code=404, detail="Пользователь не найден")
@@ -2714,6 +2721,15 @@ async def owner_participant_remove(
     with core.SessionLocal() as session:
         with session.begin():
             giveaway = get_giveaway_locked(session, public_id)
+            if giveaway.status in {"completed", "cancelled"}:
+                raise HTTPException(status_code=409, detail="Розыгрыш уже завершён")
+            if session.scalar(
+                select(func.count()).select_from(GiveawayResult).where(
+                    GiveawayResult.giveaway_id == giveaway.id,
+                    GiveawayResult.status == "active",
+                )
+            ):
+                raise HTTPException(status_code=409, detail="После выбора победителей участников менять нельзя")
             user = core.find_target_user(session, payload.target, lock=True)
             if user is None:
                 raise HTTPException(status_code=404, detail="Пользователь не найден")
