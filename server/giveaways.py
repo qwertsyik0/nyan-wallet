@@ -2877,6 +2877,52 @@ async def internal_giveaway_detail(
         }
 
 
+@router.get("/api/internal/giveaways/{public_id}/preflight")
+async def internal_giveaway_preflight(
+    public_id: str,
+    x_nyan_bot_key: str | None = Header(default=None, alias="X-Nyan-Bot-Key"),
+):
+    require_bot_key(x_nyan_bot_key)
+    with core.SessionLocal() as session:
+        giveaway = session.scalar(select(Giveaway).where(Giveaway.public_id == public_id))
+        if giveaway is None:
+            raise HTTPException(status_code=404, detail="Розыгрыш не найден")
+        refresh_state(session, giveaway)
+        if giveaway.status != "awaiting_results":
+            raise HTTPException(status_code=409, detail="Приём участников ещё не завершён")
+
+        registered_participants = int(
+            session.scalar(
+                select(func.count()).select_from(GiveawayParticipant).where(
+                    GiveawayParticipant.giveaway_id == giveaway.id,
+                    GiveawayParticipant.status == "active",
+                )
+            ) or 0
+        )
+        registered_tickets = ticket_count(session, giveaway.id)
+        prizes = int(
+            session.scalar(
+                select(func.count()).select_from(GiveawayPrize).where(
+                    GiveawayPrize.giveaway_id == giveaway.id
+                )
+            ) or 0
+        )
+
+        pool, rejected = eligible_pool(session, giveaway)
+        eligible_people = len({ticket.telegram_id for ticket in pool})
+        eligible_tickets = len(pool)
+        return {
+            "ok": True,
+            "registered_participants": registered_participants,
+            "registered_tickets": registered_tickets,
+            "eligible_participants": eligible_people,
+            "eligible_tickets": eligible_tickets,
+            "excluded_participants": len(rejected),
+            "prize_places": prizes,
+            "enough_participants": eligible_people >= prizes and prizes > 0,
+        }
+
+
 @router.post("/api/internal/giveaways/{public_id}/draw")
 async def internal_giveaway_draw(
     public_id: str,
