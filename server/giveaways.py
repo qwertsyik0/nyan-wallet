@@ -2471,12 +2471,16 @@ async def owner_giveaway_detail(
             .where(GiveawayParticipant.giveaway_id == row.id)
             .order_by(GiveawayParticipant.id.asc())
         ).all()
-        ticket_rows = session.scalars(active_ticket_query(row.id)).all()
+        ticket_rows = session.scalars(
+            active_ticket_query(row.id).order_by(GiveawayTicket.ticket_number.asc())
+        ).all()
         counts = defaultdict(int)
         paid = defaultdict(int)
+        ticket_numbers = defaultdict(list)
         for ticket in ticket_rows:
             counts[ticket.telegram_id] += 1
             paid[ticket.telegram_id] += int(ticket.paid_amount)
+            ticket_numbers[ticket.telegram_id].append(int(ticket.ticket_number))
         participant_items = []
         rank_distribution = defaultdict(int)
         source_distribution = defaultdict(int)
@@ -2495,6 +2499,7 @@ async def owner_giveaway_detail(
                     "exclusion_reason": participant.exclusion_reason,
                     "rank": rank,
                     "tickets": counts[user.telegram_id],
+                    "ticket_numbers": ticket_numbers[user.telegram_id],
                     "paid_lapcoins": paid[user.telegram_id],
                     "joined_at": norm_dt(participant.joined_at).isoformat(),
                     "source_chat_id": participant.source_chat_id,
