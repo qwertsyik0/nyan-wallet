@@ -2312,6 +2312,10 @@ async def owner_giveaway_resume(
             row.status = "active"
             row.updated_at = now_utc()
             refresh_state(session, row)
+            if row.status == "active":
+                sync_giveaway_buttons(session, row, closed=False)
+            else:
+                sync_giveaway_buttons(session, row, closed=True)
             status = row.status
     return {"ok": True, "status": status}
 
