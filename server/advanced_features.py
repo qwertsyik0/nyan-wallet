@@ -264,6 +264,7 @@ async def profile(x_telegram_init_data: str | None = Header(default=None, alias=
             select(func.coalesce(func.sum(core.Transaction.amount), 0)).where(
                 core.Transaction.telegram_id == tg["id"],
                 core.Transaction.amount > 0,
+                ~core.Transaction.operation_type.in_(("reward_refund", "giveaway_refund", "giveaway_manual_refund")),
             )
         ) or 0
         spent_raw = session.scalar(
