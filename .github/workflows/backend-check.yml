@@ -60,6 +60,19 @@ jobs:
               )):
                   print(f"{no}: {line}")
           PY
+      - name: Inspect giveaway registration and callbacks
+        run: |
+          python - <<'PY'
+          import base64, gzip
+          from pathlib import Path
+          src = gzip.decompress(base64.b64decode(Path("bot_addons/giveaway_bot.py.gz.b64").read_bytes(), validate=True)).decode("utf-8")
+          lines = src.splitlines()
+          for i, line in enumerate(lines, 1):
+              if "def register_giveaway_handlers" in line or "async def giveaway_callback" in line or "async def giveaways_command" in line:
+                  print(f"=== {i}: {line} ===")
+                  for no in range(max(1, i-10), min(len(lines), i+85)+1):
+                      print(f"{no}: {lines[no-1]}")
+          PY
       - name: Test installer patch safety
         run: |
           python - <<'PY'
