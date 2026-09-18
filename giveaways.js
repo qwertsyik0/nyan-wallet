@@ -302,9 +302,12 @@
   function participantHtml(p) {
     const name = p.username ? "@" + p.username : (p.first_name || "Пользователь");
     const search = (name + " " + p.telegram_id).toLowerCase();
+    const serials = Array.isArray(p.ticket_numbers) && p.ticket_numbers.length
+      ? '<br>Билеты: ' + p.ticket_numbers.map(function (n) { return '#' + String(n).padStart(6, "0"); }).join(', ')
+      : '';
     return '<div class="nyg-participant" data-search="' + esc(search) + '"><div><div class="nyg-person-name">' + esc(name) + '</div>' +
       '<div class="nyg-person-meta">ID ' + esc(p.telegram_id) + ' · ' + esc(p.rank) + ' · билетов ' + esc(p.tickets) + ' · потрачено ' + esc(p.paid_lapcoins) +
-      ' 🐾<br>Статус: ' + esc(p.status) + (p.exclusion_reason ? " · " + esc(p.exclusion_reason) : "") + '</div></div>' +
+      ' 🐾<br>Статус: ' + esc(p.status) + (p.exclusion_reason ? " · " + esc(p.exclusion_reason) : "") + serials + '</div></div>' +
       '<div class="nyg-mini-actions"><button type="button" data-pa="plus" data-target="' + esc(p.telegram_id) + '">+1</button>' +
       '<button type="button" data-pa="minus" data-target="' + esc(p.telegram_id) + '">−1</button>' +
       '<button type="button" data-pa="exclude" data-target="' + esc(p.telegram_id) + '">Исключить</button>' +
