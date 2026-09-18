@@ -9,6 +9,7 @@ import secrets
 import urllib.parse
 import urllib.request
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
@@ -306,6 +307,20 @@ class GiveawayResult(core.Base):
     selected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class GiveawayResultPost(core.Base):
+    __tablename__ = "giveaway_result_posts"
+    __table_args__ = (UniqueConstraint("giveaway_id", "chat_id", "message_id", name="uq_giveaway_result_post"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    giveaway_id: Mapped[int] = mapped_column(Integer, ForeignKey("giveaways.id", ondelete="CASCADE"), nullable=False, index=True)
+    chat_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    message_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    source_chat_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    source_message_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="published", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class PurchaseImportPayload(BaseModel):
     text: str = Field(min_length=1, max_length=200_000)
 
@@ -315,6 +330,7 @@ class PurchaseCreatePayload(BaseModel):
     item_name: str = Field(min_length=1, max_length=240)
     amount_rub: str = Field(min_length=1, max_length=32)
     purchased_on: str = Field(min_length=1, max_length=40)
+    force_duplicate: bool = False
 
 
 class GiveawayCreatePayload(BaseModel):
@@ -389,6 +405,17 @@ class PostRegistrationPayload(BaseModel):
     chat_id: int
     message_id: int
     status: str = Field(default="active", max_length=32)
+
+
+class ReplacePostPayload(BaseModel):
+    source_chat_id: int
+    message_ids: list[int] = Field(min_length=1, max_length=10)
+
+
+class ResultPublishPayload(BaseModel):
+    source_chat_id: int
+    source_message_id: int
+    channel_ids: list[int] = Field(min_length=1, max_length=100)
 
 
 def require_user(header: str | None) -> dict:
@@ -1345,20 +1372,72 @@ def eligible_pool(session, giveaway: Giveaway) -> tuple[list[GiveawayTicket], li
         ).order_by(GiveawayParticipant.id.asc())
     ).all()
 
-    accepted_ids = set()
+    accepted_ids: set[int] = set()
     rejected: list[tuple[GiveawayParticipant, str]] = []
+    locally_eligible: list[GiveawayParticipant] = []
+
+    # First evaluate every condition backed by our own database. This keeps
+    # Telegram network calls out of the path for users who already fail locally.
     for participant in participants:
         user = session.get(core.User, participant.telegram_id)
         if user is None:
             rejected.append((participant, "Пользователь удалён"))
             continue
-        ok, reason, retryable = eligibility(session, giveaway, user, check_subscriptions=True)
+        ok, reason, retryable = eligibility(session, giveaway, user, check_subscriptions=False)
         if retryable:
             raise HTTPException(status_code=503, detail=reason or "Временно не удалось проверить условия")
         if ok:
-            accepted_ids.add(participant.telegram_id)
+            locally_eligible.append(participant)
         else:
             rejected.append((participant, reason or "Условия больше не выполнены"))
+
+    required_channels = session.scalars(
+        select(GiveawayChannel).where(
+            GiveawayChannel.giveaway_id == giveaway.id,
+            GiveawayChannel.required_subscription.is_(True),
+        ).order_by(GiveawayChannel.id.asc())
+    ).all()
+
+    if not required_channels:
+        accepted_ids.update(participant.telegram_id for participant in locally_eligible)
+    elif locally_eligible:
+        checks = [
+            (participant.telegram_id, channel.chat_id)
+            for participant in locally_eligible
+            for channel in required_channels
+        ]
+        workers = min(24, max(1, len(checks)))
+        membership: dict[tuple[int, int], tuple[bool | None, str | None]] = {}
+        with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="nyg-member") as executor:
+            futures = {
+                executor.submit(telegram_membership, chat_id, telegram_id): (telegram_id, chat_id)
+                for telegram_id, chat_id in checks
+            }
+            for future, key in futures.items():
+                try:
+                    membership[key] = future.result()
+                except Exception:
+                    membership[key] = (None, "Не удалось проверить подписку")
+
+        # Preserve channel order so the same first failing condition is reported
+        # consistently, even though network checks were parallel.
+        for participant in locally_eligible:
+            failed_reason = None
+            for channel in required_channels:
+                member, error = membership[(participant.telegram_id, channel.chat_id)]
+                label = f"@{channel.username}" if channel.username else channel.title
+                if member is None:
+                    raise HTTPException(
+                        status_code=503,
+                        detail=f"Не удалось проверить подписку на {label}. Попробуйте позже.",
+                    )
+                if not member:
+                    failed_reason = f"Вы не подписаны на {label}"
+                    break
+            if failed_reason:
+                rejected.append((participant, failed_reason))
+            else:
+                accepted_ids.add(participant.telegram_id)
 
     tickets = session.scalars(
         select(GiveawayTicket).where(
@@ -1465,7 +1544,11 @@ async def owner_purchase_add(
             raise HTTPException(status_code=400, detail="Дата покупки не может быть в будущем")
         fingerprint = purchase_fingerprint(user.telegram_id, payload.item_name, amount, purchased_on)
         if session.scalar(select(ShopPurchase.id).where(ShopPurchase.fingerprint == fingerprint)):
-            raise HTTPException(status_code=409, detail="Такая покупка уже существует")
+            if not payload.force_duplicate:
+                raise HTTPException(status_code=409, detail="Такая покупка уже существует")
+            fingerprint = hashlib.sha256(
+                f"{fingerprint}:manual:{secrets.token_hex(16)}".encode()
+            ).hexdigest()
         row = ShopPurchase(
             telegram_id=user.telegram_id,
             item_name=payload.item_name.strip(),
