@@ -334,20 +334,25 @@
         const enough = balance === Infinity || balance >= reward.cost;
         const progress = balance === Infinity ? 100 : Math.min(100, Math.round(balance * 100 / Math.max(1, reward.cost)));
         const missing = enough ? 0 : reward.cost - balance;
-        extra.innerHTML = `
-          <div class="ny-reward-tags">
-            <span class="ny-reward-tag">${category.stars ? "Stars" : category.premium ? "Premium" : "Награда"}</span>
-            ${category.limited ? '<span class="ny-reward-tag limited">Лимитированная</span>' : ""}
-            <span class="ny-reward-tag ${enough ? "ready" : "short"}">${enough ? "Доступно" : "Не хватает"}</span>
-          </div>
-          <div class="ny-reward-progress"><span style="width:${progress}%"></span></div>
-          <div class="ny-reward-missing">${enough ? "Можно получить сейчас" : `Не хватает ещё ${missing} 🐾`}</div>`;
+        const signature = [balance, reward.cost, reward.stock_remaining, reward.available_until, enough, progress].join("|");
+        if (extra.dataset.nySignature !== signature) {
+          extra.dataset.nySignature = signature;
+          extra.innerHTML = `
+            <div class="ny-reward-tags">
+              <span class="ny-reward-tag">${category.stars ? "Stars" : category.premium ? "Premium" : "Награда"}</span>
+              ${category.limited ? '<span class="ny-reward-tag limited">Лимитированная</span>' : ""}
+              <span class="ny-reward-tag ${enough ? "ready" : "short"}">${enough ? "Доступно" : "Не хватает"}</span>
+            </div>
+            <div class="ny-reward-progress"><span style="width:${progress}%"></span></div>
+            <div class="ny-reward-missing">${enough ? "Можно получить сейчас" : `Не хватает ещё ${missing} 🐾`}</div>`;
+        }
 
         const button = card.querySelector("button");
         if (button) {
           if (!button.dataset.nyOriginalText) button.dataset.nyOriginalText = button.textContent;
-          button.disabled = !enough;
-          button.textContent = enough ? button.dataset.nyOriginalText : `Не хватает ${missing} 🐾`;
+          const nextText = enough ? button.dataset.nyOriginalText : `Не хватает ${missing} 🐾`;
+          if (button.disabled === enough) button.disabled = !enough;
+          if (button.textContent !== nextText) button.textContent = nextText;
         }
 
         if (!card.dataset.nyDetailBound) {
