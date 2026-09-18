@@ -38,20 +38,6 @@ jobs:
           compile(source.decode("utf-8"), "giveaway_bot.py", "exec")
           print("giveaway_bot payload OK")
           PY
-      - name: Inspect giveaway bot ticket-limit contract
-        run: |
-          python - <<'PY'
-          import base64, gzip, re
-          from pathlib import Path
-          src = gzip.decompress(base64.b64decode(Path("bot_addons/giveaway_bot.py.gz.b64").read_bytes())).decode("utf-8")
-          source_lines = src.splitlines()
-          for no, line in enumerate(source_lines, 1):
-              if "per_user_limit" in line or "лимит" in line.lower() or "билет" in line.lower() and "10" in line:
-                  print(f"{no}: {line}")
-          print("=== LIMIT CONTEXT ===")
-          for no in range(815, min(905, len(source_lines)) + 1):
-              print(f"{no}: {source_lines[no - 1]}")
-          PY
       - name: Test installer patch safety
         run: |
           python - <<'PY'
@@ -66,7 +52,18 @@ jobs:
           assert patched.count("register_giveaway_handlers(app)") == 1
           assert patched.index("register_giveaway_handlers(app)") < patched.index("app.run_polling")
           assert module.patch_bot(patched) == patched
-          print("installer patch test OK")
+
+          import base64, gzip
+          encoded = Path("bot_addons/giveaway_bot.py.gz.b64").read_bytes()
+          raw_bot = gzip.decompress(base64.b64decode(encoded, validate=True))
+          adapted = module.adapt_giveaway_source(raw_bot).decode("utf-8")
+          assert "value > 1000" in adapted
+          assert "1 <= value <= 1000" in adapted
+          assert "0 <= value <= 1000" in adapted
+          assert "Лимит должен быть от 1 до 10." not in adapted
+          assert "Бонусных билетов: от 0 до 9." not in adapted
+          compile(adapted, "giveaway_bot.py", "exec")
+          print("installer patch and ticket-limit adaptation OK")
           PY
       - name: Check browser JavaScript syntax
         run: |
