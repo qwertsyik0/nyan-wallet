@@ -1,0 +1,158 @@
+/* Owner-only holographic wallet skin. */
+.balance-card.is-owner {
+    --owner-holo-x: 50%;
+    --owner-holo-y: 50%;
+    --owner-tilt-x: 0deg;
+    --owner-tilt-y: 0deg;
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at var(--owner-holo-x) var(--owner-holo-y),
+            rgba(255,255,255,.92) 0 7%,
+            rgba(255,255,255,.30) 18%,
+            rgba(255,255,255,0) 38%),
+        linear-gradient(128deg,
+            #fff8fc 0%,
+            #ffe3f0 23%,
+            #eadfff 46%,
+            #ffd8eb 69%,
+            #fff6fb 100%);
+    border: 1px solid rgba(210,145,199,.58);
+    box-shadow:
+        0 24px 58px rgba(130,47,104,.17),
+        0 0 0 1px rgba(255,255,255,.72) inset,
+        0 0 36px rgba(226,122,198,.12);
+    transform:
+        perspective(900px)
+        rotateX(var(--owner-tilt-x))
+        rotateY(var(--owner-tilt-y));
+    transform-style: preserve-3d;
+    transition: transform 120ms ease-out, box-shadow 220ms ease;
+    will-change: transform;
+}
+
+.balance-card.is-owner::before {
+    content: "";
+    position: absolute;
+    inset: -42%;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        linear-gradient(115deg,
+            transparent 16%,
+            rgba(255,255,255,.08) 25%,
+            rgba(255,157,214,.24) 35%,
+            rgba(193,175,255,.25) 46%,
+            rgba(255,255,255,.38) 53%,
+            rgba(255,190,226,.21) 63%,
+            transparent 75%);
+    transform: translate3d(-18%, -8%, 0) rotate(8deg);
+    animation: owner-holo-sheen 7.5s ease-in-out infinite;
+}
+
+.balance-card.is-owner::after {
+    content: "🐾   ·   ✦   ·   🐾   ·   ✦   ·   🐾\A✦   ·   🐾   ·   ✦   ·   🐾   ·   ✦\A🐾   ·   ✦   ·   🐾   ·   ✦   ·   🐾";
+    white-space: pre;
+    position: absolute;
+    inset: auto -18px -23px auto;
+    z-index: -1;
+    pointer-events: none;
+    color: rgba(126,33,91,.055);
+    font-size: 22px;
+    line-height: 1.9;
+    letter-spacing: .32em;
+    transform: rotate(-10deg);
+}
+
+.balance-card.is-owner .wallet-card-mark {
+    background: linear-gradient(145deg, rgba(255,255,255,.90), rgba(255,228,243,.66));
+    border-color: rgba(197,123,177,.46);
+    box-shadow:
+        0 8px 24px rgba(132,47,104,.12),
+        0 0 18px rgba(222,126,200,.16);
+}
+
+.balance-card.is-owner .wallet-card-name {
+    color: #6e2147;
+    text-shadow: 0 1px 0 rgba(255,255,255,.7);
+}
+
+.balance-card.is-owner .wallet-card-type {
+    color: #9b6582;
+}
+
+.balance-card.is-owner .wallet-status {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(120deg, rgba(110,33,71,.96), rgba(161,65,122,.94));
+    border: 1px solid rgba(255,255,255,.40);
+    color: #fff;
+    box-shadow:
+        0 8px 22px rgba(99,29,72,.18),
+        0 0 0 1px rgba(255,255,255,.08) inset;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+}
+
+.balance-card.is-owner .wallet-status::after {
+    content: "";
+    position: absolute;
+    inset: -30% -45%;
+    background: linear-gradient(115deg, transparent 40%, rgba(255,255,255,.52) 50%, transparent 60%);
+    transform: translateX(-55%);
+    animation: owner-status-glint 4.8s ease-in-out infinite;
+}
+
+.balance-card.is-owner .balance {
+    color: #70234d;
+    text-shadow:
+        0 1px 0 rgba(255,255,255,.78),
+        0 0 22px rgba(221,104,188,.12);
+}
+
+.balance-card.is-owner .currency-name,
+.balance-card.is-owner .balance-label,
+.balance-card.is-owner .wallet-detail-label {
+    color: #9f6d89;
+}
+
+.balance-card.is-owner .wallet-number,
+.balance-card.is-owner .wallet-holder {
+    color: #61203f;
+}
+
+.balance-card.is-owner .wallet-card-bottom {
+    border-top-color: rgba(110,33,71,.12);
+}
+
+.balance-card.is-owner.owner-holo-active {
+    box-shadow:
+        0 28px 64px rgba(130,47,104,.20),
+        0 0 0 1px rgba(255,255,255,.78) inset,
+        0 0 42px rgba(226,122,198,.16);
+}
+
+@keyframes owner-holo-sheen {
+    0%, 100% { transform: translate3d(-20%, -8%, 0) rotate(8deg); opacity: .72; }
+    50% { transform: translate3d(18%, 9%, 0) rotate(8deg); opacity: 1; }
+}
+
+@keyframes owner-status-glint {
+    0%, 68%, 100% { transform: translateX(-60%); opacity: 0; }
+    76% { opacity: .85; }
+    88% { transform: translateX(60%); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .balance-card.is-owner,
+    .balance-card.is-owner::before,
+    .balance-card.is-owner .wallet-status::after {
+        animation: none !important;
+        transition: none !important;
+    }
+
+    .balance-card.is-owner {
+        transform: none !important;
+    }
+}
