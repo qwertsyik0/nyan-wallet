@@ -155,12 +155,31 @@ function renderAchievements(data) {
 function showAchievementToast(items) {
     if (!items?.length) return;
     document.querySelector(".ach-toast")?.remove();
+    const unlocked = items
+        .map(key => achievementsState?.items?.find(item => item.key === key))
+        .filter(Boolean);
+    const first = unlocked[0];
     const toast = document.createElement("div");
     toast.className = "ach-toast";
-    toast.textContent = items.length === 1 ? "Открыто новое достижение" : `Открыто новых достижений: ${items.length}`;
+    if (first) {
+        const reward = first.reward > 0 ? `<div class="ach-toast-reward">+${first.reward} 🐾</div>` : "";
+        toast.innerHTML = `
+          <div class="ach-toast-kicker">Новое достижение</div>
+          <div class="ach-toast-main">
+            <div class="ach-toast-icon">${achIcon(first.icon)}</div>
+            <div class="ach-toast-copy">
+              <div class="ach-toast-title">${achEsc(first.title)}</div>
+              <div class="ach-toast-desc">${achEsc(first.description)}</div>
+            </div>
+            ${reward}
+          </div>
+          ${unlocked.length > 1 ? `<div class="ach-toast-more">И ещё ${unlocked.length - 1}</div>` : ""}`;
+    } else {
+        toast.textContent = items.length === 1 ? "Открыто новое достижение" : `Открыто новых достижений: ${items.length}`;
+    }
     document.body.appendChild(toast);
     tgAch?.HapticFeedback?.notificationOccurred?.("success");
-    setTimeout(() => toast.remove(), 2800);
+    setTimeout(() => toast.remove(), 4200);
 }
 
 async function loadAchievements(silent = true) {
