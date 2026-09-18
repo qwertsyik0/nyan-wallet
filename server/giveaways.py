@@ -854,6 +854,188 @@ def publish_giveaway_locked(session, giveaway: Giveaway) -> list[GiveawayPost]:
         raise HTTPException(status_code=502, detail=f"Не удалось опубликовать розыгрыш: {exc}") from exc
 
 
+def replace_giveaway_posts_locked(
+    session,
+    giveaway: Giveaway,
+    source_chat_id: int,
+    message_ids: list[int],
+) -> list[GiveawayPost]:
+    if not message_ids or len(message_ids) > 10:
+        raise HTTPException(status_code=400, detail="В посте должно быть от 1 до 10 сообщений")
+
+    channels = session.scalars(
+        select(GiveawayChannel)
+        .where(
+            GiveawayChannel.giveaway_id == giveaway.id,
+            GiveawayChannel.publish_enabled.is_(True),
+        )
+        .order_by(GiveawayChannel.id.asc())
+    ).all()
+    if not channels:
+        raise HTTPException(status_code=409, detail="У розыгрыша нет каналов публикации")
+
+    old_posts = session.scalars(
+        select(GiveawayPost).where(
+            GiveawayPost.giveaway_id == giveaway.id,
+            GiveawayPost.status == "active",
+        )
+    ).all()
+
+    closed = giveaway.status in {"awaiting_results", "completed", "cancelled"}
+    keyboard = giveaway_keyboard(giveaway.public_id or "", closed=closed)
+    sent: list[tuple[int, list[int]]] = []
+    new_posts: list[GiveawayPost] = []
+    timestamp = now_utc()
+
+    try:
+        for channel in channels:
+            if len(message_ids) == 1:
+                result = telegram_api(
+                    "copyMessage",
+                    {
+                        "chat_id": channel.chat_id,
+                        "from_chat_id": source_chat_id,
+                        "message_id": int(message_ids[0]),
+                        "reply_markup": keyboard,
+                    },
+                )
+                copied_ids = [int(result["message_id"])]
+            else:
+                result = telegram_api(
+                    "copyMessages",
+                    {
+                        "chat_id": channel.chat_id,
+                        "from_chat_id": source_chat_id,
+                        "message_ids": [int(value) for value in message_ids],
+                    },
+                    timeout=20,
+                )
+                copied_ids = [int(item["message_id"]) for item in result]
+                if not copied_ids:
+                    raise RuntimeError("Telegram не вернул ID нового альбома")
+                telegram_api(
+                    "editMessageReplyMarkup",
+                    {
+                        "chat_id": channel.chat_id,
+                        "message_id": copied_ids[-1],
+                        "reply_markup": keyboard,
+                    },
+                )
+
+            sent.append((channel.chat_id, copied_ids))
+            for copied_id in copied_ids:
+                row = GiveawayPost(
+                    giveaway_id=giveaway.id,
+                    chat_id=channel.chat_id,
+                    message_id=copied_id,
+                    status="active",
+                    last_error=None,
+                    created_at=timestamp,
+                    updated_at=timestamp,
+                )
+                session.add(row)
+                new_posts.append(row)
+
+        session.flush()
+    except Exception as exc:
+        _cleanup_telegram_messages(sent)
+        if isinstance(exc, HTTPException):
+            raise
+        raise HTTPException(status_code=502, detail=f"Не удалось обновить посты: {exc}") from exc
+
+    # New copies exist everywhere. Only now retire and delete the old copies.
+    old_by_chat: dict[int, list[int]] = defaultdict(list)
+    for post in old_posts:
+        post.status = "replaced"
+        post.updated_at = timestamp
+        old_by_chat[post.chat_id].append(post.message_id)
+    _cleanup_telegram_messages(list(old_by_chat.items()))
+
+    giveaway.post_json = json_dump(
+        {"source_chat_id": int(source_chat_id), "message_ids": [int(value) for value in message_ids]}
+    )
+    giveaway.updated_at = timestamp
+    return new_posts
+
+
+def publish_results_locked(
+    session,
+    giveaway: Giveaway,
+    source_chat_id: int,
+    source_message_id: int,
+    channel_ids: list[int],
+) -> list[GiveawayResultPost]:
+    if giveaway.status not in {"awaiting_results", "completed"}:
+        raise HTTPException(status_code=409, detail="Итоги можно публиковать только после выбора победителей")
+
+    active_results = session.scalar(
+        select(func.count()).select_from(GiveawayResult).where(
+            GiveawayResult.giveaway_id == giveaway.id,
+            GiveawayResult.status == "active",
+        )
+    ) or 0
+    prizes = session.scalar(
+        select(func.count()).select_from(GiveawayPrize).where(
+            GiveawayPrize.giveaway_id == giveaway.id
+        )
+    ) or 0
+    if int(active_results) != int(prizes) or int(prizes) == 0:
+        raise HTTPException(status_code=409, detail="Список победителей ещё не готов")
+
+    allowed_channels = {
+        row.chat_id
+        for row in session.scalars(
+            select(GiveawayChannel).where(
+                GiveawayChannel.giveaway_id == giveaway.id,
+                GiveawayChannel.publish_enabled.is_(True),
+            )
+        ).all()
+    }
+    requested = []
+    for raw in channel_ids:
+        channel_id = int(raw)
+        if channel_id not in allowed_channels:
+            raise HTTPException(status_code=400, detail=f"Канал {channel_id} не относится к этому розыгрышу")
+        if channel_id not in requested:
+            requested.append(channel_id)
+    if not requested:
+        raise HTTPException(status_code=400, detail="Выберите хотя бы один канал для итогов")
+
+    timestamp = now_utc()
+    sent: list[tuple[int, list[int]]] = []
+    created: list[GiveawayResultPost] = []
+    try:
+        for channel_id in requested:
+            result = telegram_api(
+                "copyMessage",
+                {
+                    "chat_id": channel_id,
+                    "from_chat_id": int(source_chat_id),
+                    "message_id": int(source_message_id),
+                },
+            )
+            message_id = int(result["message_id"])
+            sent.append((channel_id, [message_id]))
+            row = GiveawayResultPost(
+                giveaway_id=giveaway.id,
+                chat_id=channel_id,
+                message_id=message_id,
+                source_chat_id=int(source_chat_id),
+                source_message_id=int(source_message_id),
+                status="published",
+                created_at=timestamp,
+            )
+            session.add(row)
+            created.append(row)
+        session.flush()
+        return created
+    except Exception as exc:
+        _cleanup_telegram_messages(sent)
+        if isinstance(exc, HTTPException):
+            raise
+        raise HTTPException(status_code=502, detail=f"Не удалось опубликовать итоги: {exc}") from exc
+
+
 def sync_giveaway_buttons(session, giveaway: Giveaway, closed: bool) -> None:
     posts = session.scalars(
         select(GiveawayPost).where(
@@ -1890,6 +2072,19 @@ async def owner_giveaway_detail(
             },
             "participants": participant_items,
             "results": [result_user_dict(session, result) for result in results],
+            "result_posts": [
+                {
+                    "chat_id": item.chat_id,
+                    "message_id": item.message_id,
+                    "status": item.status,
+                    "created_at": norm_dt(item.created_at).isoformat(),
+                }
+                for item in session.scalars(
+                    select(GiveawayResultPost)
+                    .where(GiveawayResultPost.giveaway_id == row.id)
+                    .order_by(GiveawayResultPost.id.asc())
+                ).all()
+            ],
         }
 
 
@@ -2502,6 +2697,56 @@ async def internal_giveaway_detail(
         refresh_state(session, giveaway)
         session.commit()
         return {"ok": True, "giveaway": giveaway_dict(session, giveaway, include_private=True)}
+
+
+@router.post("/api/internal/giveaways/{public_id}/replace-post")
+async def internal_replace_post(
+    public_id: str,
+    payload: ReplacePostPayload,
+    x_nyan_bot_key: str | None = Header(default=None, alias="X-Nyan-Bot-Key"),
+):
+    require_bot_key(x_nyan_bot_key)
+    with core.SessionLocal() as session:
+        with session.begin():
+            giveaway = get_giveaway_locked(session, public_id)
+            if giveaway.status == "cancelled":
+                raise HTTPException(status_code=409, detail="Отменённый розыгрыш нельзя редактировать")
+            replace_giveaway_posts_locked(
+                session,
+                giveaway,
+                payload.source_chat_id,
+                [int(value) for value in payload.message_ids],
+            )
+    return {"ok": True, "public_id": public_id}
+
+
+@router.post("/api/internal/giveaways/{public_id}/results/publish")
+async def internal_publish_results(
+    public_id: str,
+    payload: ResultPublishPayload,
+    x_nyan_bot_key: str | None = Header(default=None, alias="X-Nyan-Bot-Key"),
+):
+    require_bot_key(x_nyan_bot_key)
+    with core.SessionLocal() as session:
+        with session.begin():
+            giveaway = get_giveaway_locked(session, public_id)
+            rows = publish_results_locked(
+                session,
+                giveaway,
+                payload.source_chat_id,
+                payload.source_message_id,
+                [int(value) for value in payload.channel_ids],
+            )
+            if giveaway.status != "completed":
+                giveaway.status = "completed"
+                giveaway.completed_at = now_utc()
+                giveaway.updated_at = now_utc()
+                sync_giveaway_buttons(session, giveaway, closed=True)
+            response = [
+                {"chat_id": row.chat_id, "message_id": row.message_id}
+                for row in rows
+            ]
+    return {"ok": True, "published": response, "status": "completed"}
 
 
 @router.post("/api/internal/giveaways/{public_id}/posts")
