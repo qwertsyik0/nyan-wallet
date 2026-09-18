@@ -124,47 +124,31 @@ def user_label(user: core.User) -> str:
 
 
 def seed_rewards() -> None:
+    star_rewards = [
+        ("50 Telegram Stars", "Заявка на выдачу 50 Stars", 1400, 10),
+        ("100 Telegram Stars", "Заявка на выдачу 100 Stars", 2800, 20),
+        ("250 Telegram Stars", "Заявка на выдачу 250 Stars", 7000, 30),
+        ("500 Telegram Stars", "Заявка на выдачу 500 Stars", 14000, 40),
+    ]
     with core.SessionLocal() as session:
-        existing = session.scalar(select(func.count()).select_from(Reward)) or 0
-        if existing:
-            return
         timestamp = now_utc()
-        session.add_all(
-            [
-                Reward(
-                    title="50 Telegram Stars",
-                    description="Заявка на выдачу 50 Stars",
-                    cost=300,
-                    is_active=True,
-                    sort_order=10,
-                    created_at=timestamp,
-                ),
-                Reward(
-                    title="100 Telegram Stars",
-                    description="Заявка на выдачу 100 Stars",
-                    cost=550,
-                    is_active=True,
-                    sort_order=20,
-                    created_at=timestamp,
-                ),
-                Reward(
-                    title="250 Telegram Stars",
-                    description="Заявка на выдачу 250 Stars",
-                    cost=1250,
-                    is_active=True,
-                    sort_order=30,
-                    created_at=timestamp,
-                ),
-                Reward(
-                    title="500 Telegram Stars",
-                    description="Заявка на выдачу 500 Stars",
-                    cost=2300,
-                    is_active=True,
-                    sort_order=40,
-                    created_at=timestamp,
-                ),
-            ]
-        )
+        for title, description, cost, sort_order in star_rewards:
+            reward = session.scalar(select(Reward).where(Reward.title == title))
+            if reward:
+                reward.cost = cost
+                reward.description = description
+                reward.sort_order = sort_order
+            else:
+                session.add(
+                    Reward(
+                        title=title,
+                        description=description,
+                        cost=cost,
+                        is_active=True,
+                        sort_order=sort_order,
+                        created_at=timestamp,
+                    )
+                )
         session.commit()
 
 
