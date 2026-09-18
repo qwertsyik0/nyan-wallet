@@ -45,6 +45,17 @@ def adapt_giveaway_source(source: bytes) -> bytes:
 
     replacements = [
         (
+            '    copied_ids = await _copy_preview(state, _owner_id())\n'
+            '    # Use the successful bot-authored preview as the canonical source. This makes\n'
+            '    # scheduled publication independent from the owner\'s original message and\n'
+            '    # also verifies Telegram can preserve the post before we publish anywhere.\n'
+            '    state["post"] = {"source_chat_id": _owner_id(), "message_ids": copied_ids}',
+            '    await _copy_preview(state, _owner_id())\n'
+            '    # Keep the owner\'s original message as the canonical publication source.\n'
+            '    # Re-copying the bot-authored preview can strip Telegram custom_emoji_id entities.',
+            1,
+        ),
+        (
             'if value is None or value < 1 or value > 10:',
             f'if value is None or value < 1 or value > {MAX_TICKETS_PER_USER}:',
             1,
@@ -81,6 +92,8 @@ def adapt_giveaway_source(source: bytes) -> bytes:
 
     if 'Лимит должен быть от 1 до 10.' in text or 'Бонусных билетов: от 0 до 9.' in text:
         raise InstallError("После адаптации в giveaway_bot.py осталось старое ограничение билетов")
+    if 'state["post"] = {"source_chat_id": _owner_id(), "message_ids": copied_ids}' in text:
+        raise InstallError("После адаптации предпросмотр всё ещё заменяет оригинальный источник поста")
 
     try:
         compile(text, "giveaway_bot.py", "exec")
