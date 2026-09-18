@@ -1164,7 +1164,6 @@ def refresh_published_results_best_effort(session, giveaway: Giveaway) -> bool:
             any_success = True
         except Exception:
             post.status = "stale"
-    if any_success:
     return any_success
 
 
