@@ -65,7 +65,7 @@
   }
 
   function visibleCustom() {
-    const ids = ["nyg-list-view","nyg-detail-view","nyg-owner-list-view","nyg-owner-detail-view","nyg-purchases-view"];
+    const ids = ["nyg-list-view","nyg-detail-view","nyg-my-purchases-view","nyg-owner-list-view","nyg-owner-detail-view","nyg-purchases-view"];
     for (const id of ids) {
       const el = document.getElementById(id);
       if (el && !el.classList.contains("hidden")) return el;
@@ -104,6 +104,15 @@
       v.id = "nyg-detail-view"; v.className = "view hidden nyg-view";
       v.innerHTML = head("Розыгрыш", "Nyan Cash", "nyg-list-view") +
         '<div id="nyg-detail-content" class="nyg-stack"><div class="nyg-empty">Загружаем…</div></div>';
+      app.appendChild(v);
+    }
+    if (!document.getElementById("nyg-my-purchases-view")) {
+      const v = document.createElement("main");
+      v.id = "nyg-my-purchases-view"; v.className = "view hidden nyg-view";
+      v.innerHTML = head("Мои покупки", "покупки, учтённые в Нян Шопе", "wallet-view") +
+        '<section class="nyg-card"><div class="nyg-title">История покупок</div>' +
+        '<div id="nyg-my-purchases-summary" class="nyg-message">Загружаем…</div>' +
+        '<div id="nyg-my-purchases-list"></div></section>';
       app.appendChild(v);
     }
     if (!document.getElementById("nyg-owner-list-view")) {
@@ -156,6 +165,11 @@
       const b = document.createElement("button");
       b.id = "nyg-my-button"; b.className = "nyg-action"; b.type = "button"; b.textContent = "Розыгрыши";
       actions.appendChild(b); b.addEventListener("click", openMine);
+    }
+    if (actions && !document.getElementById("nyg-my-purchases-button")) {
+      const b = document.createElement("button");
+      b.id = "nyg-my-purchases-button"; b.className = "nyg-action"; b.type = "button"; b.textContent = "Мои покупки";
+      actions.appendChild(b); b.addEventListener("click", openMyPurchases);
     }
     const owner = document.getElementById("owner-view");
     if (owner && !document.getElementById("nyg-owner-nav")) {
@@ -464,6 +478,31 @@
       });
     });
   }
+
+  async function openMyPurchases() {
+    show("nyg-my-purchases-view");
+    const list = document.getElementById("nyg-my-purchases-list");
+    const summary = document.getElementById("nyg-my-purchases-summary");
+    list.innerHTML = '<div class="nyg-message">Загружаем…</div>';
+    summary.textContent = "Загружаем покупки…";
+    summary.className = "nyg-message";
+    try {
+      const d = await api("/api/my-purchases");
+      summary.textContent = "Покупок: " + d.count + " · общая сумма: " + (Number(d.total_kopecks || 0) / 100).toFixed(2) + " ₽";
+      list.innerHTML = d.items && d.items.length ? d.items.map(function (x) {
+        return '<div class="nyg-purchase-row">' +
+          '<div class="nyg-purchase-top"><div class="nyg-purchase-name">' + esc(x.item_name) + '</div>' +
+          '<div class="nyg-purchase-amount">' + esc(x.amount_rub) + ' ₽</div></div>' +
+          '<div class="nyg-purchase-meta">' + esc(x.purchase_id) + ' · ' + esc(x.purchased_on) + '</div>' +
+          '</div>';
+      }).join("") : '<div class="nyg-message">У вас пока нет учтённых покупок</div>';
+    } catch (e) {
+      summary.textContent = e.message;
+      summary.className = "nyg-message error";
+      list.innerHTML = "";
+    }
+  }
+
 
   async function loadPurchases(q) {
     const list = document.getElementById("nyg-purchase-list"), sum = document.getElementById("nyg-purchase-summary");
