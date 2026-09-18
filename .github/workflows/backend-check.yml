@@ -1,10 +1,13 @@
-name: Backend syntax check
+name: Backend and client syntax check
 
 on:
   push:
     branches: [main]
     paths:
       - "server/**/*.py"
+      - "*.js"
+      - "tools/install_giveaway_bot.py"
+      - "bot_addons/giveaway_bot.py.gz.b64"
       - ".github/workflows/backend-check.yml"
   workflow_dispatch:
 
@@ -12,15 +15,68 @@ permissions:
   contents: read
 
 jobs:
-  pycompile:
+  validation:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - name: Compile backend modules
-        run: python -m py_compile server/*.py
+      - name: Compile backend and installer
+        run: |
+          python -m py_compile server/*.py tools/install_giveaway_bot.py
+      - name: Validate giveaway bot payload
+        run: |
+          python - <<'PY'
+          import base64
+          import gzip
+          import hashlib
+          from pathlib import Path
+
+          encoded = Path("bot_addons/giveaway_bot.py.gz.b64").read_bytes()
+          if hashlib.sha256(encoded).hexdigest() != "d1ab94e7703e1fb5ba467586d54a02a5b3c56d382d1d49cc54b3c3ce9540800a":
+              raise SystemExit("giveaway payload base64 SHA256 mismatch")
+
+          source = gzip.decompress(base64.b64decode(encoded, validate=True))
+          if hashlib.sha256(source).hexdigest() != "b2c8fc0749bc0066509828c6b2f0fde92542a772ae9d68d2e8350b55e6567c98":
+              raise SystemExit("giveaway_bot.py SHA256 mismatch")
+
+          Path("/tmp/giveaway_bot.py").write_bytes(source)
+          compile(source.decode("utf-8"), "giveaway_bot.py", "exec")
+          print("giveaway_bot payload OK")
+          PY
+      - name: Test installer patch safety
+        run: |
+          python - <<'PY'
+          import importlib.util
+          from pathlib import Path
+
+          spec = importlib.util.spec_from_file_location(
+              "installer",
+              Path("tools/install_giveaway_bot.py"),
+          )
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+
+          source = """from telegram.ext import Application
+from dotenv import load_dotenv
+
+load_dotenv()
+
+def main():
+    app = Application.builder().token("x").build()
+    app.run_polling(drop_pending_updates=True)
+
+if __name__ == "__main__":
+    main()
+"""
+          patched = module.patch_bot(source)
+          assert patched.count("from giveaway_bot import register_giveaway_handlers") == 1
+          assert patched.count("register_giveaway_handlers(app)") == 1
+          assert patched.index("register_giveaway_handlers(app)") < patched.index("app.run_polling")
+          assert module.patch_bot(patched) == patched
+          print("installer patch test OK")
+          PY
       - name: Check browser JavaScript syntax
         run: |
           for file in ./*.js; do
