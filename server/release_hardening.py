@@ -74,6 +74,10 @@ def _specific_rule(path: str) -> tuple[str, int, int] | None:
         return "referral", 5, 300
     if path.startswith("/api/rewards/") and path.endswith("/request"):
         return "reward", 8, 60
+    if path.startswith("/api/giveaways/") and path.endswith("/tickets/purchase"):
+        return "giveaway-purchase", 15, 60
+    if path.startswith("/api/giveaways/") and path.endswith("/join"):
+        return "giveaway-join", 20, 60
     if path == "/api/notifications/read-all":
         return "notifications", 30, 60
     if path.startswith("/api/owner/"):
