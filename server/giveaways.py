@@ -1802,6 +1802,134 @@ def choose_weighted_ticket(
     return ticket
 
 
+def mark_rejected_participants(rejected: list[tuple[GiveawayParticipant, str]]) -> None:
+    timestamp = now_utc()
+    for participant, reason in rejected:
+        participant.status = "excluded"
+        participant.exclusion_reason = reason
+        participant.updated_at = timestamp
+
+
+def execute_full_draw_locked(
+    session,
+    giveaway: Giveaway,
+    prizes: list[GiveawayPrize],
+) -> tuple[str, int, int, list[GiveawayResult]]:
+    weights, rejected = eligible_weights(session, giveaway)
+    mark_rejected_participants(rejected)
+
+    eligible_people = len(weights)
+    eligible_tickets = sum(count for _, count in weights)
+    if eligible_people < len(prizes):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Допущено {eligible_people} участников, призовых мест {len(prizes)}. Решите вручную.",
+        )
+
+    snapshot_raw, snapshot_hash = selection_snapshot(session, giveaway, weights)
+    event = GiveawaySelectionEvent(
+        giveaway_id=giveaway.id,
+        kind="full",
+        snapshot_json=snapshot_raw,
+        snapshot_sha256=snapshot_hash,
+        eligible_participants=eligible_people,
+        eligible_tickets=eligible_tickets,
+        reason=None,
+        created_at=now_utc(),
+    )
+    session.add(event)
+    session.flush()
+
+    selected: list[GiveawayResult] = []
+    excluded_winners: set[int] = set()
+    for prize in prizes:
+        ticket = choose_weighted_ticket(session, giveaway, weights, excluded_winners)
+        excluded_winners.add(ticket.telegram_id)
+        result = GiveawayResult(
+            giveaway_id=giveaway.id,
+            selection_event_id=event.id,
+            position=prize.position,
+            telegram_id=ticket.telegram_id,
+            ticket_number=ticket.ticket_number,
+            prize_text=prize.prize_text,
+            status="active",
+            reason=None,
+            selected_at=now_utc(),
+        )
+        session.add(result)
+        session.flush()
+        selected.append(result)
+
+    return snapshot_hash, eligible_people, eligible_tickets, selected
+
+
+def execute_replacement_locked(
+    session,
+    giveaway: Giveaway,
+    old: GiveawayResult,
+    reason: str,
+) -> tuple[str, GiveawayResult]:
+    weights, rejected = eligible_weights(session, giveaway)
+    mark_rejected_participants(rejected)
+
+    current_winner_ids = set(
+        session.scalars(
+            select(GiveawayResult.telegram_id).where(
+                GiveawayResult.giveaway_id == giveaway.id,
+                GiveawayResult.status == "active",
+            )
+        ).all()
+    )
+    historically_replaced = set(
+        session.scalars(
+            select(GiveawayResult.telegram_id).where(
+                GiveawayResult.giveaway_id == giveaway.id,
+                GiveawayResult.status == "replaced",
+            )
+        ).all()
+    )
+    excluded = current_winner_ids | historically_replaced | {old.telegram_id}
+    available_weights = [
+        (telegram_id, count)
+        for telegram_id, count in weights
+        if telegram_id not in excluded and count > 0
+    ]
+    if not available_weights:
+        raise HTTPException(status_code=409, detail="Нет подходящих участников для перевыбора")
+
+    snapshot_raw, snapshot_hash = selection_snapshot(session, giveaway, available_weights)
+    event = GiveawaySelectionEvent(
+        giveaway_id=giveaway.id,
+        kind="replacement",
+        snapshot_json=snapshot_raw,
+        snapshot_sha256=snapshot_hash,
+        eligible_participants=len(available_weights),
+        eligible_tickets=sum(count for _, count in available_weights),
+        reason=reason,
+        created_at=now_utc(),
+    )
+    session.add(event)
+    session.flush()
+
+    ticket = choose_weighted_ticket(session, giveaway, available_weights)
+    old.status = "replaced"
+    old.reason = reason
+    new_result = GiveawayResult(
+        giveaway_id=giveaway.id,
+        selection_event_id=event.id,
+        position=old.position,
+        telegram_id=ticket.telegram_id,
+        ticket_number=ticket.ticket_number,
+        prize_text=old.prize_text,
+        status="active",
+        reason=None,
+        selected_at=now_utc(),
+    )
+    session.add(new_result)
+    session.flush()
+    return snapshot_hash, new_result
+
+
 def result_user_dict(session, row: GiveawayResult) -> dict:
     user = session.get(core.User, row.telegram_id)
     return {
