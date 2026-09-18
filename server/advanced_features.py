@@ -296,7 +296,7 @@ async def profile(x_telegram_init_data: str | None = Header(default=None, alias=
             },
             "stats": {
                 "balance": int(user.balance) if user else 0,
-                "unlimited_balance": bool(user.unlimited_balance) if user else False,
+                "unlimited_balance": bool(core.is_owner(user.telegram_id)) if user else False,
                 "lifetime_earned": int(earned),
                 "lifetime_spent": abs(int(spent_raw)),
                 "fulfilled_rewards": int(fulfilled),
