@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
@@ -32,9 +33,11 @@ from sqlalchemy.orm import Mapped, mapped_column
 from . import backend_app as core
 from .achievements import ACHIEVEMENT_BY_KEY, AchievementUnlock
 from .advanced_features import level_data, settings
+from .extended_features import send_telegram_message
 
 router = APIRouter()
 _REGISTERED = False
+_STATE_TASK: asyncio.Task | None = None
 
 RANKS = ("Новичок", "Постоянник", "VIP", "Легенда")
 GIVEAWAY_STATUSES = {
@@ -2179,10 +2182,48 @@ async def internal_register_post(
     return {"ok": True}
 
 
+def sweep_giveaway_states() -> None:
+    notifications: list[str] = []
+    try:
+        with core.SessionLocal() as session:
+            with session.begin():
+                rows = session.scalars(
+                    select(Giveaway)
+                    .where(Giveaway.status.in_(("scheduled", "active")))
+                    .order_by(Giveaway.id.asc())
+                    .with_for_update()
+                ).all()
+                for row in rows:
+                    before = row.status
+                    refresh_state(session, row)
+                    if before != row.status and row.status == "awaiting_results":
+                        notifications.append(
+                            f"Розыгрыш {row.public_id} завершил приём участников. "
+                            "Итоги ждут вашего подтверждения."
+                        )
+        for message in notifications:
+            send_telegram_message(core.OWNER_TELEGRAM_ID, message)
+    except Exception as exc:
+        print(f"Nyan giveaway state sweep failed: {exc}")
+
+
+async def _state_loop() -> None:
+    while True:
+        await asyncio.to_thread(sweep_giveaway_states)
+        await asyncio.sleep(30)
+
+
+async def _start_state_loop() -> None:
+    global _STATE_TASK
+    if _STATE_TASK is None or _STATE_TASK.done():
+        _STATE_TASK = asyncio.create_task(_state_loop(), name="nyan-giveaway-state-loop")
+
+
 def register_giveaways(app) -> None:
     global _REGISTERED
     if _REGISTERED:
         return
     core.Base.metadata.create_all(core.engine)
     app.include_router(router)
+    app.add_event_handler("startup", _start_state_loop)
     _REGISTERED = True
