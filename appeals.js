@@ -199,6 +199,8 @@
                     '<label>Название <input id="owner-topic-title" maxlength="120" required></label>' +
                     '<label>Описание <textarea id="owner-topic-desc" maxlength="1200" required></textarea></label>' +
                     '<label>Форма <select id="owner-topic-type"><option value="general">Обычное обращение</option><option value="custom_wallet">Кастомный кошелёк</option></select></label>' +
+                    '<label>Начало <small>необязательно</small><input id="owner-topic-start" type="datetime-local"></label>' +
+                    '<label>Окончание <small>необязательно</small><input id="owner-topic-end" type="datetime-local"></label>' +
                     '<button type="submit">Создать тему</button>' +
                     '<div id="owner-topic-status" class="appeal-info"></div>' +
                 '</form>' +
@@ -612,7 +614,9 @@
             '<div class="appeal-section-sub">' + fmt(item.created_at) + '</div></div>' +
             '<span class="appeal-status' + statusClass(item.status) + '">' + esc(STATUS_LABELS[item.status] || item.status) + '</span></div>' +
             '<div class="appeal-owner-user" style="margin-top:12px"><div class="appeal-title">' + esc(user.label || "Пользователь") + '</div>' +
-            '<div class="appeal-meta">ID ' + esc(user.telegram_id) + (user.username ? ' · @' + esc(user.username) : "") + '</div></div>' +
+            '<div class="appeal-meta">ID ' + esc(user.telegram_id) + (user.username ? ' · @' + esc(user.username) : "") +
+            (user.rank ? '<br>Ранг: ' + esc(user.rank) : "") +
+            (Number.isFinite(Number(user.balance)) ? ' · Баланс: ' + esc(user.balance) + ' 🐾' : "") + '</div></div>' +
             '<div class="appeal-divider"></div>' +
             '<div class="appeal-title">Пожелания</div><div class="appeal-meta">' + esc(item.message) + '</div>';
         if (item.favorite_colors) html += '<div class="appeal-title" style="margin-top:10px">Любимые цвета</div><div class="appeal-meta">' + esc(item.favorite_colors) + '</div>';
@@ -884,13 +888,27 @@
     async function submitTopic(event) {
         event.preventDefault();
         const status = document.getElementById("owner-topic-status");
+        const startRaw = document.getElementById("owner-topic-start")?.value || "";
+        const endRaw = document.getElementById("owner-topic-end")?.value || "";
+        const startDate = startRaw ? new Date(startRaw) : null;
+        const endDate = endRaw ? new Date(endRaw) : null;
+        if ((startDate && Number.isNaN(startDate.getTime())) || (endDate && Number.isNaN(endDate.getTime()))) {
+            status.textContent = "Некорректная дата.";
+            status.className = "appeal-error";
+            return;
+        }
+        if (startDate && endDate && endDate <= startDate) {
+            status.textContent = "Окончание должно быть позже начала.";
+            status.className = "appeal-error";
+            return;
+        }
         const payload = {
             code: document.getElementById("owner-topic-code")?.value.trim() || "",
             title: document.getElementById("owner-topic-title")?.value.trim() || "",
             description: document.getElementById("owner-topic-desc")?.value.trim() || "",
             form_type: document.getElementById("owner-topic-type")?.value || "general",
-            starts_at: null,
-            ends_at: null,
+            starts_at: startDate ? startDate.toISOString() : null,
+            ends_at: endDate ? endDate.toISOString() : null,
         };
         if (!payload.code || !payload.title || !payload.description) {
             status.textContent = "Заполните код, название и описание.";
@@ -906,6 +924,8 @@
             document.getElementById("owner-topic-code").value = "";
             document.getElementById("owner-topic-title").value = "";
             document.getElementById("owner-topic-desc").value = "";
+            document.getElementById("owner-topic-start").value = "";
+            document.getElementById("owner-topic-end").value = "";
             status.textContent = "Тема создана.";
             status.className = "appeal-success";
             await loadOwnerTopics();
@@ -930,7 +950,9 @@
                 card.className = "appeal-card";
                 card.innerHTML =
                     '<div class="appeal-card-head"><div><div class="appeal-title">' + esc(topic.title) + '</div>' +
-                    '<div class="appeal-meta">' + esc(topic.code) + ' · ' + esc(topic.form_type) + '<br>' + esc(topic.description) + '</div></div>' +
+                    '<div class="appeal-meta">' + esc(topic.code) + ' · ' + esc(topic.form_type) + '<br>' + esc(topic.description) +
+                    (topic.starts_at ? '<br>Начало: ' + fmt(topic.starts_at) : "") +
+                    (topic.ends_at ? '<br>Окончание: ' + fmt(topic.ends_at) : "") + '</div></div>' +
                     '<span class="appeal-status' + (topic.is_active ? "" : " reject") + '">' + (topic.is_active ? "Активна" : "Выключена") + '</span></div>' +
                     '<div class="appeal-actions"><button class="appeal-button secondary" type="button">' + (topic.is_active ? "Отключить" : "Включить") + '</button></div>';
                 card.querySelector("button")?.addEventListener("click", () => toggleTopic(topic.id));
