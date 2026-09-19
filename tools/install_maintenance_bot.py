@@ -13,7 +13,7 @@ from pathlib import Path
 
 MODULE_URL = (
     "https://raw.githubusercontent.com/qwertsyik0/nyan-wallet/"
-    "f878e2165adeef0c888b870e202d9e9ec55dd4c0/"
+    "9a3c44bd277419d544cec6cf353c8e9f1c92ca78/"
     "bot_addons/maintenance_bot.py"
 )
 IMPORT_LINE = "from maintenance_bot import register_maintenance_handlers"
