@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
@@ -94,13 +95,16 @@ async def maintenance_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     action = args[0].lower()
 
     if action == "status":
-        request = urllib.request.Request(
-            API_BASE + "/api/maintenance/status",
-            method="GET",
-        )
-        try:
+        def fetch_status() -> dict:
+            request = urllib.request.Request(
+                API_BASE + "/api/maintenance/status",
+                method="GET",
+            )
             with urllib.request.urlopen(request, timeout=10) as response:
-                data = json.loads(response.read().decode("utf-8"))
+                return json.loads(response.read().decode("utf-8"))
+
+        try:
+            data = await asyncio.to_thread(fetch_status)
             state = data.get("maintenance", {})
             status = "ВКЛЮЧЕН" if state.get("enabled") else "ВЫКЛЮЧЕН"
             await message.reply_text(
@@ -131,7 +135,7 @@ async def maintenance_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     }
 
     try:
-        data = signed_request(payload)
+        data = await asyncio.to_thread(signed_request, payload)
     except MaintenanceBotError as exc:
         logger.exception("maintenance_toggle_command_failed")
         await message.reply_text(f"Не удалось изменить режим: {exc}")
