@@ -17,7 +17,7 @@ from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from server import backend_app as core
 from server.extended_features import audit
-from server.advanced_features import WalletNotification
+from server.advanced_features import WalletNotification, level_data, settings
 
 logger = logging.getLogger("nyan_wallet.appeals")
 
@@ -62,6 +62,19 @@ def human_user(user: core.User) -> str:
         return f"@{user.username}"
     name = " ".join(part for part in [user.first_name, user.last_name] if part).strip()
     return name or f"ID {user.telegram_id}"
+
+
+def user_rank_name(session: Session, telegram_id: int) -> str:
+    earned = session.scalar(
+        select(func.coalesce(func.sum(core.Transaction.amount), 0)).where(
+            core.Transaction.telegram_id == telegram_id,
+            core.Transaction.amount > 0,
+            ~core.Transaction.operation_type.in_(
+                ("reward_refund", "giveaway_refund", "giveaway_manual_refund")
+            ),
+        )
+    ) or 0
+    return str(level_data(int(earned), settings(session))["name"])
 
 
 class AppealTopic(core.Base):
@@ -269,6 +282,8 @@ def serialize_appeal_detail(session: Session, item: Appeal) -> dict:
             "first_name": user.first_name,
             "last_name": user.last_name,
             "label": human_user(user),
+            "balance": int(user.balance),
+            "rank": user_rank_name(session, user.telegram_id),
         } if user else None,
         "message": item.message,
         "favorite_colors": item.favorite_colors,
@@ -604,10 +619,13 @@ async def create_appeal(
                 result = serialize_appeal_detail(session, item)
                 user = session.get(core.User, tg["id"])
                 who = human_user(user) if user else f"ID {tg['id']}"
+                rank = user_rank_name(session, tg["id"])
+                balance = int(user.balance) if user else 0
 
             text_parts = [
                 f"Новое обращение {item.public_id}",
                 f"{who} · ID {tg['id']}",
+                f"Ранг: {rank} · Баланс: {balance} 🐾",
                 f"Тема: {topic.title}",
                 "",
                 f"Пожелания: {message}",
