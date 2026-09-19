@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import asyncio
 import csv
 import hashlib
 import io
+import json
+import os
+import urllib.error
+import urllib.request
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException
@@ -17,6 +23,10 @@ from server.extended_features import Reward, SpendRequest, audit, send_telegram_
 
 router = APIRouter()
 _REGISTERED = False
+_EVENT_ANNOUNCEMENT_TASK: asyncio.Task | None = None
+EVENT_DELIVERY_BATCH = 50
+EVENT_DELIVERY_MAX_ATTEMPTS = 3
+MINI_APP_BASE_URL = os.getenv("MINI_APP_URL", "https://qwertsyik0.github.io/nyan-wallet/").strip() or "https://qwertsyik0.github.io/nyan-wallet/"
 
 DEFAULTS = {
     "cashback_percent": 5,
@@ -101,6 +111,43 @@ class WalletEvent(core.Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class WalletEventAnnouncement(core.Base):
+    __tablename__ = "wallet_event_announcements"
+
+    event_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("wallet_events.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    seeded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class WalletEventDelivery(core.Base):
+    __tablename__ = "wallet_event_deliveries"
+    __table_args__ = (
+        UniqueConstraint("event_id", "telegram_id", name="uq_wallet_event_delivery"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    event_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("wallet_events.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    telegram_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("users.telegram_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", index=True)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class EconomySetting(core.Base):
     __tablename__ = "economy_settings"
     key: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -143,6 +190,214 @@ class EventPayload(BaseModel):
 
 class EconomyPayload(BaseModel):
     values: dict[str, int]
+
+
+def event_mini_app_url(event_id: int) -> str:
+    base = MINI_APP_BASE_URL.rstrip("/")
+    return f"{base}/?event={int(event_id)}"
+
+
+def send_event_launch_message(
+    telegram_id: int,
+    event_id: int,
+    title: str,
+    description: str | None,
+    badge: str | None,
+) -> tuple[bool, str | None]:
+    if not core.BOT_TOKEN:
+        return False, "BOT_TOKEN отсутствует"
+
+    parts = ["Событие началось", "", title]
+    if badge:
+        parts.append(badge)
+    if description:
+        parts.extend(["", description])
+    parts.extend(["", "Откройте Nyan Wallet, чтобы посмотреть событие."])
+    payload = {
+        "chat_id": int(telegram_id),
+        "text": "\n".join(parts),
+        "reply_markup": {
+            "inline_keyboard": [[
+                {
+                    "text": "Открыть событие",
+                    "web_app": {"url": event_mini_app_url(event_id)},
+                }
+            ]]
+        },
+    }
+    request = urllib.request.Request(
+        f"https://api.telegram.org/bot{core.BOT_TOKEN}/sendMessage",
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=8) as response:
+            body = json.loads(response.read().decode("utf-8"))
+        if not body.get("ok"):
+            return False, str(body.get("description") or "Telegram API вернул ok=false")
+        return True, None
+    except urllib.error.HTTPError as exc:
+        try:
+            body = exc.read().decode("utf-8", errors="replace")
+        except Exception:
+            body = str(exc)
+        return False, f"HTTP {exc.code}: {body}"[:500]
+    except Exception as exc:
+        return False, str(exc)[:500]
+
+
+def seed_wallet_event_deliveries(timestamp: datetime) -> None:
+    with core.SessionLocal() as session:
+        with session.begin():
+            events = session.scalars(
+                select(WalletEvent)
+                .where(
+                    WalletEvent.is_active.is_(True),
+                    WalletEvent.starts_at <= timestamp,
+                    WalletEvent.ends_at > timestamp,
+                )
+                .order_by(WalletEvent.id.asc())
+                .with_for_update()
+            ).all()
+
+            for item in events:
+                if session.get(WalletEventAnnouncement, item.id) is not None:
+                    continue
+                telegram_ids = session.scalars(
+                    select(core.User.telegram_id).order_by(core.User.telegram_id.asc())
+                ).all()
+                session.add(WalletEventAnnouncement(event_id=item.id, seeded_at=timestamp))
+                for telegram_id in telegram_ids:
+                    session.add(
+                        WalletEventDelivery(
+                            event_id=item.id,
+                            telegram_id=int(telegram_id),
+                            status="pending",
+                            attempts=0,
+                            last_error=None,
+                            created_at=timestamp,
+                            sent_at=None,
+                        )
+                    )
+                audit(
+                    session,
+                    "event_announcement_seeded",
+                    None,
+                    f"{item.title} · получателей {len(telegram_ids)}",
+                )
+
+
+def claim_wallet_event_deliveries(timestamp: datetime) -> list[dict]:
+    with core.SessionLocal() as session:
+        with session.begin():
+            rows = session.execute(
+                select(WalletEventDelivery, WalletEvent)
+                .join(WalletEvent, WalletEvent.id == WalletEventDelivery.event_id)
+                .where(
+                    WalletEventDelivery.status.in_(("pending", "retry")),
+                    WalletEventDelivery.attempts < EVENT_DELIVERY_MAX_ATTEMPTS,
+                    WalletEvent.is_active.is_(True),
+                    WalletEvent.starts_at <= timestamp,
+                    WalletEvent.ends_at > timestamp,
+                )
+                .order_by(WalletEventDelivery.id.asc())
+                .limit(EVENT_DELIVERY_BATCH)
+                .with_for_update()
+            ).all()
+            jobs: list[dict] = []
+            for delivery, item in rows:
+                delivery.status = "sending"
+                delivery.attempts += 1
+                jobs.append(
+                    {
+                        "delivery_id": delivery.id,
+                        "telegram_id": delivery.telegram_id,
+                        "event_id": item.id,
+                        "title": item.title,
+                        "description": item.description,
+                        "badge": item.badge,
+                    }
+                )
+            return jobs
+
+
+def finish_wallet_event_delivery(delivery_id: int, ok: bool, error: str | None) -> None:
+    with core.SessionLocal() as session:
+        with session.begin():
+            delivery = session.get(WalletEventDelivery, delivery_id)
+            if delivery is None or delivery.status != "sending":
+                return
+            if ok:
+                delivery.status = "sent"
+                delivery.sent_at = now()
+                delivery.last_error = None
+            else:
+                delivery.last_error = (error or "Неизвестная ошибка Telegram")[:500]
+                delivery.status = (
+                    "failed"
+                    if delivery.attempts >= EVENT_DELIVERY_MAX_ATTEMPTS
+                    else "retry"
+                )
+
+
+def sweep_wallet_event_announcements() -> None:
+    timestamp = now()
+    try:
+        seed_wallet_event_deliveries(timestamp)
+    except Exception as exc:
+        print(f"Nyan Wallet event announcement seed failed: {exc}")
+        return
+
+    try:
+        jobs = claim_wallet_event_deliveries(timestamp)
+    except Exception as exc:
+        print(f"Nyan Wallet event announcement claim failed: {exc}")
+        return
+
+    if not jobs:
+        return
+
+    workers = min(8, len(jobs))
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="nyan-event-dm") as executor:
+        futures = {
+            executor.submit(
+                send_event_launch_message,
+                job["telegram_id"],
+                job["event_id"],
+                job["title"],
+                job["description"],
+                job["badge"],
+            ): job
+            for job in jobs
+        }
+        for future, job in futures.items():
+            try:
+                ok, error = future.result()
+            except Exception as exc:
+                ok, error = False, str(exc)
+            try:
+                finish_wallet_event_delivery(job["delivery_id"], ok, error)
+            except Exception as exc:
+                print(
+                    f"Nyan Wallet event delivery finalize failed "
+                    f"#{job['delivery_id']}: {exc}"
+                )
+
+
+async def _wallet_event_announcement_loop() -> None:
+    while True:
+        await asyncio.to_thread(sweep_wallet_event_announcements)
+        await asyncio.sleep(30)
+
+
+async def _start_wallet_event_announcement_loop() -> None:
+    global _EVENT_ANNOUNCEMENT_TASK
+    if _EVENT_ANNOUNCEMENT_TASK is None or _EVENT_ANNOUNCEMENT_TASK.done():
+        _EVENT_ANNOUNCEMENT_TASK = asyncio.create_task(
+            _wallet_event_announcement_loop(),
+            name="nyan-wallet-event-announcement-loop",
+        )
 
 
 def settings(session: Session) -> dict[str, int]:
@@ -539,7 +794,38 @@ async def owner_events(x_telegram_init_data: str | None = Header(default=None, a
     core.require_owner(tg)
     with core.SessionLocal() as session:
         rows = session.scalars(select(WalletEvent).order_by(WalletEvent.id.desc())).all()
-        return {"ok": True, "events": [{"id": row.id, "title": row.title, "description": row.description, "badge": row.badge, "starts_at": row.starts_at.isoformat(), "ends_at": row.ends_at.isoformat(), "is_active": row.is_active} for row in rows]}
+        items = []
+        for row in rows:
+            total = session.scalar(
+                select(func.count()).select_from(WalletEventDelivery).where(
+                    WalletEventDelivery.event_id == row.id
+                )
+            ) or 0
+            sent = session.scalar(
+                select(func.count()).select_from(WalletEventDelivery).where(
+                    WalletEventDelivery.event_id == row.id,
+                    WalletEventDelivery.status == "sent",
+                )
+            ) or 0
+            failed = session.scalar(
+                select(func.count()).select_from(WalletEventDelivery).where(
+                    WalletEventDelivery.event_id == row.id,
+                    WalletEventDelivery.status == "failed",
+                )
+            ) or 0
+            items.append({
+                "id": row.id,
+                "title": row.title,
+                "description": row.description,
+                "badge": row.badge,
+                "starts_at": row.starts_at.isoformat(),
+                "ends_at": row.ends_at.isoformat(),
+                "is_active": row.is_active,
+                "notification_total": int(total),
+                "notification_sent": int(sent),
+                "notification_failed": int(failed),
+            })
+        return {"ok": True, "events": items}
 
 
 @router.post("/api/owner/events")
@@ -663,4 +949,5 @@ def register_advanced_features(app) -> None:
     event.listen(core.Transaction, "after_insert", tx_notification)
     event.listen(Session, "before_flush", reward_guard)
     app.include_router(router)
+    app.add_event_handler("startup", _start_wallet_event_announcement_loop)
     _REGISTERED = True
