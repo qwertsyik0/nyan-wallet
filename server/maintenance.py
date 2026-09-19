@@ -11,7 +11,7 @@ from typing import Any
 from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import Boolean, DateTime, Integer, String, Text, select
+from sqlalchemy import BigInteger, Boolean, DateTime, Integer, String, Text, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
@@ -46,7 +46,7 @@ class MaintenanceState(core.Base):
     title: Mapped[str] = mapped_column(String(120), nullable=False, default=DEFAULT_TITLE)
     message: Mapped[str] = mapped_column(Text, nullable=False, default=DEFAULT_MESSAGE)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    updated_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
 
 class InternalMaintenancePayload(BaseModel):
