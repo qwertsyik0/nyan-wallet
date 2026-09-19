@@ -510,6 +510,15 @@
                 return;
             }
             box.innerHTML = "";
+            const defaultCard = document.createElement("article");
+            defaultCard.className = "appeal-skin";
+            defaultCard.innerHTML =
+                '<div class="appeal-skin-preview" style="background:linear-gradient(145deg,#fffdfd,#fff0f6 52%,#f9dce9)"></div>' +
+                '<div class="appeal-skin-body"><div class="appeal-skin-title">Стандартный Nyan Wallet</div>' +
+                '<div class="appeal-skin-meta">' + (active ? "Можно вернуть в любой момент" : "Установлен сейчас") + '</div>' +
+                '<button type="button" ' + (!active ? "disabled" : "") + '>' + (!active ? "Установлен" : "Вернуть") + '</button></div>';
+            defaultCard.querySelector("button")?.addEventListener("click", activateDefaultSkin);
+            box.appendChild(defaultCard);
             for (const skin of data.skins) {
                 const card = document.createElement("article");
                 card.className = "appeal-skin";
@@ -533,6 +542,19 @@
     async function activateSkin(skinId) {
         try {
             await api("/api/wallet-skins/" + skinId + "/activate", {
+                method: "POST",
+                headers: headers(true),
+            });
+            tg?.HapticFeedback?.notificationOccurred?.("success");
+            await loadMySkins(true);
+        } catch (error) {
+            alert(error.message);
+        }
+    }
+
+    async function activateDefaultSkin() {
+        try {
+            await api("/api/wallet-skins/activate-default", {
                 method: "POST",
                 headers: headers(true),
             });
@@ -760,16 +782,27 @@
         }
         try {
             validateImageFile(file);
-            status.textContent = "Загружаем дизайн…";
+            status.textContent = "Загружаем и устанавливаем дизайн…";
             status.className = "appeal-info";
-            const skin = await uploadSkin(file, title, theme, false, currentOwnerAppealId);
-            await api("/api/owner/appeals/" + currentOwnerAppealId + "/assign-skin", {
-                method: "POST",
-                headers: headers(true),
-                body: JSON.stringify({ skin_id: skin.id, complete_appeal: true }),
+            const params = new URLSearchParams({
+                title,
+                text_theme: theme,
             });
+            const response = await fetch(
+                API + "/api/owner/appeals/" + currentOwnerAppealId + "/wallet-skin?" + params.toString(),
+                {
+                    method: "POST",
+                    headers: {
+                        "X-Telegram-Init-Data": tg?.initData || "",
+                        "Content-Type": file.type,
+                    },
+                    body: file,
+                },
+            );
+            const data = await readJson(response);
+            if (!response.ok) throw new Error(data.detail || "Не удалось установить дизайн");
             tg?.HapticFeedback?.notificationOccurred?.("success");
-            await Promise.all([openOwnerAppeal(currentOwnerAppealId), loadOwnerTemplates()]);
+            await openOwnerAppeal(currentOwnerAppealId);
         } catch (error) {
             status.textContent = error.message;
             status.className = "appeal-error";
