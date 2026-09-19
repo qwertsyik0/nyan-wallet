@@ -1076,6 +1076,116 @@ def assign_skin_to_user(session: Session, telegram_id: int, skin: WalletSkin, ti
     return current
 
 
+def assign_skin_to_appeal(
+    session: Session,
+    appeal: Appeal,
+    skin: WalletSkin,
+    timestamp: datetime,
+    *,
+    complete_appeal: bool,
+) -> None:
+    assign_skin_to_user(session, appeal.telegram_id, skin, timestamp)
+    previous_status = appeal.status
+    if complete_appeal and appeal.status != "completed":
+        appeal.status = "completed"
+        appeal.completed_at = timestamp
+        appeal.updated_at = timestamp
+        session.add(
+            AppealStatusHistory(
+                appeal_id=appeal.id,
+                from_status=previous_status,
+                to_status="completed",
+                changed_at=timestamp,
+            )
+        )
+    add_wallet_notification(
+        session,
+        appeal.telegram_id,
+        "Новый дизайн Nyan Wallet",
+        f"Для вас установлен дизайн «{skin.title}».",
+    )
+    audit(
+        session,
+        "wallet_skin_assigned",
+        appeal.telegram_id,
+        f"skin #{skin.id} · {appeal.public_id}",
+    )
+
+
+@router.post("/api/owner/appeals/{appeal_id}/wallet-skin")
+async def owner_create_and_assign_wallet_skin(
+    appeal_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    title: str = Query(min_length=1, max_length=120),
+    description: str | None = Query(default=None, max_length=500),
+    text_theme: Literal["dark", "light"] = Query(default="dark"),
+    x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
+):
+    tg = core.verify_init_data(x_telegram_init_data or "")
+    core.require_owner(tg)
+
+    clean_title = title.strip()
+    if not clean_title:
+        raise HTTPException(status_code=400, detail="Название дизайна пустое")
+
+    # The stream is validated before opening a database transaction so a slow
+    # upload cannot hold row locks. Assignment itself remains fully atomic.
+    image_data, image_mime, image_width, image_height = await read_limited_image(request)
+    digest = hashlib.sha256(image_data).hexdigest()
+    timestamp = now_utc()
+
+    with core.SessionLocal() as session:
+        with session.begin():
+            appeal = session.scalar(
+                select(Appeal).where(Appeal.id == appeal_id).with_for_update()
+            )
+            if appeal is None:
+                raise HTTPException(status_code=404, detail="Обращение не найдено")
+
+            skin = WalletSkin(
+                title=clean_title,
+                description=normalize_optional_text(description, max_length=500),
+                text_theme=text_theme,
+                image_mime=image_mime,
+                image_data=image_data,
+                image_sha256=digest,
+                image_width=image_width,
+                image_height=image_height,
+                is_template=False,
+                is_active=True,
+                created_by_appeal_id=appeal.id,
+                created_at=timestamp,
+            )
+            session.add(skin)
+            session.flush()
+
+            assign_skin_to_appeal(
+                session,
+                appeal,
+                skin,
+                timestamp,
+                complete_appeal=True,
+            )
+            audit(
+                session,
+                "wallet_skin_created",
+                appeal.telegram_id,
+                f"{clean_title} · personal · {digest[:12]}",
+            )
+            telegram_id = appeal.telegram_id
+            public_id = appeal.public_id or f"NWR-{appeal.id:06d}"
+            result = serialize_skin(skin, owned=True, active=True)
+
+        background_tasks.add_task(
+            safe_user_notification,
+            telegram_id,
+            f"{public_id}\nВаш индивидуальный дизайн «{clean_title}» установлен в Nyan Wallet.",
+            appeal_id,
+        )
+        return {"ok": True, "skin": result}
+
+
 @router.post("/api/owner/appeals/{appeal_id}/assign-skin")
 async def owner_assign_skin(
     appeal_id: int,
@@ -1095,27 +1205,13 @@ async def owner_assign_skin(
             skin = session.scalar(select(WalletSkin).where(WalletSkin.id == payload.skin_id).with_for_update())
             if skin is None or not skin.is_active:
                 raise HTTPException(status_code=404, detail="Дизайн не найден или отключён")
-            assign_skin_to_user(session, appeal.telegram_id, skin, timestamp)
-            previous_status = appeal.status
-            if payload.complete_appeal and appeal.status != "completed":
-                appeal.status = "completed"
-                appeal.completed_at = timestamp
-                appeal.updated_at = timestamp
-                session.add(
-                    AppealStatusHistory(
-                        appeal_id=appeal.id,
-                        from_status=previous_status,
-                        to_status="completed",
-                        changed_at=timestamp,
-                    )
-                )
-            add_wallet_notification(
+            assign_skin_to_appeal(
                 session,
-                appeal.telegram_id,
-                "Новый дизайн Nyan Wallet",
-                f"Для вас установлен дизайн «{skin.title}».",
+                appeal,
+                skin,
+                timestamp,
+                complete_appeal=payload.complete_appeal,
             )
-            audit(session, "wallet_skin_assigned", appeal.telegram_id, f"skin #{skin.id} · {appeal.public_id}")
             telegram_id = appeal.telegram_id
             public_id = appeal.public_id or f"NWR-{appeal.id:06d}"
 
@@ -1147,6 +1243,32 @@ async def my_wallet_skins(x_telegram_init_data: str | None = Header(default=None
                 if skin.is_active
             ],
         }
+
+
+@router.post("/api/wallet-skins/activate-default")
+async def activate_default_wallet(
+    x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
+):
+    tg = core.verify_init_data(x_telegram_init_data or "")
+    core.get_or_create_user(tg)
+    with core.SessionLocal() as session:
+        with session.begin():
+            user = session.scalar(
+                select(core.User)
+                .where(core.User.telegram_id == tg["id"])
+                .with_for_update()
+            )
+            if user is None:
+                raise HTTPException(status_code=404, detail="Пользователь не найден")
+            rows = session.scalars(
+                select(UserWalletSkin)
+                .where(UserWalletSkin.telegram_id == tg["id"])
+                .with_for_update()
+            ).all()
+            for row in rows:
+                row.is_active = False
+            audit(session, "wallet_skin_default_activated", tg["id"], None)
+    return {"ok": True}
 
 
 @router.post("/api/wallet-skins/{skin_id}/activate")
