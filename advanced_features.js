@@ -1,5 +1,10 @@
 const tgAdv = window.Telegram?.WebApp;
 const API_ADV = "https://nyan-wallet-api.onrender.com";
+const ADV_EVENT_TARGET_ID = (() => {
+    const raw = new URLSearchParams(window.location.search).get("event");
+    const value = Number.parseInt(raw || "", 10);
+    return Number.isInteger(value) && value > 0 ? value : null;
+})();
 
 function advHeaders(json = false) {
     const h = { "X-Telegram-Init-Data": tgAdv?.initData || "" };
@@ -37,7 +42,7 @@ function addAdvStyles() {
       .adv-title{font-size:17px;font-weight:700;color:#7e284c}.adv-sub{margin-top:5px;color:#a67589;font-size:12px;line-height:1.45}.adv-grid{display:grid;gap:10px;margin-top:13px}.adv-row{padding:13px;border-radius:15px;border:1px solid #f0dce5;background:#fff}.adv-row-title{font-size:13px;font-weight:700;color:#6d304a}.adv-row-meta{margin-top:5px;font-size:11px;color:#a67589;line-height:1.45}.adv-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}.adv-actions button{width:auto;padding:9px 11px;border-radius:11px;font-size:11px}.adv-actions .secondary{background:#fff;color:#7e4059;border:1px solid #dfbbc9}
       .adv-form{display:grid;gap:9px;margin-top:12px}.adv-form input,.adv-form textarea,.adv-form select{width:100%;box-sizing:border-box;border:1px solid #efd8e2;border-radius:13px;padding:12px 13px;background:#fff;color:#6d304a;font:inherit}.adv-form textarea{min-height:80px;resize:vertical}.adv-form button{padding:12px 14px;border-radius:13px;background:#922954;color:#fff}.adv-two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
       .adv-level{margin-top:14px;padding:16px;border-radius:20px;background:#fff7fa;border:1px solid #efd8e2}.adv-level-top{display:flex;align-items:center;justify-content:space-between;gap:12px}.adv-level-name{font-weight:800;color:#7e284c}.adv-level-progress{height:8px;border-radius:999px;background:#f2dfe8;overflow:hidden;margin-top:10px}.adv-level-progress>span{display:block;height:100%;background:#922954;border-radius:inherit}.adv-level-meta{margin-top:7px;font-size:11px;color:#9f7486}
-      .adv-notification{padding:14px 0;border-bottom:1px solid #f2e2e9}.adv-notification:last-child{border-bottom:0}.adv-notification.unread .adv-row-title:before{content:'• ';color:#922954}.adv-event{padding:14px;border-radius:16px;background:#fff;border:1px solid #efd8e2}.adv-event-badge{display:inline-block;margin-bottom:6px;padding:5px 8px;border-radius:999px;background:#fff0f6;color:#922954;font-size:10px;font-weight:700}
+      .adv-notification{padding:14px 0;border-bottom:1px solid #f2e2e9}.adv-notification:last-child{border-bottom:0}.adv-notification.unread .adv-row-title:before{content:'• ';color:#922954}.adv-event{padding:14px;border-radius:16px;background:#fff;border:1px solid #efd8e2}.adv-event.adv-event-target{border:2px solid #922954;box-shadow:0 0 0 4px rgba(146,41,84,.08)}.adv-event-badge{display:inline-block;margin-bottom:6px;padding:5px 8px;border-radius:999px;background:#fff0f6;color:#922954;font-size:10px;font-weight:700}
       .adv-reward{overflow:hidden}.adv-reward-img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:14px;margin-bottom:10px}.adv-stock{font-size:10px;color:#a67589;margin-top:5px}.adv-status{margin-top:9px;font-size:12px;color:#7e4059}.adv-ok{color:#4c7a5a}.adv-warn{color:#9a5c2f}
       @media(max-width:390px){.adv-two{grid-template-columns:1fr}.adv-actions{display:grid}.adv-actions button{width:100%}}
     `;
@@ -187,14 +192,30 @@ async function loadAdvNotifications(markRead = false) {
     } catch (_) {}
 }
 
-async function loadAdvEvents() {
+async function loadAdvEvents(targetEventId = null) {
     const box = document.getElementById("adv-events-user");
     if (!box || !tgAdv?.initData) return;
     try {
         const r = await fetch(`${API_ADV}/api/events`, { headers: advHeaders() });
         const d = await advJson(r);
-        box.innerHTML = d.events?.length ? d.events.map(e => `<div class="adv-event">${e.badge ? `<div class="adv-event-badge">${advEsc(e.badge)}</div>` : ""}<div class="adv-row-title">${advEsc(e.title)}</div><div class="adv-row-meta">${advEsc(e.description || "")}<br>до ${advDate(e.ends_at)}</div></div>`).join("") : `<div class="adv-sub">Сейчас активных событий нет</div>`;
-    } catch (_) {}
+        if (!r.ok) throw new Error(d.detail || "Не удалось загрузить события");
+        box.innerHTML = d.events?.length ? d.events.map(e => {
+            const target = targetEventId && Number(e.id) === Number(targetEventId);
+            return `<div class="adv-event${target ? " adv-event-target" : ""}" data-event-id="${e.id}">${e.badge ? `<div class="adv-event-badge">${advEsc(e.badge)}</div>` : ""}<div class="adv-row-title">${advEsc(e.title)}</div><div class="adv-row-meta">${advEsc(e.description || "")}<br>до ${advDate(e.ends_at)}</div></div>`;
+        }).join("") : `<div class="adv-sub">Сейчас активных событий нет</div>`;
+        if (targetEventId) {
+            const card = box.querySelector(`[data-event-id="${Number(targetEventId)}"]`);
+            if (card) setTimeout(() => card.scrollIntoView({ behavior: "smooth", block: "center" }), 80);
+        }
+    } catch (e) {
+        box.innerHTML = `<div class="adv-sub">${advEsc(e.message)}</div>`;
+    }
+}
+
+async function openAdvEventDeepLink() {
+    if (!ADV_EVENT_TARGET_ID) return;
+    advShowView("adv-profile-view");
+    await Promise.all([loadAdvProfile(), loadAdvEvents(ADV_EVENT_TARGET_ID)]);
 }
 
 async function loadEconomyUser() {
@@ -321,7 +342,12 @@ async function sendMassGrant() {
 async function loadOwnerEvents() {
     const box = document.getElementById("adv-owner-events"); if (!box || !tgAdv?.initData) return;
     const r = await fetch(`${API_ADV}/api/owner/events`, { headers: advHeaders() }); const d = await advJson(r); if (!r.ok) return;
-    box.innerHTML = d.events?.length ? d.events.map(x => `<div class="adv-row" data-eid="${x.id}"><div class="adv-row-title">${advEsc(x.title)} ${x.badge ? `· ${advEsc(x.badge)}` : ""}</div><div class="adv-row-meta">${x.is_active ? "включено" : "выключено"} · до ${advDate(x.ends_at)}</div><div class="adv-actions"><button type="button">${x.is_active ? "Отключить" : "Включить"}</button></div></div>`).join("") : `<div class="adv-sub">Событий пока нет</div>`;
+    box.innerHTML = d.events?.length ? d.events.map(x => {
+        const delivery = Number(x.notification_total || 0) > 0
+            ? `<br>ЛС: ${Number(x.notification_sent || 0)}/${Number(x.notification_total || 0)}${Number(x.notification_failed || 0) ? ` · ошибок ${Number(x.notification_failed || 0)}` : ""}`
+            : "";
+        return `<div class="adv-row" data-eid="${x.id}"><div class="adv-row-title">${advEsc(x.title)} ${x.badge ? `· ${advEsc(x.badge)}` : ""}</div><div class="adv-row-meta">${x.is_active ? "включено" : "выключено"} · до ${advDate(x.ends_at)}${delivery}</div><div class="adv-actions"><button type="button">${x.is_active ? "Отключить" : "Включить"}</button></div></div>`;
+    }).join("") : `<div class="adv-sub">Событий пока нет</div>`;
     for (const row of box.querySelectorAll("[data-eid]")) row.querySelector("button")?.addEventListener("click", async () => { await fetch(`${API_ADV}/api/owner/events/${row.dataset.eid}/toggle`, { method: "POST", headers: advHeaders(true) }); await loadOwnerEvents(); });
 }
 
@@ -357,4 +383,9 @@ async function downloadBackup() {
 }
 
 buildAdvUI();
-setTimeout(() => { loadAdvProfile(); loadAdvNotifications(false); loadEconomyUser(); }, 1500);
+setTimeout(() => {
+    if (ADV_EVENT_TARGET_ID) openAdvEventDeepLink();
+    else loadAdvProfile();
+    loadAdvNotifications(false);
+    loadEconomyUser();
+}, 1500);
