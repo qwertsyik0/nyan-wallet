@@ -644,6 +644,13 @@ async function loadWallet() {
         });
         const data = await readJson(response);
 
+        if (response.status === 503 && data?.detail === "maintenance") {
+            window.dispatchEvent(new CustomEvent("nyan-maintenance-required", {
+                detail: data.maintenance || {},
+            }));
+            return;
+        }
+
         if (!response.ok) throw new Error(data?.detail || "Ошибка загрузки кошелька");
 
         applyUserState(data.user);
