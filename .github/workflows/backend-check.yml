@@ -127,6 +127,36 @@ jobs:
               assert marker in client, f"appeals client marker missing: {marker}"
           print("appeals subsystem static audit OK")
           PY
+      - name: Audit transfer subsystem
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          source = Path("server/transfers.py").read_text(encoding="utf-8")
+          compile(source, "server/transfers.py", "exec")
+          required = [
+              'UniqueConstraint("sender_id", "idempotency_key"',
+              '.with_for_update()',
+              '@router.post("/api/transfers")',
+              '@router.get("/api/transfers/recipient")',
+              '@router.get("/api/wallet/qr")',
+              'MAX_TRANSFER_DAILY',
+              'IDEMPOTENCY_RE',
+              'transfer_out',
+              'transfer_in',
+          ]
+          missing = [item for item in required if item not in source]
+          assert not missing, f"transfer subsystem markers missing: {missing}"
+          client = Path("transfer.js").read_text(encoding="utf-8")
+          for marker in (
+              "pendingIdempotencyKey",
+              "resolveRecipient",
+              "sendTransfer",
+              "openQr",
+              "pay_",
+          ):
+              assert marker in client, f"transfer client marker missing: {marker}"
+          print("transfer subsystem static audit OK")
+          PY
       - name: Check browser JavaScript syntax
         run: |
           for file in ./*.js; do
