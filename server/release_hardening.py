@@ -80,6 +80,10 @@ def _specific_rule(path: str) -> tuple[str, int, int] | None:
         return "giveaway-join", 20, 60
     if path == "/api/notifications/read-all":
         return "notifications", 30, 60
+    if path == "/api/appeals":
+        return "appeal-create", 4, 300
+    if path.startswith("/api/appeals/") and path.endswith("/messages"):
+        return "appeal-message", 12, 60
     if path.startswith("/api/owner/"):
         return "owner", 120, 60
     return None
