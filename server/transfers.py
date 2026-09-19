@@ -300,6 +300,8 @@ def transfer_lapcoins(tg_user: dict[str, Any], payload: TransferRequest) -> dict
     # Ensure the authenticated sender exists before entering the money-moving transaction.
     core.get_or_create_user(tg_user)
 
+    recipient_id: int | None = None
+
     try:
         with core.SessionLocal() as session:
             with session.begin():
@@ -399,7 +401,11 @@ def transfer_lapcoins(tg_user: dict[str, Any], payload: TransferRequest) -> dict
                 sender = recovery_session.get(core.User, sender_id)
                 recipient = recovery_session.get(core.User, existing.recipient_id)
                 if sender is not None and recipient is not None:
-                    if existing.amount == payload.amount and existing.note == payload.note:
+                    if (
+                        existing.amount == payload.amount
+                        and existing.note == payload.note
+                        and (recipient_id is None or existing.recipient_id == recipient_id)
+                    ):
                         return serialize_transfer(
                             existing,
                             sender,
