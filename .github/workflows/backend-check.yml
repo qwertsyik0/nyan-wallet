@@ -8,6 +8,7 @@ on:
       - "*.js"
       - "tools/install_giveaway_bot.py"
       - "bot_addons/giveaway_bot.py.gz.b64"
+      - "bot_addons/maintenance_bot.py"
       - ".github/workflows/backend-check.yml"
   workflow_dispatch:
 
