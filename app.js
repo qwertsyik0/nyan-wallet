@@ -137,7 +137,11 @@ function finishInitialLoad() {
     if (initialLoadFinished) return;
     initialLoadFinished = true;
     loadingView?.classList.add("hidden");
-    if (!window.__nyanGiveawayDeepLinkActive && !appealDeepLinkActive) {
+    if (
+        !window.__nyanMaintenanceBlocked &&
+        !window.__nyanGiveawayDeepLinkActive &&
+        !appealDeepLinkActive
+    ) {
         walletView.classList.remove("hidden");
     }
 }
