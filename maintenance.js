@@ -88,6 +88,7 @@
     document.addEventListener("DOMContentLoaded", () => {
         ensureView();
         void checkMaintenance(false);
+        window.setInterval(() => void checkMaintenance(false), 60_000);
     }, { once: true });
 
     window.addEventListener("nyan-maintenance-required", event => {
