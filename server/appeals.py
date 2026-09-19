@@ -713,7 +713,7 @@ async def owner_change_status(
                 session,
                 item.telegram_id,
                 "Статус обращения изменён",
-                f"{item.public_id} · {payload.status}",
+                f"{item.public_id} · {STATUS_LABELS[payload.status]}",
             )
             audit(session, "appeal_status_changed", item.telegram_id, f"{item.public_id}: {previous} -> {payload.status}")
             telegram_id = item.telegram_id
