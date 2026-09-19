@@ -119,7 +119,7 @@ jobs:
               "assignSelectedTemplate",
               "loadMySkins",
               "ownerAppeal",
-              "appeal=",
+              'params.get("appeal")',
           ):
               assert marker in client, f"appeals client marker missing: {marker}"
           print("appeals subsystem static audit OK")
