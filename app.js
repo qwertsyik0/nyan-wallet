@@ -1,4 +1,8 @@
 const tg = window.Telegram?.WebApp;
+const appealDeepLinkActive = (() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.has("appeal") || params.has("ownerAppeal");
+})();
 const API_BASE = "https://nyan-wallet-api.onrender.com";
 
 if (tg) {
@@ -133,7 +137,7 @@ function finishInitialLoad() {
     if (initialLoadFinished) return;
     initialLoadFinished = true;
     loadingView?.classList.add("hidden");
-    if (!window.__nyanGiveawayDeepLinkActive) {
+    if (!window.__nyanGiveawayDeepLinkActive && !appealDeepLinkActive) {
         walletView.classList.remove("hidden");
     }
 }
