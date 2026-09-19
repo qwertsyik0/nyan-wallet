@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Compile backend and installer
-        run: python -m py_compile server/*.py tools/install_giveaway_bot.py
+        run: python -m py_compile server/*.py tools/install_giveaway_bot.py tools/install_maintenance_bot.py
       - name: Validate giveaway bot payload
         run: |
           python - <<'PY'
@@ -156,6 +156,43 @@ jobs:
           ):
               assert marker in client, f"transfer client marker missing: {marker}"
           print("transfer subsystem static audit OK")
+          PY
+      - name: Audit maintenance subsystem
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          source = Path("server/maintenance.py").read_text(encoding="utf-8")
+          compile(source, "server/maintenance.py", "exec")
+          for marker in (
+              'class MaintenanceState',
+              '@router.get("/api/maintenance/status")',
+              '@router.post("/api/internal/maintenance/toggle")',
+              'verify_internal_signature',
+              'maintenance_guard',
+              'core.is_owner',
+              'Retry-After',
+          ):
+              assert marker in source, f"maintenance backend marker missing: {marker}"
+
+          client = Path("maintenance.js").read_text(encoding="utf-8")
+          for marker in (
+              "showMaintenance",
+              "__nyanMaintenanceBlocked",
+              "/api/maintenance/status",
+              "maintenance-retry",
+          ):
+              assert marker in client, f"maintenance client marker missing: {marker}"
+
+          bot = Path("bot_addons/maintenance_bot.py").read_text(encoding="utf-8")
+          compile(bot, "bot_addons/maintenance_bot.py", "exec")
+          for marker in (
+              'CommandHandler("maintenance"',
+              "signed_request",
+              "OWNER_TELEGRAM_ID",
+              "/api/internal/maintenance/toggle",
+          ):
+              assert marker in bot, f"maintenance bot marker missing: {marker}"
+          print("maintenance subsystem static audit OK")
           PY
       - name: Check browser JavaScript syntax
         run: |
