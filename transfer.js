@@ -49,8 +49,11 @@
         if (window.crypto?.randomUUID) {
             return window.crypto.randomUUID().replaceAll("-", "_");
         }
+        if (!window.crypto?.getRandomValues) {
+            throw new Error("Безопасный генератор случайных чисел недоступен. Обновите Telegram и повторите.");
+        }
         const bytes = new Uint8Array(24);
-        window.crypto?.getRandomValues?.(bytes);
+        window.crypto.getRandomValues(bytes);
         return Array.from(bytes, value => value.toString(16).padStart(2, "0")).join("");
     }
 
@@ -104,9 +107,11 @@
         const preview = document.getElementById("transfer-recipient-preview");
         const send = document.getElementById("transfer-send");
         const resolve = document.getElementById("transfer-resolve");
+        const change = document.getElementById("transfer-change");
         if (preview) preview.hidden = true;
         if (send) send.hidden = true;
         if (resolve) resolve.hidden = false;
+        if (change) change.hidden = true;
     }
 
     function setStatus(message) {
@@ -156,6 +161,7 @@
                 (canonicalRecipient.username ? " · @" + canonicalRecipient.username : "");
             preview.hidden = false;
             document.getElementById("transfer-send").hidden = false;
+            document.getElementById("transfer-change").hidden = false;
             button.hidden = true;
             tg?.HapticFeedback?.notificationOccurred?.("success");
         } catch (error) {
@@ -200,7 +206,12 @@
         );
         if (!confirmed) return;
 
-        if (!pendingIdempotencyKey) pendingIdempotencyKey = createIdempotencyKey();
+        try {
+            if (!pendingIdempotencyKey) pendingIdempotencyKey = createIdempotencyKey();
+        } catch (error) {
+            setStatus(error.message || "Не удалось подготовить безопасный перевод");
+            return;
+        }
 
         const button = document.getElementById("transfer-send");
         button.disabled = true;
@@ -277,10 +288,21 @@
         linkButton.dataset.link = "";
 
         try {
-            const [addressData, qrResponse] = await Promise.all([
-                api("/api/wallet/address", { headers: headers() }),
-                fetch(API + "/api/wallet/qr", { headers: headers() }),
-            ]);
+            let addressData;
+            const qrController = new AbortController();
+            const qrTimeout = setTimeout(() => qrController.abort(), 12000);
+            let qrResponse;
+            try {
+                [addressData, qrResponse] = await Promise.all([
+                    api("/api/wallet/address", { headers: headers() }),
+                    fetch(API + "/api/wallet/qr", {
+                        headers: headers(),
+                        signal: qrController.signal,
+                    }),
+                ]);
+            } finally {
+                clearTimeout(qrTimeout);
+            }
             if (!qrResponse.ok) {
                 let detail = "Не удалось загрузить QR-код";
                 try {
@@ -314,6 +336,17 @@
             }, 1600);
         } catch (_) {
             window.open(link, "_blank", "noopener,noreferrer");
+        }
+    }
+
+    async function loadPublicWalletAddress() {
+        if (!tg?.initData) return;
+        try {
+            const data = await api("/api/wallet/address", { headers: headers() });
+            const number = document.getElementById("wallet-number");
+            if (number && data?.wallet_address) number.textContent = data.wallet_address;
+        } catch (error) {
+            console.error("Nyan Wallet address load error:", error);
         }
     }
 
@@ -436,12 +469,16 @@
             });
         }
 
+        void loadPublicWalletAddress();
+
         const pending = pendingPaymentAddress();
         if (pending) {
+            let attempts = 0;
             const start = () => {
+                attempts += 1;
                 const wallet = document.getElementById("wallet-view");
                 if (!wallet || wallet.classList.contains("hidden")) {
-                    setTimeout(start, 120);
+                    if (attempts < 50) setTimeout(start, 120);
                     return;
                 }
                 openTransfer(pending);
