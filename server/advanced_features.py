@@ -148,6 +148,13 @@ class WalletEventDelivery(core.Base):
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class WalletEventNotifierState(core.Base):
+    __tablename__ = "wallet_event_notifier_state"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    initialized_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class EconomySetting(core.Base):
     __tablename__ = "economy_settings"
     key: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -245,6 +252,37 @@ def send_event_launch_message(
         return False, f"HTTP {exc.code}: {body}"[:500]
     except Exception as exc:
         return False, str(exc)[:500]
+
+
+def bootstrap_wallet_event_notifier() -> None:
+    state_key = "event-launch-dm-v1"
+    timestamp = now()
+    with core.SessionLocal() as session:
+        with session.begin():
+            state = session.get(WalletEventNotifierState, state_key)
+            if state is not None:
+                return
+
+            # Suppress only events that had already started before this feature
+            # was first enabled. Future scheduled events remain eligible.
+            old_event_ids = session.scalars(
+                select(WalletEvent.id).where(WalletEvent.starts_at <= timestamp)
+            ).all()
+            for event_id in old_event_ids:
+                if session.get(WalletEventAnnouncement, int(event_id)) is None:
+                    session.add(
+                        WalletEventAnnouncement(
+                            event_id=int(event_id),
+                            seeded_at=timestamp,
+                        )
+                    )
+
+            session.add(
+                WalletEventNotifierState(
+                    key=state_key,
+                    initialized_at=timestamp,
+                )
+            )
 
 
 def seed_wallet_event_deliveries(timestamp: datetime) -> None:
@@ -945,6 +983,7 @@ def register_advanced_features(app) -> None:
     if _REGISTERED:
         return
     core.Base.metadata.create_all(core.engine)
+    bootstrap_wallet_event_notifier()
     ensure_settings()
     event.listen(core.Transaction, "after_insert", tx_notification)
     event.listen(Session, "before_flush", reward_guard)
