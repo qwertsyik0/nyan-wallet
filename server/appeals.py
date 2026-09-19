@@ -26,6 +26,8 @@ _REGISTERED = False
 
 MINI_APP_BASE_URL = "https://qwertsyik0.github.io/nyan-wallet"
 MAX_SKIN_IMAGE_BYTES = 2 * 1024 * 1024
+MAX_SKIN_DIMENSION = 4096
+MAX_SKIN_PIXELS = 12_000_000
 ALLOWED_IMAGE_MIME = {"image/png", "image/jpeg", "image/webp"}
 APPEAL_STATUSES = {"new", "viewed", "in_progress", "approved", "completed", "rejected"}
 OPEN_APPEAL_STATUSES = {"new", "viewed", "in_progress", "approved"}
@@ -128,6 +130,8 @@ class WalletSkin(core.Base):
     image_mime: Mapped[str] = mapped_column(String(32), nullable=False)
     image_data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     image_sha256: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    image_width: Mapped[int] = mapped_column(Integer, nullable=False)
+    image_height: Mapped[int] = mapped_column(Integer, nullable=False)
     is_template: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
     created_by_appeal_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("appeals.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -226,6 +230,8 @@ def serialize_skin(skin: WalletSkin, *, owned: bool = False, active: bool = Fals
         "owned": owned,
         "active": active,
         "image_sha256": skin.image_sha256,
+        "image_width": skin.image_width,
+        "image_height": skin.image_height,
         "created_at": skin.created_at.isoformat(),
     }
 
@@ -284,7 +290,96 @@ def detect_image_mime(data: bytes) -> str | None:
     return None
 
 
-async def read_limited_image(request: Request) -> tuple[bytes, str]:
+def image_dimensions(data: bytes, mime: str) -> tuple[int, int] | None:
+    """Read dimensions without fully decoding the image.
+
+    This prevents small compressed files with absurd dimensions from becoming
+    a memory-exhaustion vector in the Mini App.
+    """
+    if mime == "image/png":
+        if len(data) < 24 or data[12:16] != b"IHDR":
+            return None
+        return (
+            int.from_bytes(data[16:20], "big"),
+            int.from_bytes(data[20:24], "big"),
+        )
+
+    if mime == "image/jpeg":
+        index = 2
+        sof_markers = {
+            0xC0, 0xC1, 0xC2, 0xC3,
+            0xC5, 0xC6, 0xC7,
+            0xC9, 0xCA, 0xCB,
+            0xCD, 0xCE, 0xCF,
+        }
+        while index + 1 < len(data):
+            if data[index] != 0xFF:
+                index += 1
+                continue
+            while index < len(data) and data[index] == 0xFF:
+                index += 1
+            if index >= len(data):
+                return None
+            marker = data[index]
+            index += 1
+            if marker in {0x01, 0xD8, 0xD9} or 0xD0 <= marker <= 0xD7:
+                continue
+            if index + 2 > len(data):
+                return None
+            segment_length = int.from_bytes(data[index:index + 2], "big")
+            if segment_length < 2 or index + segment_length > len(data):
+                return None
+            if marker in sof_markers:
+                if segment_length < 7:
+                    return None
+                height = int.from_bytes(data[index + 3:index + 5], "big")
+                width = int.from_bytes(data[index + 5:index + 7], "big")
+                return width, height
+            index += segment_length
+        return None
+
+    if mime == "image/webp":
+        if len(data) < 30:
+            return None
+        chunk = data[12:16]
+        if chunk == b"VP8X":
+            width = 1 + int.from_bytes(data[24:27], "little")
+            height = 1 + int.from_bytes(data[27:30], "little")
+            return width, height
+        if chunk == b"VP8L":
+            if len(data) < 25 or data[20] != 0x2F:
+                return None
+            b0, b1, b2, b3 = data[21:25]
+            width = 1 + b0 + ((b1 & 0x3F) << 8)
+            height = 1 + (b1 >> 6) + (b2 << 2) + ((b3 & 0x0F) << 10)
+            return width, height
+        if chunk == b"VP8 ":
+            if len(data) < 30 or data[23:26] != b"\x9d\x01\x2a":
+                return None
+            width = int.from_bytes(data[26:28], "little") & 0x3FFF
+            height = int.from_bytes(data[28:30], "little") & 0x3FFF
+            return width, height
+    return None
+
+
+def validate_image_dimensions(data: bytes, mime: str) -> tuple[int, int]:
+    dimensions = image_dimensions(data, mime)
+    if dimensions is None:
+        raise HTTPException(status_code=415, detail="Не удалось прочитать размеры изображения")
+    width, height = dimensions
+    if width <= 0 or height <= 0:
+        raise HTTPException(status_code=415, detail="Некорректные размеры изображения")
+    if width > MAX_SKIN_DIMENSION or height > MAX_SKIN_DIMENSION:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Максимальное разрешение — {MAX_SKIN_DIMENSION}×{MAX_SKIN_DIMENSION}",
+        )
+    if width * height > MAX_SKIN_PIXELS:
+        raise HTTPException(status_code=413, detail="Слишком большое разрешение изображения")
+    return width, height
+
+
+async def read_limited_image(request: Request) -> tuple[bytes, str, int, int]:
     declared = request.headers.get("content-length")
     if declared:
         try:
@@ -317,7 +412,9 @@ async def read_limited_image(request: Request) -> tuple[bytes, str]:
     if declared_mime != detected:
         raise HTTPException(status_code=415, detail="Тип файла не совпадает с содержимым")
 
-    return bytes(data), detected
+    image_bytes = bytes(data)
+    width, height = validate_image_dimensions(image_bytes, detected)
+    return image_bytes, detected, width, height
 
 
 def send_telegram_json(chat_id: int | None, text: str, *, url: str | None = None, button_text: str | None = None) -> None:
@@ -873,7 +970,7 @@ async def owner_create_wallet_skin(
     clean_title = title.strip()
     if not clean_title:
         raise HTTPException(status_code=400, detail="Название дизайна пустое")
-    image_data, image_mime = await read_limited_image(request)
+    image_data, image_mime, image_width, image_height = await read_limited_image(request)
     digest = hashlib.sha256(image_data).hexdigest()
     timestamp = now_utc()
 
@@ -887,6 +984,8 @@ async def owner_create_wallet_skin(
             image_mime=image_mime,
             image_data=image_data,
             image_sha256=digest,
+            image_width=image_width,
+            image_height=image_height,
             is_template=is_template,
             is_active=True,
             created_by_appeal_id=appeal_id,
