@@ -92,6 +92,38 @@ jobs:
           compile(adapted, "giveaway_bot.py", "exec")
           print("installer patch, ticket limits, premium emoji and ticket handoff adaptation OK")
           PY
+      - name: Audit appeals subsystem
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          source = Path("server/appeals.py").read_text(encoding="utf-8")
+          compile(source, "server/appeals.py", "exec")
+          required = [
+              'UniqueConstraint("topic_id", "telegram_id"',
+              'MAX_SKIN_IMAGE_BYTES = 2 * 1024 * 1024',
+              'def detect_image_mime',
+              'async def read_limited_image',
+              'def assign_skin_to_user',
+              '@router.post("/api/appeals")',
+              '@router.post("/api/owner/appeals/{appeal_id}/assign-skin")',
+              '@router.get("/api/wallet-skins/{skin_id}/image")',
+              'safe_owner_notification',
+              'AppealStatusHistory',
+          ]
+          missing = [item for item in required if item not in source]
+          assert not missing, f"appeals subsystem markers missing: {missing}"
+          client = Path("appeals.js").read_text(encoding="utf-8")
+          for marker in (
+              "Обращения",
+              "uploadIndividualSkin",
+              "assignSelectedTemplate",
+              "loadMySkins",
+              "ownerAppeal",
+              "appeal=",
+          ):
+              assert marker in client, f"appeals client marker missing: {marker}"
+          print("appeals subsystem static audit OK")
+          PY
       - name: Check browser JavaScript syntax
         run: |
           for file in ./*.js; do
