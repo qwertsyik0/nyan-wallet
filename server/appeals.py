@@ -30,6 +30,14 @@ ALLOWED_IMAGE_MIME = {"image/png", "image/jpeg", "image/webp"}
 APPEAL_STATUSES = {"new", "viewed", "in_progress", "approved", "completed", "rejected"}
 OPEN_APPEAL_STATUSES = {"new", "viewed", "in_progress", "approved"}
 TERMINAL_APPEAL_STATUSES = {"completed", "rejected"}
+STATUS_LABELS = {
+    "new": "Новое",
+    "viewed": "Просмотрено",
+    "in_progress": "В работе",
+    "approved": "Одобрено",
+    "completed": "Выполнено",
+    "rejected": "Отклонено",
+}
 
 
 def now_utc() -> datetime:
@@ -714,7 +722,7 @@ async def owner_change_status(
         background_tasks.add_task(
             safe_user_notification,
             telegram_id,
-            f"{public_id}\nСтатус обращения изменён: {payload.status}",
+            f"{public_id}\nСтатус обращения изменён: {STATUS_LABELS[payload.status]}",
             appeal_id,
         )
     return {"ok": True, "status": payload.status}
