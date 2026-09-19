@@ -262,6 +262,8 @@ function operationLabel(type) {
         promo: "Промокод",
         owner_grant: "Начисление",
         owner_debit: "Списание",
+        transfer_out: "Перевод",
+        transfer_in: "Перевод",
     };
     return labels[type] || "Операция";
 }
