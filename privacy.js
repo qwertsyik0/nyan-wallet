@@ -64,3 +64,12 @@
         if (event.target === overlay) close();
     });
 })();
+
+(() => {
+    if (document.getElementById("activity-streak-script")) return;
+    const script = document.createElement("script");
+    script.id = "activity-streak-script";
+    script.src = "./activity_streak.js?v=20260921-1";
+    script.defer = true;
+    document.body.appendChild(script);
+})();
