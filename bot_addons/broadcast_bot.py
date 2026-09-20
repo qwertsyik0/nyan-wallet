@@ -949,7 +949,7 @@ async def _run_broadcast(
     application: Application,
     job: BroadcastJob,
     snapshot: BroadcastSnapshot,
-) -> None:
+) -> str:
     global _active_job
     try:
         recipients = await _all_recipients(job.owner_id, job.audience)
@@ -976,14 +976,17 @@ async def _run_broadcast(
             await asyncio.sleep(SEND_DELAY_SECONDS)
 
         await _update_progress(application, job, finished=True)
+        return "cancelled" if job.cancel_event.is_set() else "completed"
     except BroadcastBotError as exc:
         await application.bot.send_message(chat_id=job.owner_id, text=f"Рассылка остановлена: {exc}")
+        return "failed"
     except Exception:
         logger.exception("broadcast_job_failed job_id=%s", job.job_id)
         await application.bot.send_message(
             chat_id=job.owner_id,
             text="Рассылка остановлена из-за внутренней ошибки. Подробности записаны в лог.",
         )
+        return "failed"
     finally:
         if _active_job is job:
             _active_job = None
@@ -995,13 +998,14 @@ async def _run_scheduled_broadcast(
     job: BroadcastJob,
     snapshot: BroadcastSnapshot,
 ) -> None:
+    result = await _run_broadcast(application, job, snapshot)
     try:
-        await _run_broadcast(application, job, snapshot)
-    finally:
-        try:
+        if result in {"completed", "cancelled"}:
             _delete_schedule(schedule_id)
-        except BroadcastBotError:
-            logger.exception("scheduled_broadcast_cleanup_failed schedule_id=%s", schedule_id)
+        else:
+            _set_schedule_status(schedule_id, "interrupted")
+    except BroadcastBotError:
+        logger.exception("scheduled_broadcast_cleanup_failed schedule_id=%s", schedule_id)
 
 
 async def _scheduler_loop(application: Application) -> None:
@@ -1021,7 +1025,26 @@ async def _scheduler_loop(application: Application) -> None:
 
                 if due:
                     _, schedule_id, item = min(due, key=lambda value: value[0])
-                    snapshot = _snapshot_from_dict(item.get("snapshot"), application.bot)
+                    try:
+                        snapshot = _snapshot_from_dict(item.get("snapshot"), application.bot)
+                    except BroadcastBotError as exc:
+                        _set_schedule_status(schedule_id, "interrupted")
+                        try:
+                            await application.bot.send_message(
+                                chat_id=_owner_id(),
+                                text=(
+                                    "Не удалось запустить отложенную рассылку. "
+                                    f"Она помечена как прерванная: {exc}"
+                                ),
+                            )
+                        except TelegramError:
+                            logger.exception(
+                                "scheduled_broadcast_invalid_notice_failed schedule_id=%s",
+                                schedule_id,
+                            )
+                        await asyncio.sleep(SCHEDULER_INTERVAL_SECONDS)
+                        continue
+
                     _set_schedule_status(schedule_id, "running")
                     job = BroadcastJob(
                         job_id=f"scheduled:{schedule_id}",
