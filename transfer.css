@@ -169,10 +169,22 @@
     background: #fff;
 }
 
-.wallet-qr-box img {
+.wallet-qr-box img,
+.wallet-qr-box svg {
     width: 206px;
     height: 206px;
     display: block;
+}
+
+.wallet-qr-box {
+    color: #a67589;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.wallet-qr-box svg {
+    max-width: 100%;
+    max-height: 100%;
 }
 
 .wallet-qr-address {
