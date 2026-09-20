@@ -217,6 +217,8 @@ jobs:
           compile(bot, "bot_addons/broadcast_bot.py", "exec")
           for marker in (
               'CommandHandler("broadcast"',
+              'CommandHandler("broadcast_templates"',
+              'CommandHandler("broadcast_scheduled"',
               'CommandHandler("broadcast_cancel"',
               'copy_message',
               'copy_messages',
@@ -224,6 +226,11 @@ jobs:
               'RetryAfter',
               'Premium custom emoji',
               '/api/internal/broadcast/recipients',
+              'broadcast_state.json',
+              '_scheduler_loop',
+              '_save_template',
+              '_save_schedule',
+              'MOSCOW_TZ',
           ):
               assert marker in bot, f"broadcast bot marker missing: {marker}"
 
