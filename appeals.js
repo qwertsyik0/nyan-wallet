@@ -152,7 +152,7 @@
                 '<div id="appeal-compose-title" class="appeal-section-title">Новое обращение</div>' +
                 '<div id="appeal-compose-desc" class="appeal-section-sub"></div>' +
                 '<form id="appeal-compose-form" class="appeal-form">' +
-                    '<label>Пожелания / суть обращения<textarea id="appeal-message" maxlength="1500" required placeholder="Опишите, что вы хотите"></textarea></label>' +
+                    '<label><span id="appeal-message-label">Пожелания / суть обращения</span><textarea id="appeal-message" maxlength="1500" required placeholder="Опишите, что вы хотите"></textarea></label>' +
                     '<div id="appeal-wallet-extra" hidden>' +
                         '<div class="appeal-form">' +
                             '<label>Любимые цвета <input id="appeal-colors" maxlength="300" placeholder="Например: бордовый, розовый, белый"></label>' +
@@ -334,10 +334,29 @@
         panel.hidden = false;
         panel.dataset.topicId = String(topic.id);
         panel.dataset.formType = topic.form_type || "general";
+        panel.dataset.topicCode = topic.code || "";
         document.getElementById("appeal-compose-title").textContent = topic.title;
         document.getElementById("appeal-compose-desc").textContent = topic.description;
         document.getElementById("appeal-wallet-extra").hidden = topic.form_type !== "custom_wallet";
-        document.getElementById("appeal-message").value = "";
+
+        const messageLabel = document.getElementById("appeal-message-label");
+        const messageInput = document.getElementById("appeal-message");
+        const submitButton = document.getElementById("appeal-submit");
+        const isSuggestion = topic.code === "SUGGESTION";
+
+        if (messageLabel) {
+            messageLabel.textContent = isSuggestion ? "Ваше предложение" : "Пожелания / суть обращения";
+        }
+        if (messageInput) {
+            messageInput.value = "";
+            messageInput.placeholder = isSuggestion
+                ? "Опишите идею. Что вы хотите добавить или изменить, зачем это нужно и как это должно работать?"
+                : "Опишите, что вы хотите";
+        }
+        if (submitButton) {
+            submitButton.textContent = isSuggestion ? "Отправить предложение" : "Отправить обращение";
+        }
+
         document.getElementById("appeal-colors").value = "";
         document.getElementById("appeal-avoid").value = "";
         document.getElementById("appeal-extra").value = "";
@@ -381,7 +400,9 @@
                 body: JSON.stringify(payload),
             });
             tg?.HapticFeedback?.notificationOccurred?.("success");
-            status.textContent = "Обращение отправлено.";
+            status.textContent = panel?.dataset.topicCode === "SUGGESTION"
+                ? "Предложение отправлено."
+                : "Обращение отправлено.";
             status.className = "appeal-success";
             panel.hidden = true;
             await Promise.all([loadTopics(), loadMyAppeals()]);
