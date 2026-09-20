@@ -279,6 +279,9 @@ def run_daily_backup_if_needed() -> None:
 
 
 async def _backup_loop() -> None:
+    # Keep ZIP creation and Telegram upload out of the cold-start critical path.
+    # Render must be fully ready before any potentially heavy background I/O.
+    await asyncio.sleep(5 * 60)
     while True:
         await asyncio.to_thread(run_daily_backup_if_needed)
         await asyncio.sleep(60 * 60)
