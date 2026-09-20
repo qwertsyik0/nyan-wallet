@@ -3,14 +3,19 @@
 }
 
 .maintenance-view {
+    position: relative;
     min-height: calc(100vh - 48px);
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 18px 0 42px;
+    overflow: hidden;
+    isolation: isolate;
 }
 
 .maintenance-card {
+    position: relative;
+    z-index: 1;
     width: 100%;
     padding: 30px 24px;
     border: 1px solid #efd8e2;
@@ -68,55 +73,46 @@
 }
 
 
-/* Animated maintenance status mark */
-.maintenance-gear-wrap {
-    position: relative;
-    width: 88px;
-    height: 88px;
-    margin: 0 auto 20px;
+
+/* Large decorative gear behind the maintenance card. It deliberately sits
+   partly outside the top-right corner and never intercepts touches. */
+.maintenance-background-gear {
+    position: absolute;
+    z-index: 0;
+    top: -155px;
+    right: -165px;
+    width: 430px;
+    height: 430px;
     display: grid;
     place-items: center;
-    border: 1px solid rgba(222,165,188,.55);
-    border-radius: 28px;
-    background: rgba(255,255,255,.78);
-    box-shadow: 0 10px 28px rgba(143,41,85,.11);
-}
-
-.maintenance-gear {
-    display: block;
-    color: #922954;
+    color: rgba(70, 137, 224, .28);
     font-family: Arial, sans-serif;
-    font-size: 50px;
+    font-size: 390px;
     line-height: 1;
+    pointer-events: none;
+    user-select: none;
     transform-origin: 50% 50%;
-    animation: nyan-maintenance-gear-spin 3s linear infinite;
+    animation: nyan-maintenance-background-spin 16s linear infinite;
     will-change: transform;
+    filter: drop-shadow(0 18px 38px rgba(49, 111, 194, .10));
 }
 
-.maintenance-gear-dot {
-    position: absolute;
-    right: 13px;
-    top: 13px;
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    background: #d66f9a;
-    box-shadow: 0 0 0 5px rgba(214,111,154,.12);
-    animation: nyan-maintenance-dot-pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes nyan-maintenance-gear-spin {
+@keyframes nyan-maintenance-background-spin {
     to { transform: rotate(360deg); }
 }
 
-@keyframes nyan-maintenance-dot-pulse {
-    0%, 100% { opacity: .45; transform: scale(.8); }
-    50% { opacity: 1; transform: scale(1); }
+@media (max-width: 380px) {
+    .maintenance-background-gear {
+        top: -135px;
+        right: -150px;
+        width: 390px;
+        height: 390px;
+        font-size: 350px;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .maintenance-gear,
-    .maintenance-gear-dot {
+    .maintenance-background-gear {
         animation: none;
     }
 }
