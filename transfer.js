@@ -4,7 +4,7 @@
     const tg = window.Telegram?.WebApp;
     const API = "https://nyan-wallet-api.onrender.com";
     const MAX_AMOUNT = 100000;
-    const CLIENT_VERSION = "20260920-4";
+    const CLIENT_VERSION = "20260920-5";
 
     let canonicalRecipient = null;
     let pendingIdempotencyKey = null;
@@ -131,6 +131,41 @@
 
     const initialPendingPayment = pendingPaymentAddress();
     window.__nyanPaymentDeepLinkActive = Boolean(initialPendingPayment);
+
+    function pendingPromoCode() {
+        const values = [];
+
+        try {
+            const url = new URL(window.location.href);
+            values.push(url.searchParams.get("promo"));
+            values.push(url.searchParams.get("tgWebAppStartParam"));
+            values.push(url.searchParams.get("startapp"));
+
+            const rawHash = url.hash.startsWith("#") ? url.hash.slice(1) : url.hash;
+            const hashParams = new URLSearchParams(rawHash);
+            values.push(hashParams.get("promo"));
+            values.push(hashParams.get("tgWebAppStartParam"));
+            values.push(hashParams.get("startapp"));
+        } catch (_) {}
+
+        try {
+            const initParams = new URLSearchParams(tg?.initData || "");
+            values.push(initParams.get("start_param"));
+        } catch (_) {}
+
+        values.push(tg?.initDataUnsafe?.start_param || "");
+
+        for (const raw of values) {
+            const value = String(raw || "").trim();
+            const match = value.match(/^promo_([A-Z0-9_-]{2,32})$/i);
+            if (match) return match[1].toUpperCase();
+        }
+
+        return null;
+    }
+
+    const initialPromoCode = pendingPromoCode();
+    window.__nyanPromoDeepLinkActive = Boolean(initialPromoCode);
 
     async function reportLaunchDiagnostic() {
         if (!tg?.initData) return;
@@ -519,6 +554,104 @@
         }
     }
 
+    function ensurePromoDeepLinkView() {
+        let view = document.getElementById("promo-deeplink-view");
+        if (view) return view;
+
+        view = document.createElement("main");
+        view.id = "promo-deeplink-view";
+        view.className = "view hidden";
+        view.innerHTML = `
+            <div class="subpage-header">
+                <button id="promo-deeplink-back" class="back-button" type="button" aria-label="Назад">‹</button>
+                <div>
+                    <div class="page-title">Забрать бонус</div>
+                    <div class="page-subtitle">активация промокода Nyan Wallet</div>
+                </div>
+            </div>
+            <section class="promo-card">
+                <div class="promo-title">Ваш промокод</div>
+                <div class="promo-subtitle">Промокод уже подставлен. Осталось подтвердить активацию.</div>
+                <div class="promo-row">
+                    <input id="promo-deeplink-code" type="text" readonly>
+                    <button id="promo-deeplink-activate" type="button">Активировать</button>
+                </div>
+                <div id="promo-deeplink-status" class="promo-status" aria-live="polite"></div>
+            </section>
+        `;
+        document.querySelector(".app")?.appendChild(view);
+
+        document.getElementById("promo-deeplink-back")?.addEventListener("click", () => {
+            view.classList.add("hidden");
+            document.getElementById("wallet-view")?.classList.remove("hidden");
+            window.__nyanPromoDeepLinkActive = false;
+            tg?.BackButton?.hide?.();
+        });
+
+        document.getElementById("promo-deeplink-activate")?.addEventListener("click", async () => {
+            const code = String(document.getElementById("promo-deeplink-code")?.value || "").trim();
+            const button = document.getElementById("promo-deeplink-activate");
+            const status = document.getElementById("promo-deeplink-status");
+
+            if (!code || !tg?.initData || !button || !status) return;
+
+            button.disabled = true;
+            button.textContent = "Активируем…";
+            status.textContent = "";
+
+            try {
+                const response = await fetch(API + "/api/promo/redeem", {
+                    method: "POST",
+                    headers: headers(true),
+                    body: JSON.stringify({ code }),
+                });
+                const data = await json(response);
+
+                if (!response.ok) {
+                    const detail = typeof data?.detail === "string"
+                        ? data.detail
+                        : "Не удалось активировать промокод";
+                    throw new Error(detail);
+                }
+
+                status.textContent = `Готово: +${data.reward} 🐾`;
+                button.textContent = "Бонус получен";
+                tg?.HapticFeedback?.notificationOccurred?.("success");
+            } catch (error) {
+                status.textContent = error?.message || "Не удалось активировать промокод";
+                button.disabled = false;
+                button.textContent = "Активировать";
+                tg?.HapticFeedback?.notificationOccurred?.("error");
+            }
+        });
+
+        return view;
+    }
+
+    function openPromoDeepLinkView(code) {
+        const view = ensurePromoDeepLinkView();
+        if (!view) return;
+
+        document.querySelectorAll(".app > main").forEach(node => {
+            if (node !== view) node.classList.add("hidden");
+        });
+
+        const input = document.getElementById("promo-deeplink-code");
+        const status = document.getElementById("promo-deeplink-status");
+        const button = document.getElementById("promo-deeplink-activate");
+        if (input) input.value = code;
+        if (status) status.textContent = "";
+        if (button) {
+            button.disabled = false;
+            button.textContent = "Активировать";
+        }
+
+        document.getElementById("loading-view")?.classList.add("hidden");
+        view.classList.remove("hidden");
+        window.scrollTo({ top: 0, behavior: "auto" });
+        tg?.BackButton?.show?.();
+    }
+
     function buildUi() {
         if (document.getElementById("transfer-view")) return;
 
@@ -639,6 +772,29 @@
         }
 
         void loadPublicWalletAddress();
+
+        const promoCode = initialPromoCode || pendingPromoCode();
+        if (promoCode) {
+            let promoAttempts = 0;
+
+            const startPromo = () => {
+                promoAttempts += 1;
+
+                if (window.__nyanMaintenanceBlocked) {
+                    if (promoAttempts < 120) setTimeout(startPromo, 150);
+                    return;
+                }
+
+                if (!document.querySelector(".app")) {
+                    if (promoAttempts < 120) setTimeout(startPromo, 120);
+                    return;
+                }
+
+                openPromoDeepLinkView(promoCode);
+            };
+
+            setTimeout(startPromo, 60);
+        }
 
         const pending = initialPendingPayment || pendingPaymentAddress();
         if (pending) {
