@@ -84,6 +84,19 @@ class WalletTransfer(core.Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
 
 
+class ClientLaunchDiagnostic(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    client_version: str = Field(min_length=1, max_length=40)
+    detected_target: str | None = Field(default=None, max_length=80)
+    unsafe_start_param: str | None = Field(default=None, max_length=120)
+    init_start_param: str | None = Field(default=None, max_length=120)
+    query_startapp: str | None = Field(default=None, max_length=120)
+    query_tg_start: str | None = Field(default=None, max_length=120)
+    hash_startapp: str | None = Field(default=None, max_length=120)
+    hash_tg_start: str | None = Field(default=None, max_length=120)
+
+
 class TransferRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
@@ -522,6 +535,27 @@ def transfer_lapcoins(tg_user: dict[str, Any], payload: TransferRequest) -> dict
             status_code=503,
             detail="База данных временно недоступна. Деньги не списаны, повторите позже.",
         ) from exc
+
+
+@router.post("/api/client/launch")
+async def client_launch_diagnostic(
+    payload: ClientLaunchDiagnostic,
+    x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
+):
+    tg = core.verify_init_data(x_telegram_init_data or "")
+    logger.warning(
+        "client_launch telegram_id=%s version=%s detected=%r unsafe=%r init=%r q_startapp=%r q_tg=%r h_startapp=%r h_tg=%r",
+        int(tg["id"]),
+        payload.client_version,
+        payload.detected_target,
+        payload.unsafe_start_param,
+        payload.init_start_param,
+        payload.query_startapp,
+        payload.query_tg_start,
+        payload.hash_startapp,
+        payload.hash_tg_start,
+    )
+    return {"ok": True}
 
 
 @router.get("/api/wallet/address")
