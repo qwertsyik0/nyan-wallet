@@ -988,5 +988,11 @@ def register_advanced_features(app) -> None:
     event.listen(core.Transaction, "after_insert", tx_notification)
     event.listen(Session, "before_flush", reward_guard)
     app.include_router(router)
-    app.add_event_handler("startup", _start_wallet_event_announcement_loop)
+    event_worker_enabled = os.getenv(
+        "NYAN_EVENT_ANNOUNCEMENTS_ENABLED", "1"
+    ).strip().lower() in {"1", "true", "yes", "on"}
+    if event_worker_enabled:
+        app.add_event_handler("startup", _start_wallet_event_announcement_loop)
+    else:
+        print("Nyan Wallet event announcement worker disabled by configuration")
     _REGISTERED = True
