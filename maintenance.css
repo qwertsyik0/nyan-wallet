@@ -1,3 +1,7 @@
+.maintenance-view.hidden {
+    display: none !important;
+}
+
 .maintenance-view {
     min-height: calc(100vh - 48px);
     display: flex;
