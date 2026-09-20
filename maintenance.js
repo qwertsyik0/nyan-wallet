@@ -20,8 +20,9 @@
         view.id = "maintenance-view";
         view.className = "maintenance-view hidden";
         view.innerHTML = `
-            <div class="maintenance-background-gear" aria-hidden="true">⚙</div>
             <section class="maintenance-card" aria-live="polite">
+                <div class="maintenance-background-gear" aria-hidden="true">⚙</div>
+                <div class="maintenance-content">
                 <div class="maintenance-icon" aria-hidden="true">🐾</div>
                 <div id="maintenance-title" class="maintenance-title">Nyan Wallet становится лучше</div>
                 <div id="maintenance-message" class="maintenance-message">
@@ -32,6 +33,7 @@
                     Ваш баланс и история операций сохранены. Никаких действий с кошельком во время обслуживания не требуется.
                 </div>
                 <button id="maintenance-retry" class="maintenance-retry" type="button">Проверить снова</button>
+                </div>
             </section>
         `;
         app.appendChild(view);
