@@ -140,6 +140,7 @@ function finishInitialLoad() {
     if (
         !window.__nyanMaintenanceBlocked &&
         !window.__nyanGiveawayDeepLinkActive &&
+        !window.__nyanPaymentDeepLinkActive &&
         !appealDeepLinkActive
     ) {
         walletView.classList.remove("hidden");
