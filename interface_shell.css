@@ -1,0 +1,269 @@
+/* Nyan Wallet interface shell: compact navigation, collapsible sections and owner lists */
+.nyan-actions-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    white-space: nowrap !important;
+}
+
+.nyan-command-center,
+.nyan-view-controls,
+.nyan-owner-map {
+    border: 1px solid rgba(239, 216, 226, .85);
+    border-radius: 24px;
+    background: linear-gradient(145deg, rgba(255,255,255,.94), rgba(255,246,250,.88));
+    box-shadow: 0 12px 30px rgba(137, 41, 82, .07);
+}
+
+.nyan-command-center {
+    margin: 16px 0 18px;
+    padding: 14px;
+}
+
+.nyan-command-head,
+.nyan-owner-map-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.nyan-command-title,
+.nyan-owner-map-title {
+    color: #84264d;
+    font-size: 16px;
+    font-weight: 900;
+    line-height: 1.15;
+}
+
+.nyan-command-subtitle,
+.nyan-owner-map-subtitle {
+    margin-top: 4px;
+    color: #a67589;
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.nyan-command-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+}
+
+.nyan-command-tile,
+.nyan-owner-map-button,
+.nyan-view-control-button,
+.nyan-list-toggle,
+.nyan-collapse-toggle {
+    border: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.nyan-command-tile {
+    min-height: 76px;
+    padding: 12px;
+    border: 1px solid rgba(239, 220, 229, .95);
+    border-radius: 18px;
+    background: rgba(255,255,255,.76);
+    color: #7e284c;
+    text-align: left;
+    box-shadow: 0 8px 20px rgba(137, 41, 82, .045);
+}
+
+.nyan-command-tile:active,
+.nyan-owner-map-button:active,
+.nyan-view-control-button:active,
+.nyan-list-toggle:active,
+.nyan-collapse-toggle:active {
+    transform: translateY(1px);
+}
+
+.nyan-command-icon {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    margin-bottom: 8px;
+    border-radius: 11px;
+    background: #fff0f6;
+    color: #922954;
+    font-size: 16px;
+    font-weight: 900;
+}
+
+.nyan-command-label {
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1.15;
+}
+
+.nyan-command-note {
+    margin-top: 4px;
+    color: #a67589;
+    font-size: 10px;
+    line-height: 1.3;
+}
+
+.nyan-view-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 14px 0;
+    padding: 10px;
+}
+
+.nyan-view-control-button,
+.nyan-owner-map-button,
+.nyan-list-toggle {
+    width: auto;
+    padding: 9px 11px;
+    border: 1px solid rgba(239, 220, 229, .95);
+    border-radius: 13px;
+    background: rgba(255,255,255,.76);
+    color: #8f2955;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.nyan-owner-map {
+    margin: 14px 0;
+    padding: 13px;
+}
+
+.nyan-owner-map-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.nyan-collapsible {
+    position: relative;
+}
+
+.nyan-collapse-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 12px;
+    padding: 12px 13px;
+    border: 1px solid rgba(239, 220, 229, .98);
+    border-radius: 17px;
+    background: rgba(255,255,255,.74);
+    color: #84264d;
+    text-align: left;
+    box-shadow: 0 8px 18px rgba(137, 41, 82, .045);
+}
+
+.nyan-collapse-title {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1.2;
+}
+
+.nyan-collapse-meta {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #a67589;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.nyan-collapse-chevron {
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 9px;
+    background: #fff0f6;
+    color: #922954;
+    transition: transform .18s ease;
+}
+
+.nyan-collapsible.nyan-collapsed > .nyan-collapse-toggle .nyan-collapse-chevron {
+    transform: rotate(-90deg);
+}
+
+.nyan-collapse-body[hidden] {
+    display: none !important;
+}
+
+.nyan-collapse-body {
+    position: relative;
+}
+
+.nyan-list-shell {
+    margin-top: 10px;
+}
+
+.nyan-list-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin: 4px 0 10px;
+}
+
+.nyan-list-toggle::after {
+    content: "▾";
+    font-size: 10px;
+    transition: transform .18s ease;
+}
+
+.nyan-list-shell.nyan-list-collapsed > .nyan-list-toggle::after {
+    transform: rotate(-90deg);
+}
+
+.nyan-list-shell.nyan-list-collapsed > .nyan-list-target {
+    display: none !important;
+}
+
+#owner-view .admin-section,
+#owner-view .feature-section,
+#spend-view .feature-section,
+#activity-streak-card,
+.history,
+.promo-card,
+.earn-list,
+.transfer-panel {
+    scroll-margin-top: 14px;
+}
+
+#owner-view .admin-section.nyan-collapsible,
+#owner-view .feature-section.nyan-collapsible,
+#spend-view .feature-section.nyan-collapsible,
+#activity-streak-card.nyan-collapsible,
+.history.nyan-collapsible,
+.promo-card.nyan-collapsible,
+.earn-list.nyan-collapsible,
+.transfer-panel.nyan-collapsible {
+    padding-top: 14px;
+}
+
+#earn-view .earn-list.nyan-collapsible {
+    display: block;
+}
+
+#earn-view .earn-list .nyan-collapse-body {
+    display: grid;
+    gap: 12px;
+}
+
+@media (max-width: 390px) {
+    .nyan-command-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .nyan-command-tile {
+        min-height: 62px;
+    }
+}
