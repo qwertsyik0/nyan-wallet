@@ -13,7 +13,7 @@ from pathlib import Path
 
 MODULE_URL = (
     "https://raw.githubusercontent.com/qwertsyik0/nyan-wallet/"
-    "19cd651f8f6133564bfbbb310e681e8657af26a1/"
+    "d5356596408f4d1503a326fe1209d5ce096cab40/"
     "bot_addons/maintenance_bot.py"
 )
 IMPORT_LINE = "from maintenance_bot import register_maintenance_handlers"
@@ -154,7 +154,7 @@ def patch_bot(source: str) -> str:
 def download_module() -> bytes:
     request = urllib.request.Request(
         MODULE_URL,
-        headers={"User-Agent": "Nyan-Wallet-Maintenance-Installer/1.1"},
+        headers={"User-Agent": "Nyan-Wallet-Maintenance-Installer/1.2"},
     )
     try:
         with urllib.request.urlopen(request, timeout=20) as response:
