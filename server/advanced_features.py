@@ -614,8 +614,28 @@ async def referral_apply(payload: ReferralPayload, background_tasks: BackgroundT
                 raise HTTPException(status_code=409, detail="Код можно применить только в первые 7 дней")
             if session.scalar(select(Referral.id).where(Referral.invited_id == tg["id"])) is not None:
                 raise HTTPException(status_code=409, detail="Реферальный код уже использован")
-            positive = session.scalar(select(func.count()).select_from(core.Transaction).where(core.Transaction.telegram_id == tg["id"], core.Transaction.amount > 0)) or 0
-            if positive:
+            # The automatic 5 🐾 welcome credit must not block a referral code.
+            # Legacy accounts may have that credit either as balance-only state or as
+            # a transaction, so eligibility is based on real positive transactions
+            # while explicitly ignoring known welcome/start transaction types.
+            referral_ignored_credit_types = {
+                "welcome_bonus",
+                "welcome",
+                "registration_bonus",
+                "signup_bonus",
+                "start_bonus",
+                "initial_bonus",
+            }
+            blocking_positive = session.scalar(
+                select(func.count())
+                .select_from(core.Transaction)
+                .where(
+                    core.Transaction.telegram_id == tg["id"],
+                    core.Transaction.amount > 0,
+                    ~core.Transaction.operation_type.in_(referral_ignored_credit_types),
+                )
+            ) or 0
+            if blocking_positive:
                 raise HTTPException(status_code=409, detail="Код можно применить до первых начислений")
             ref = session.scalar(select(ReferralCode).where(ReferralCode.code == payload.code.strip().upper()))
             if not ref:
