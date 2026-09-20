@@ -18,7 +18,14 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, WebAppInfo
+from telegram import (
+    BotCommand,
+    BotCommandScopeChat,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Update,
+    WebAppInfo,
+)
 from telegram.error import BadRequest, Forbidden, NetworkError, RetryAfter, TelegramError
 from telegram.ext import (
     Application,
@@ -1090,6 +1097,32 @@ def _ensure_scheduler(application: Application) -> None:
     )
 
 
+async def _ensure_owner_command_menu(application: Application) -> None:
+    scope = BotCommandScopeChat(chat_id=_owner_id())
+    try:
+        default_commands = await application.bot.get_my_commands()
+        owner_commands = await application.bot.get_my_commands(scope=scope)
+        merged: dict[str, BotCommand] = {
+            command.command: command
+            for command in [*default_commands, *owner_commands]
+        }
+        for command, description in (
+            ("broadcast", "Создать рассылку"),
+            ("broadcast_templates", "Шаблоны рассылок"),
+            ("broadcast_scheduled", "Отложенные рассылки"),
+            ("broadcast_status", "Статус активной рассылки"),
+            ("broadcast_cancel", "Остановить активную рассылку"),
+        ):
+            merged[command] = BotCommand(command=command, description=description)
+
+        await application.bot.set_my_commands(
+            list(merged.values())[:100],
+            scope=scope,
+        )
+    except TelegramError:
+        logger.exception("broadcast_owner_command_menu_failed")
+
+
 async def broadcast_templates_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     message = update.effective_message
@@ -1395,6 +1428,7 @@ def register_broadcast_handlers(app: Application) -> None:
             except BroadcastBotError:
                 logger.exception("broadcast_schedule_recovery_failed")
             _ensure_scheduler(application)
+            await _ensure_owner_command_menu(application)
 
         try:
             app.post_init = _broadcast_post_init
