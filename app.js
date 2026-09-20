@@ -88,6 +88,74 @@ if (initialGiveawayDeepLink) {
     window.__nyanGiveawayDeepLinkActive = true;
 }
 
+function promoDeepLinkCode() {
+    const candidates = [];
+
+    try {
+        const url = new URL(window.location.href);
+        candidates.push(url.searchParams.get("promo"));
+        candidates.push(url.searchParams.get("tgWebAppStartParam"));
+        candidates.push(url.searchParams.get("startapp"));
+
+        const hash = url.hash.startsWith("#") ? url.hash.slice(1) : url.hash;
+        const hashParams = new URLSearchParams(hash);
+        candidates.push(hashParams.get("promo"));
+        candidates.push(hashParams.get("tgWebAppStartParam"));
+        candidates.push(hashParams.get("startapp"));
+    } catch (_) {}
+
+    try {
+        const initParams = new URLSearchParams(tg?.initData || "");
+        candidates.push(initParams.get("start_param"));
+    } catch (_) {}
+
+    candidates.push(tg?.initDataUnsafe?.start_param || "");
+
+    for (const raw of candidates) {
+        const value = String(raw || "").trim();
+        const direct = value.match(/^promo_([A-Z0-9_-]{2,32})$/i);
+        if (direct) return direct[1].toUpperCase();
+
+        if (/^[A-Z0-9_-]{2,32}$/i.test(value)) {
+            const explicitPromo = (() => {
+                try {
+                    const url = new URL(window.location.href);
+                    return url.searchParams.get("promo") === value;
+                } catch (_) {
+                    return false;
+                }
+            })();
+            if (explicitPromo) return value.toUpperCase();
+        }
+    }
+
+    return null;
+}
+
+const initialPromoDeepLink = promoDeepLinkCode();
+if (initialPromoDeepLink) {
+    window.__nyanPromoDeepLink = initialPromoDeepLink;
+    window.__nyanPromoDeepLinkActive = true;
+}
+
+function openPromoDeepLink() {
+    const code = window.__nyanPromoDeepLink;
+    if (!code || !promoCode) return;
+
+    promoCode.value = code;
+    openEarnView();
+
+    window.requestAnimationFrame(() => {
+        document.querySelector(".promo-card")?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+        });
+        promoCode.focus({ preventScroll: true });
+    });
+
+    window.__nyanPromoDeepLinkActive = false;
+}
+
 const unsafeUser = tg?.initDataUnsafe?.user;
 if (unsafeUser) {
     usernameEl.textContent = unsafeUser.first_name || unsafeUser.username || "пользователь";
@@ -141,6 +209,7 @@ function finishInitialLoad() {
         !window.__nyanMaintenanceBlocked &&
         !window.__nyanGiveawayDeepLinkActive &&
         !window.__nyanPaymentDeepLinkActive &&
+        !window.__nyanPromoDeepLinkActive &&
         !appealDeepLinkActive
     ) {
         walletView.classList.remove("hidden");
@@ -664,6 +733,11 @@ async function loadWallet() {
 
         applyUserState(data.user);
         renderTransactions(data.transactions || []);
+
+        if (window.__nyanPromoDeepLinkActive) {
+            finishInitialLoad();
+            openPromoDeepLink();
+        }
     } catch (error) {
         console.error("Nyan Wallet API error:", error);
         balanceEl.textContent = "—";
