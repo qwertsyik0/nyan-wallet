@@ -11,18 +11,7 @@
 
     function ensureView() {
         let view = document.getElementById("maintenance-view");
-        if (view) {
-            // Self-heal stale Telegram WebView DOM left by an older cached bundle.
-            const oldIcon = view.querySelector(".maintenance-icon");
-            if (oldIcon) {
-                const gear = document.createElement("div");
-                gear.className = "maintenance-gear-wrap";
-                gear.setAttribute("aria-hidden", "true");
-                gear.innerHTML = '<div class="maintenance-gear">⚙</div><div class="maintenance-gear-dot"></div>';
-                oldIcon.replaceWith(gear);
-            }
-            return view;
-        }
+        if (view) return view;
 
         const app = document.querySelector(".app");
         if (!app) return null;
@@ -31,11 +20,9 @@
         view.id = "maintenance-view";
         view.className = "maintenance-view hidden";
         view.innerHTML = `
+            <div class="maintenance-background-gear" aria-hidden="true">⚙</div>
             <section class="maintenance-card" aria-live="polite">
-                <div class="maintenance-gear-wrap" aria-hidden="true">
-                    <div class="maintenance-gear">⚙</div>
-                    <div class="maintenance-gear-dot"></div>
-                </div>
+                <div class="maintenance-icon" aria-hidden="true">🐾</div>
                 <div id="maintenance-title" class="maintenance-title">Nyan Wallet становится лучше</div>
                 <div id="maintenance-message" class="maintenance-message">
                     Сейчас мы проводим технические работы: добавляем новые функции,
@@ -56,16 +43,6 @@
         const view = ensureView();
         if (!view) return;
 
-        // Ensure the current maintenance indicator is present even when Telegram
-        // restores a previously cached page from its WebView snapshot.
-        const staleIcon = view.querySelector(".maintenance-icon");
-        if (staleIcon) {
-            const gear = document.createElement("div");
-            gear.className = "maintenance-gear-wrap";
-            gear.setAttribute("aria-hidden", "true");
-            gear.innerHTML = '<div class="maintenance-gear">⚙</div><div class="maintenance-gear-dot"></div>';
-            staleIcon.replaceWith(gear);
-        }
 
         hiddenByMaintenance = Array.from(document.querySelectorAll(".app > main"))
             .filter(node => node !== view && !node.classList.contains("hidden"));
