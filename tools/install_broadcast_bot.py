@@ -19,6 +19,38 @@ MODULE_URL = (
 IMPORT_LINE = "from broadcast_bot import register_broadcast_handlers"
 REGISTER_NAME = "register_broadcast_handlers"
 
+IPV6_HARDENED_MARKER = "# NYAN_TELEGRAM_IPV6_HARDENED_V2"
+IPV6_START = "_original_getaddrinfo = socket.getaddrinfo"
+IPV6_ASSIGN = "socket.getaddrinfo = _nyan_force_telegram_ipv6"
+IPV6_BLOCK = """# NYAN_TELEGRAM_IPV6_HARDENED_V2
+_original_getaddrinfo = socket.getaddrinfo
+
+
+def _nyan_force_telegram_ipv6(host, port, family=0, type=0, proto=0, flags=0):
+    \"\"\"Force Telegram Bot API through IPv6 on hosts where Telegram IPv4 is unavailable.\"\"\"
+    if isinstance(host, (bytes, bytearray)):
+        hostname = host.decode("ascii", errors="ignore")
+    else:
+        hostname = str(host)
+
+    hostname = hostname.rstrip(".").lower()
+    if hostname == "api.telegram.org":
+        return _original_getaddrinfo(
+            host,
+            port,
+            socket.AF_INET6,
+            type,
+            proto,
+            flags,
+        )
+
+    return _original_getaddrinfo(host, port, family, type, proto, flags)
+
+
+socket.getaddrinfo = _nyan_force_telegram_ipv6
+"""
+
+
 
 class InstallError(RuntimeError):
     pass
@@ -137,14 +169,39 @@ def add_import(source: str) -> str:
     return "".join(lines)
 
 
+def harden_telegram_ipv6(source: str) -> str:
+    if IPV6_HARDENED_MARKER in source:
+        return source
+
+    start = source.find(IPV6_START)
+    if start < 0:
+        return source
+
+    assign = source.find(IPV6_ASSIGN, start)
+    if assign < 0:
+        return source
+
+    line_end = source.find("\n", assign)
+    if line_end < 0:
+        line_end = len(source)
+    else:
+        line_end += 1
+
+    hardened = source[:start] + IPV6_BLOCK + source[line_end:]
+    parse(hardened, "bot.py after IPv6 hardening")
+    return hardened
+
+
 def patch_bot(source: str) -> str:
     parse(source, "bot.py")
-    patched = add_import(add_registration(source))
+    patched = harden_telegram_ipv6(add_import(add_registration(source)))
     tree = parse(patched, "bot.py after patch")
     if not has_import(tree) or not has_registration(tree):
         raise InstallError("Не удалось безопасно подключить broadcast handler")
     if len(run_polling_calls(tree)) != 1:
         raise InstallError("После патча изменилось количество run_polling")
+    if IPV6_START in source and IPV6_HARDENED_MARKER not in patched:
+        raise InstallError("Не удалось усилить Telegram IPv6 resolver")
     return patched
 
 
@@ -259,6 +316,8 @@ def main() -> int:
 
     print("✅ Рассылка установлена")
     print("✅ bot.py и broadcast_bot.py прошли py_compile и import smoke-test")
+    if IPV6_HARDENED_MARKER in patched_bot:
+        print("✅ Telegram API принудительно закреплён за IPv6")
     if bot_backup:
         print(f"📦 Бэкап bot.py: {bot_backup.name}")
     if module_backup:
