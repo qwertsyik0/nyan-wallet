@@ -18,6 +18,7 @@ from .achievements import register_achievements
 from .giveaways import register_giveaways
 from .appeals import register_appeals
 from .transfers import register_transfers
+from .broadcast import register_broadcast
 from .maintenance import register_maintenance
 
 register_root_health(backend_app.app)
@@ -30,4 +31,5 @@ register_achievements(backend_app.app)
 register_giveaways(backend_app.app)
 register_appeals(backend_app.app)
 register_transfers(backend_app.app)
+register_broadcast(backend_app.app)
 register_maintenance(backend_app.app)
