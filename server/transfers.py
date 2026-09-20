@@ -30,6 +30,7 @@ MAX_TRANSFER_DAILY = 500_000
 MAX_TRANSFERS_PER_MINUTE = 10
 MAX_NOTE_LENGTH = 120
 PUBLIC_ADDRESS_RE = re.compile(r"^NW[A-F0-9]{20}$")
+WALLET_ALIAS_RE = re.compile(r"^NYAN\d{12}$")
 IDEMPOTENCY_RE = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
 
 
@@ -42,6 +43,18 @@ class WalletAddress(core.Base):
         primary_key=True,
     )
     public_id: Mapped[str] = mapped_column(String(24), nullable=False, unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class WalletAlias(core.Base):
+    __tablename__ = "wallet_aliases"
+
+    telegram_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("users.telegram_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    alias: Mapped[str] = mapped_column(String(16), nullable=False, unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
@@ -116,6 +129,80 @@ def public_wallet_id(telegram_id: int) -> str:
     return f"NW{digest[:20].upper()}"
 
 
+def legacy_wallet_alias(telegram_id: int) -> str:
+    """Return the same NYAN xxxx xxxx xxxx number the frontend historically showed."""
+    value = f"nyan-wallet:{telegram_id}"
+    left = 0x811C9DC5
+    right = 0x9E3779B9
+
+    for char in value:
+        code = ord(char)
+        left = ((left ^ code) * 16777619) & 0xFFFFFFFF
+        right = ((right ^ code) * 2246822519) & 0xFFFFFFFF
+
+    digits = f"{left % 1_000_000:06d}{right % 1_000_000:06d}"
+    return f"NYAN{digits}"
+
+
+def format_wallet_alias(alias: str) -> str:
+    if not WALLET_ALIAS_RE.fullmatch(alias):
+        return alias
+    digits = alias[4:]
+    return f"NYAN {digits[:4]} {digits[4:8]} {digits[8:12]}"
+
+
+def _fallback_wallet_alias(telegram_id: int, attempt: int) -> str:
+    digest = hmac.new(
+        core.BOT_TOKEN.encode("utf-8"),
+        f"nyan-wallet-alias:{telegram_id}:{attempt}".encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    digits = f"{int(digest[:16], 16) % 1_000_000_000_000:012d}"
+    return f"NYAN{digits}"
+
+
+def ensure_wallet_alias(session: Session, user: core.User, timestamp: datetime) -> WalletAlias:
+    existing = session.get(WalletAlias, user.telegram_id)
+    if existing is not None:
+        return existing
+
+    candidates = [legacy_wallet_alias(int(user.telegram_id))]
+    candidates.extend(_fallback_wallet_alias(int(user.telegram_id), attempt) for attempt in range(1, 33))
+
+    for candidate in candidates:
+        owner = session.scalar(
+            select(WalletAlias.telegram_id).where(WalletAlias.alias == candidate)
+        )
+        if owner is not None and int(owner) != int(user.telegram_id):
+            continue
+
+        alias = WalletAlias(
+            telegram_id=int(user.telegram_id),
+            alias=candidate,
+            created_at=timestamp,
+        )
+        session.add(alias)
+        session.flush()
+        return alias
+
+    raise HTTPException(status_code=500, detail="Не удалось создать уникальный номер кошелька")
+
+
+def bootstrap_wallet_aliases() -> None:
+    """Backfill aliases for existing users so NYAN numbers are resolvable immediately."""
+    timestamp = now_utc()
+    with core.SessionLocal() as session:
+        with session.begin():
+            users = session.scalars(
+                select(core.User)
+                .outerjoin(WalletAlias, WalletAlias.telegram_id == core.User.telegram_id)
+                .where(WalletAlias.telegram_id.is_(None))
+                .order_by(core.User.telegram_id.asc())
+            ).all()
+            for user in users:
+                ensure_wallet_alias(session, user, timestamp)
+
+
 def transfer_public_id(sender_id: int, idempotency_key: str) -> str:
     digest = hmac.new(
         core.BOT_TOKEN.encode("utf-8"),
@@ -147,13 +234,19 @@ def ensure_wallet_address(session: Session, user: core.User, timestamp: datetime
     return address
 
 
-def wallet_deep_link(public_id: str) -> str:
-    return f"https://t.me/{BOT_USERNAME}?startapp=pay_{public_id}"
+def wallet_deep_link(address_token: str) -> str:
+    return f"https://t.me/{BOT_USERNAME}?startapp=pay_{address_token}"
 
 
-def serialize_recipient(user: core.User, address: WalletAddress) -> dict[str, Any]:
+def serialize_recipient(
+    user: core.User,
+    address: WalletAddress,
+    alias: WalletAlias,
+) -> dict[str, Any]:
     return {
-        "wallet_address": address.public_id,
+        "wallet_address": format_wallet_alias(alias.alias),
+        "wallet_address_compact": alias.alias,
+        "technical_address": address.public_id,
         "username": user.username,
         "first_name": user.first_name,
         "last_name": user.last_name,
@@ -197,6 +290,15 @@ def normalize_target(raw_target: str) -> str:
 def resolve_recipient_id(session: Session, raw_target: str) -> int:
     target = normalize_target(raw_target)
     canonical = target.upper()
+    compact = re.sub(r"[\s-]+", "", canonical)
+
+    if WALLET_ALIAS_RE.fullmatch(compact):
+        telegram_id = session.scalar(
+            select(WalletAlias.telegram_id).where(WalletAlias.alias == compact)
+        )
+        if telegram_id is None:
+            raise HTTPException(status_code=404, detail="Кошелёк с таким номером не найден")
+        return int(telegram_id)
 
     if PUBLIC_ADDRESS_RE.fullmatch(canonical):
         telegram_id = session.scalar(
@@ -441,10 +543,13 @@ async def my_wallet_address(
                 if user is None:
                     raise HTTPException(status_code=404, detail="Кошелёк не найден")
                 address = ensure_wallet_address(session, user, timestamp)
+                alias = ensure_wallet_alias(session, user, timestamp)
                 return {
                     "ok": True,
-                    "wallet_address": address.public_id,
-                    "deep_link": wallet_deep_link(address.public_id),
+                    "wallet_address": format_wallet_alias(alias.alias),
+                    "wallet_address_compact": alias.alias,
+                    "technical_address": address.public_id,
+                    "deep_link": wallet_deep_link(alias.alias),
                     "limits": {
                         "per_transfer": MAX_TRANSFER_AMOUNT,
                         "per_24h": MAX_TRANSFER_DAILY,
@@ -478,8 +583,10 @@ async def transfer_recipient(
             )
             if recipient is None:
                 raise HTTPException(status_code=404, detail="Получатель не найден")
-            address = ensure_wallet_address(session, recipient, now_utc())
-            return {"ok": True, "recipient": serialize_recipient(recipient, address)}
+            timestamp = now_utc()
+            address = ensure_wallet_address(session, recipient, timestamp)
+            alias = ensure_wallet_alias(session, recipient, timestamp)
+            return {"ok": True, "recipient": serialize_recipient(recipient, address, alias)}
 
 
 @router.post("/api/transfers")
@@ -507,8 +614,10 @@ async def wallet_qr(
             )
             if user is None:
                 raise HTTPException(status_code=404, detail="Кошелёк не найден")
-            address = ensure_wallet_address(session, user, now_utc())
-            deep_link = wallet_deep_link(address.public_id)
+            timestamp = now_utc()
+            address = ensure_wallet_address(session, user, timestamp)
+            alias = ensure_wallet_alias(session, user, timestamp)
+            deep_link = wallet_deep_link(alias.alias)
 
     qr = qrcode.QRCode(
         version=None,
@@ -539,5 +648,6 @@ def register_transfers(app) -> None:
     if _REGISTERED:
         return
     core.Base.metadata.create_all(core.engine)
+    bootstrap_wallet_aliases()
     app.include_router(router)
     _REGISTERED = True
