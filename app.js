@@ -638,10 +638,13 @@ function applyUserState(user) {
 
 async function loadWallet() {
     if (!tg?.initData) {
-        balanceEl.textContent = "0";
+        balanceEl.textContent = "—";
+        currencyNameEl.textContent = "откройте через Telegram";
         finishInitialLoad();
         return;
     }
+
+    let blockedByMaintenance = false;
 
     try {
         const response = await fetch(`${API_BASE}/api/me`, {
@@ -650,6 +653,7 @@ async function loadWallet() {
         const data = await readJson(response);
 
         if (response.status === 503 && data?.detail === "maintenance") {
+            blockedByMaintenance = true;
             window.dispatchEvent(new CustomEvent("nyan-maintenance-required", {
                 detail: data.maintenance || {},
             }));
@@ -662,9 +666,12 @@ async function loadWallet() {
         renderTransactions(data.transactions || []);
     } catch (error) {
         console.error("Nyan Wallet API error:", error);
-        balanceEl.textContent = "0";
+        balanceEl.textContent = "—";
+        currencyNameEl.textContent = "данные временно недоступны";
     } finally {
-        finishInitialLoad();
+        if (!blockedByMaintenance) {
+            finishInitialLoad();
+        }
     }
 }
 
