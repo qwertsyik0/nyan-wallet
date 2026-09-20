@@ -25,8 +25,12 @@
     }
 
     async function api(path, options = {}, timeoutMs = 12000) {
+        const method = String(options?.method || "GET").toUpperCase();
+        const effectiveTimeout = ["GET", "HEAD", "OPTIONS"].includes(method)
+            ? Math.max(timeoutMs, 40000)
+            : timeoutMs;
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), timeoutMs);
+        const timeout = setTimeout(() => controller.abort(), effectiveTimeout);
         try {
             const response = await fetch(API + path, { ...options, signal: controller.signal });
             const data = await json(response);
