@@ -9,6 +9,8 @@ on:
       - "tools/install_giveaway_bot.py"
       - "bot_addons/giveaway_bot.py.gz.b64"
       - "bot_addons/maintenance_bot.py"
+      - "bot_addons/broadcast_bot.py"
+      - "tools/install_broadcast_bot.py"
       - ".github/workflows/backend-check.yml"
   workflow_dispatch:
 
@@ -24,7 +26,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Compile backend and installer
-        run: python -m py_compile server/*.py tools/install_giveaway_bot.py tools/install_maintenance_bot.py
+        run: python -m py_compile server/*.py tools/install_giveaway_bot.py tools/install_maintenance_bot.py tools/install_broadcast_bot.py bot_addons/broadcast_bot.py
       - name: Validate giveaway bot payload
         run: |
           python - <<'PY'
@@ -194,6 +196,40 @@ jobs:
           ):
               assert marker in bot, f"maintenance bot marker missing: {marker}"
           print("maintenance subsystem static audit OK")
+          PY
+      - name: Audit broadcast subsystem
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          backend = Path("server/broadcast.py").read_text(encoding="utf-8")
+          compile(backend, "server/broadcast.py", "exec")
+          for marker in (
+              '@router.post("/api/internal/broadcast/recipients")',
+              'verify_internal_signature',
+              'active_7d',
+              'active_30d',
+              'core.User.last_seen_at',
+          ):
+              assert marker in backend, f"broadcast backend marker missing: {marker}"
+
+          bot = Path("bot_addons/broadcast_bot.py").read_text(encoding="utf-8")
+          compile(bot, "bot_addons/broadcast_bot.py", "exec")
+          for marker in (
+              'CommandHandler("broadcast"',
+              'CommandHandler("broadcast_cancel"',
+              'copy_message',
+              'copy_messages',
+              'WebAppInfo',
+              'RetryAfter',
+              'Premium custom emoji',
+              '/api/internal/broadcast/recipients',
+          ):
+              assert marker in bot, f"broadcast bot marker missing: {marker}"
+
+          installer = Path("tools/install_broadcast_bot.py").read_text(encoding="utf-8")
+          compile(installer, "tools/install_broadcast_bot.py", "exec")
+          print("broadcast subsystem static audit OK")
           PY
       - name: Check browser JavaScript syntax
         run: |
