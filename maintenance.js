@@ -3,6 +3,7 @@
 
     const tg = window.Telegram?.WebApp;
     const API = "https://nyan-wallet-api.onrender.com";
+    let hiddenByMaintenance = [];
 
     function headers() {
         return { "X-Telegram-Init-Data": tg?.initData || "" };
@@ -41,7 +42,12 @@
         const view = ensureView();
         if (!view) return;
 
-        document.querySelectorAll(".app > main").forEach(node => node.classList.add("hidden"));
+        hiddenByMaintenance = Array.from(document.querySelectorAll(".app > main"))
+            .filter(node => node !== view && !node.classList.contains("hidden"));
+
+        document.querySelectorAll(".app > main").forEach(node => {
+            if (node !== view) node.classList.add("hidden");
+        });
         view.classList.remove("hidden");
 
         const title = view.querySelector("#maintenance-title");
@@ -56,8 +62,36 @@
 
     function clearMaintenance() {
         const view = document.getElementById("maintenance-view");
+        const wasVisible = Boolean(view && !view.classList.contains("hidden"));
+
         if (view) view.classList.add("hidden");
         window.__nyanMaintenanceBlocked = false;
+
+        if (!wasVisible) {
+            hiddenByMaintenance = [];
+            return;
+        }
+
+        const restorable = hiddenByMaintenance.filter(node => document.contains(node));
+        hiddenByMaintenance = [];
+
+        if (restorable.length) {
+            restorable.forEach(node => node.classList.remove("hidden"));
+            return;
+        }
+
+        const transfer = document.getElementById("transfer-view");
+        const wallet = document.getElementById("wallet-view");
+        const loading = document.getElementById("loading-view");
+
+        if (transfer && transfer.dataset.maintenanceRestore === "1") {
+            transfer.classList.remove("hidden");
+            delete transfer.dataset.maintenanceRestore;
+        } else if (wallet) {
+            wallet.classList.remove("hidden");
+        } else if (loading) {
+            loading.classList.remove("hidden");
+        }
     }
 
     async function checkMaintenance(reloadWhenAvailable = false) {
@@ -75,7 +109,12 @@
             }
 
             clearMaintenance();
-            if (reloadWhenAvailable) window.location.reload();
+
+            if (reloadWhenAvailable) {
+                const currentUrl = new URL(window.location.href);
+                currentUrl.searchParams.set("_nyan_refresh", String(Date.now()));
+                window.location.replace(currentUrl.toString());
+            }
             return false;
         } catch (error) {
             console.error("Maintenance status check failed:", error);
@@ -91,7 +130,9 @@
         window.setInterval(() => void checkMaintenance(false), 60_000);
     }, { once: true });
 
-    window.addEventListener("nyan-maintenance-required", event => {
-        showMaintenance(event.detail || {});
+    window.addEventListener("nyan-maintenance-required", () => {
+        // A 503 can arrive after maintenance has already been switched off.
+        // Re-check the authoritative status endpoint before changing the UI.
+        void checkMaintenance(false);
     });
 })();
