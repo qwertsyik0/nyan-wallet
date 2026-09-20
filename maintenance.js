@@ -11,7 +11,18 @@
 
     function ensureView() {
         let view = document.getElementById("maintenance-view");
-        if (view) return view;
+        if (view) {
+            // Self-heal stale Telegram WebView DOM left by an older cached bundle.
+            const oldIcon = view.querySelector(".maintenance-icon");
+            if (oldIcon) {
+                const gear = document.createElement("div");
+                gear.className = "maintenance-gear-wrap";
+                gear.setAttribute("aria-hidden", "true");
+                gear.innerHTML = '<div class="maintenance-gear">⚙</div><div class="maintenance-gear-dot"></div>';
+                oldIcon.replaceWith(gear);
+            }
+            return view;
+        }
 
         const app = document.querySelector(".app");
         if (!app) return null;
@@ -44,6 +55,17 @@
     function showMaintenance(state) {
         const view = ensureView();
         if (!view) return;
+
+        // Ensure the current maintenance indicator is present even when Telegram
+        // restores a previously cached page from its WebView snapshot.
+        const staleIcon = view.querySelector(".maintenance-icon");
+        if (staleIcon) {
+            const gear = document.createElement("div");
+            gear.className = "maintenance-gear-wrap";
+            gear.setAttribute("aria-hidden", "true");
+            gear.innerHTML = '<div class="maintenance-gear">⚙</div><div class="maintenance-gear-dot"></div>';
+            staleIcon.replaceWith(gear);
+        }
 
         hiddenByMaintenance = Array.from(document.querySelectorAll(".app > main"))
             .filter(node => node !== view && !node.classList.contains("hidden"));
