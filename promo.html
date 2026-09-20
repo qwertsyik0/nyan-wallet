@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nyan Wallet · Бонус</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="./style.css?v=20260918-8">
+    <link rel="stylesheet" href="./promo.css?v=20260920-1">
+</head>
+<body>
+<div class="promo-app">
+    <main class="promo-shell">
+        <section class="promo-hero">
+            <div class="promo-paw">🐾</div>
+            <div>
+                <div class="promo-brand">Nyan Wallet</div>
+                <div class="promo-kicker">бонус по промокоду</div>
+            </div>
+        </section>
+
+        <section class="promo-bonus-card">
+            <div class="promo-title">Забрать бонус</div>
+            <div class="promo-subtitle">Промокод уже подставлен. Подтвердите активацию.</div>
+
+            <label class="promo-field">
+                <span>Промокод</span>
+                <input id="promo-code" type="text" readonly>
+            </label>
+
+            <button id="promo-activate" class="promo-activate" type="button" disabled>
+                Подготавливаем…
+            </button>
+
+            <div id="promo-status" class="promo-status" aria-live="polite"></div>
+        </section>
+
+        <button id="promo-wallet" class="promo-wallet" type="button">
+            Открыть Nyan Wallet
+        </button>
+    </main>
+</div>
+
+<script src="./network.js?v=20260920-1"></script>
+<script src="./promo.js?v=20260920-1"></script>
+</body>
+</html>
