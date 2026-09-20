@@ -68,24 +68,64 @@
         return Array.from(bytes, value => value.toString(16).padStart(2, "0")).join("");
     }
 
+    function normalizePaymentStartParam(raw) {
+        const value = String(raw || "").trim();
+        if (!value) return null;
+
+        const match = value.match(/^pay_(NW[A-F0-9]{20}|NYAN\d{12})$/i);
+        if (match) return match[1].toUpperCase();
+
+        if (/^(NW[A-F0-9]{20}|NYAN\d{12})$/i.test(value)) {
+            return value.toUpperCase();
+        }
+
+        return null;
+    }
+
     function pendingPaymentAddress() {
         const values = [];
+
         try {
             const url = new URL(window.location.href);
             values.push(url.searchParams.get("pay"));
             values.push(url.searchParams.get("tgWebAppStartParam"));
             values.push(url.searchParams.get("startapp"));
+
+            const rawHash = url.hash.startsWith("#") ? url.hash.slice(1) : url.hash;
+            const hashParams = new URLSearchParams(rawHash);
+            values.push(hashParams.get("pay"));
+            values.push(hashParams.get("tgWebAppStartParam"));
+            values.push(hashParams.get("startapp"));
         } catch (_) {}
+
+        try {
+            const initParams = new URLSearchParams(tg?.initData || "");
+            values.push(initParams.get("start_param"));
+        } catch (_) {}
+
         values.push(tg?.initDataUnsafe?.start_param || "");
 
+        try {
+            const stored = sessionStorage.getItem("nyan_pending_payment");
+            if (stored) values.push(stored);
+        } catch (_) {}
+
         for (const raw of values) {
-            const value = String(raw || "").trim();
-            const match = value.match(/^pay_(NW[A-F0-9]{20}|NYAN\d{12})$/i);
-            if (match) return match[1].toUpperCase();
-            if (/^(NW[A-F0-9]{20}|NYAN\d{12})$/i.test(value)) return value.toUpperCase();
+            const normalized = normalizePaymentStartParam(raw);
+            if (!normalized) continue;
+
+            try {
+                sessionStorage.setItem("nyan_pending_payment", normalized);
+            } catch (_) {}
+
+            return normalized;
         }
+
         return null;
     }
+
+    const initialPendingPayment = pendingPaymentAddress();
+    window.__nyanPaymentDeepLinkActive = Boolean(initialPendingPayment);
 
     function hideMainViews() {
         document.querySelectorAll(".app > main").forEach(node => node.classList.add("hidden"));
@@ -554,20 +594,40 @@
 
         void loadPublicWalletAddress();
 
-        const pending = pendingPaymentAddress();
+        const pending = initialPendingPayment || pendingPaymentAddress();
         if (pending) {
             let attempts = 0;
+
             const start = () => {
                 attempts += 1;
-                const wallet = document.getElementById("wallet-view");
-                if (!wallet || wallet.classList.contains("hidden")) {
-                    if (attempts < 50) setTimeout(start, 120);
+
+                if (window.__nyanMaintenanceBlocked) {
+                    if (attempts < 100) setTimeout(start, 150);
                     return;
                 }
+
+                const loading = document.getElementById("loading-view");
+                const wallet = document.getElementById("wallet-view");
+
+                if (
+                    !wallet ||
+                    (loading && !loading.classList.contains("hidden"))
+                ) {
+                    if (attempts < 100) setTimeout(start, 120);
+                    return;
+                }
+
                 openTransfer(pending);
+                window.__nyanPaymentDeepLinkActive = false;
+
+                try {
+                    sessionStorage.removeItem("nyan_pending_payment");
+                } catch (_) {}
+
                 void resolveRecipient();
             };
-            setTimeout(start, 160);
+
+            setTimeout(start, 80);
         }
     }
 
