@@ -25,6 +25,7 @@
     ];
 
     let scheduled = false;
+    let observer = null;
 
     function safeGet(key) {
         try { return localStorage.getItem(STORE_PREFIX + key); } catch (_) { return null; }
@@ -165,9 +166,16 @@
         if (!available.length) {
             center.hidden = true;
             actions.classList.remove("nyan-actions-hidden");
+            center.dataset.nyanSignature = "";
             return;
         }
 
+        const signature = available.map(([id]) => id).join("|");
+        if (center.dataset.nyanSignature === signature && center.querySelector(".nyan-command-grid")) {
+            actions.classList.add("nyan-actions-hidden");
+            return;
+        }
+        center.dataset.nyanSignature = signature;
         center.hidden = false;
         center.innerHTML = `
             <div class="nyan-command-head">
@@ -236,8 +244,15 @@
             .filter(section => section.offsetParent !== null || !section.hidden);
         if (!sections.length) {
             map.hidden = true;
+            map.dataset.nyanSignature = "";
             return;
         }
+        const signature = sections.map(section => `${section.id || section.className}:${titleFor(section)}`).join("|");
+        if (map.dataset.nyanSignature === signature && map.querySelector(".nyan-owner-map-grid")) {
+            map.hidden = false;
+            return;
+        }
+        map.dataset.nyanSignature = signature;
         map.hidden = false;
         map.innerHTML = `
             <div class="nyan-owner-map-head">
@@ -342,7 +357,7 @@
 
     function start() {
         install();
-        const observer = new MutationObserver(scheduleInstall);
+        observer = new MutationObserver(scheduleInstall);
         observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });
         window.addEventListener("nyan-wallet-loaded", scheduleInstall);
     }
