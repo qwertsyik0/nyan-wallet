@@ -4,6 +4,7 @@
     const tg = window.Telegram?.WebApp;
     const API = "https://nyan-wallet-api.onrender.com";
     const MAX_AMOUNT = 100000;
+    const CLIENT_VERSION = "20260920-4";
 
     let canonicalRecipient = null;
     let pendingIdempotencyKey = null;
@@ -126,6 +127,47 @@
 
     const initialPendingPayment = pendingPaymentAddress();
     window.__nyanPaymentDeepLinkActive = Boolean(initialPendingPayment);
+
+    async function reportLaunchDiagnostic() {
+        if (!tg?.initData) return;
+
+        const payload = {
+            client_version: CLIENT_VERSION,
+            detected_target: initialPendingPayment,
+            unsafe_start_param: tg?.initDataUnsafe?.start_param || null,
+            init_start_param: null,
+            query_startapp: null,
+            query_tg_start: null,
+            hash_startapp: null,
+            hash_tg_start: null,
+        };
+
+        try {
+            const initParams = new URLSearchParams(tg.initData);
+            payload.init_start_param = initParams.get("start_param");
+        } catch (_) {}
+
+        try {
+            const url = new URL(window.location.href);
+            payload.query_startapp = url.searchParams.get("startapp");
+            payload.query_tg_start = url.searchParams.get("tgWebAppStartParam");
+            const rawHash = url.hash.startsWith("#") ? url.hash.slice(1) : url.hash;
+            const hashParams = new URLSearchParams(rawHash);
+            payload.hash_startapp = hashParams.get("startapp");
+            payload.hash_tg_start = hashParams.get("tgWebAppStartParam");
+        } catch (_) {}
+
+        try {
+            await fetch(API + "/api/client/launch", {
+                method: "POST",
+                headers: headers(true),
+                body: JSON.stringify(payload),
+                keepalive: true,
+            });
+        } catch (_) {}
+    }
+
+    void reportLaunchDiagnostic();
 
     function hideMainViews() {
         document.querySelectorAll(".app > main").forEach(node => node.classList.add("hidden"));
