@@ -8,6 +8,7 @@ if not DATABASE_URL.startswith(("postgres://", "postgresql://", "postgresql+psyc
     raise RuntimeError("DATABASE_URL должен указывать на PostgreSQL")
 
 from . import backend_app as backend_app
+from .root_health import register_root_health
 from .extended_features import register_extended_features
 from .promo_notify import register_promo_notify
 from .instant_notifications import register_instant_notifications
@@ -19,6 +20,7 @@ from .appeals import register_appeals
 from .transfers import register_transfers
 from .maintenance import register_maintenance
 
+register_root_health(backend_app.app)
 register_extended_features(backend_app.app)
 register_promo_notify(backend_app.app)
 register_instant_notifications()
