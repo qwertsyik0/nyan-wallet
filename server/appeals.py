@@ -502,28 +502,57 @@ def add_wallet_notification(session: Session, telegram_id: int, title: str, body
 
 def ensure_default_topic() -> None:
     timestamp = now_utc()
+    defaults = (
+        {
+            "code": "CUSTOM_WALLET",
+            "title": "Свой Nyan Wallet",
+            "description": (
+                "Оставьте заявку на индивидуальный дизайн кошелька. "
+                "Опишите желаемый стиль, цвета и детали. Владелец Нян рассмотрит обращение "
+                "и сможет установить уникальное оформление прямо в ваш Nyan Wallet."
+            ),
+            "form_type": "custom_wallet",
+        },
+        {
+            "code": "SUGGESTION",
+            "title": "Предложить идею",
+            "description": (
+                "Есть идея, которая могла бы сделать Nyan Wallet лучше? Расскажите о ней здесь. "
+                "Это может быть новая функция, изменение интерфейса, идея для Лапкоинов, "
+                "новое применение кошелька или небольшое улучшение того, что уже существует. "
+                "Все предложения рассматриваются вручную. Если понадобится уточнение, "
+                "мы сможем задать дополнительные вопросы прямо внутри обращения."
+            ),
+            "form_type": "general",
+        },
+    )
+
     with core.SessionLocal() as session:
-        topic = session.scalar(select(AppealTopic).where(AppealTopic.code == "CUSTOM_WALLET"))
-        if topic is not None:
-            return
-        session.add(
-            AppealTopic(
-                code="CUSTOM_WALLET",
-                title="Свой Nyan Wallet",
-                description=(
-                    "Оставьте заявку на индивидуальный дизайн кошелька. "
-                    "Опишите желаемый стиль, цвета и детали. Владелец Нян рассмотрит обращение "
-                    "и сможет установить уникальное оформление прямо в ваш Nyan Wallet."
-                ),
-                form_type="custom_wallet",
-                is_active=True,
-                starts_at=None,
-                ends_at=None,
-                created_at=timestamp,
-                updated_at=timestamp,
+        changed = False
+        for item in defaults:
+            existing = session.scalar(
+                select(AppealTopic).where(AppealTopic.code == item["code"])
             )
-        )
-        session.commit()
+            if existing is not None:
+                continue
+
+            session.add(
+                AppealTopic(
+                    code=item["code"],
+                    title=item["title"],
+                    description=item["description"],
+                    form_type=item["form_type"],
+                    is_active=True,
+                    starts_at=None,
+                    ends_at=None,
+                    created_at=timestamp,
+                    updated_at=timestamp,
+                )
+            )
+            changed = True
+
+        if changed:
+            session.commit()
 
 
 @router.get("/api/appeal-topics")
