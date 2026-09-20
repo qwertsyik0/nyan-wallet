@@ -15,6 +15,7 @@ from .instant_notifications import register_instant_notifications
 from .advanced_features import register_advanced_features
 from .release_hardening import register_release_hardening
 from .achievements import register_achievements
+from .activity import register_activity
 from .giveaways import register_giveaways
 from .appeals import register_appeals
 from .transfers import register_transfers
@@ -28,6 +29,7 @@ register_instant_notifications()
 register_advanced_features(backend_app.app)
 register_release_hardening(backend_app.app)
 register_achievements(backend_app.app)
+register_activity(backend_app.app)
 register_giveaways(backend_app.app)
 register_appeals(backend_app.app)
 register_transfers(backend_app.app)
