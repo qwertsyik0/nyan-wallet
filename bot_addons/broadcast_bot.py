@@ -7,13 +7,15 @@ import json
 import logging
 import os
 import random
+import re
 import socket
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any, Literal
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, WebAppInfo
@@ -37,6 +39,17 @@ HTTP_TIMEOUT_SECONDS = 12.0
 MAX_HTTP_RESPONSE_BYTES = 256 * 1024
 SEND_DELAY_SECONDS = 0.055
 NETWORK_RETRIES = 3
+MOSCOW_TZ = timezone(timedelta(hours=3), name="MSK")
+STATE_VERSION = 1
+STATE_PATH = Path(
+    os.getenv(
+        "NYAN_BROADCAST_STATE_FILE",
+        str(Path(__file__).with_name("broadcast_state.json")),
+    )
+).expanduser()
+SCHEDULER_INTERVAL_SECONDS = 2.0
+MAX_TEMPLATES = 50
+MAX_SCHEDULED = 100
 
 Audience = Literal["all", "active_7d", "active_30d"]
 AUDIENCE_LABELS: dict[Audience, str] = {
@@ -105,6 +118,8 @@ class BroadcastJob:
 
 _drafts: dict[int, BroadcastDraft] = {}
 _active_job: BroadcastJob | None = None
+_scheduler_task: asyncio.Task | None = None
+_scheduler_hook_installed = False
 
 
 def _owner_id() -> int:
@@ -133,6 +148,289 @@ def _bot_token() -> str:
     if not token:
         raise BroadcastBotError("BOT_TOKEN отсутствует в окружении")
     return token
+
+
+def _blank_state() -> dict[str, Any]:
+    return {"version": STATE_VERSION, "templates": {}, "scheduled": {}}
+
+
+def _load_state() -> dict[str, Any]:
+    if not STATE_PATH.exists():
+        return _blank_state()
+    try:
+        raw = json.loads(STATE_PATH.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise BroadcastBotError(f"Не удалось прочитать {STATE_PATH.name}") from exc
+
+    if not isinstance(raw, dict) or raw.get("version") != STATE_VERSION:
+        raise BroadcastBotError("Файл состояния рассылок имеет неизвестный формат")
+    if not isinstance(raw.get("templates"), dict) or not isinstance(raw.get("scheduled"), dict):
+        raise BroadcastBotError("Файл состояния рассылок повреждён")
+    return raw
+
+
+def _save_state(state: dict[str, Any]) -> None:
+    STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    temp = STATE_PATH.with_name(STATE_PATH.name + ".tmp")
+    try:
+        temp.write_text(
+            json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        try:
+            os.chmod(temp, 0o600)
+        except OSError:
+            pass
+        os.replace(temp, STATE_PATH)
+    except OSError as exc:
+        try:
+            temp.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise BroadcastBotError("Не удалось сохранить состояние рассылок") from exc
+
+
+def _new_storage_id(prefix: str) -> str:
+    return f"{prefix}{time.time_ns():x}"[-30:]
+
+
+def _snapshot_to_dict(snapshot: BroadcastSnapshot) -> dict[str, Any]:
+    return {
+        "source_chat_id": snapshot.source_chat_id,
+        "source_message_ids": list(snapshot.source_message_ids),
+        "source_markup": snapshot.source_markup.to_dict() if snapshot.source_markup else None,
+        "keep_source_markup": snapshot.keep_source_markup,
+        "buttons": [
+            {
+                "text": item.text,
+                "url": item.url,
+                "kind": item.kind,
+                "row": item.row,
+            }
+            for item in snapshot.buttons
+        ],
+        "audience": snapshot.audience,
+    }
+
+
+def _snapshot_from_dict(data: Any, bot) -> BroadcastSnapshot:
+    if not isinstance(data, dict):
+        raise BroadcastBotError("Сохранённая рассылка повреждена")
+
+    source_chat_id = data.get("source_chat_id")
+    message_ids = data.get("source_message_ids")
+    audience = data.get("audience")
+    if not isinstance(source_chat_id, int):
+        raise BroadcastBotError("У сохранённой рассылки отсутствует источник")
+    if (
+        not isinstance(message_ids, list)
+        or not message_ids
+        or not all(isinstance(item, int) and item > 0 for item in message_ids)
+    ):
+        raise BroadcastBotError("У сохранённой рассылки повреждены сообщения")
+    if audience not in AUDIENCE_LABELS:
+        raise BroadcastBotError("У сохранённой рассылки повреждена аудитория")
+
+    markup = None
+    markup_raw = data.get("source_markup")
+    if markup_raw is not None:
+        if not isinstance(markup_raw, dict):
+            raise BroadcastBotError("У сохранённой рассылки повреждены кнопки исходника")
+        try:
+            markup = InlineKeyboardMarkup.de_json(markup_raw, bot)
+        except Exception as exc:
+            raise BroadcastBotError("Не удалось восстановить кнопки исходника") from exc
+
+    buttons_raw = data.get("buttons", [])
+    if not isinstance(buttons_raw, list):
+        raise BroadcastBotError("У сохранённой рассылки повреждены кнопки")
+    buttons: list[ButtonSpec] = []
+    for item in buttons_raw:
+        if not isinstance(item, dict):
+            raise BroadcastBotError("У сохранённой рассылки повреждена кнопка")
+        text_value = item.get("text")
+        url_value = item.get("url")
+        kind_value = item.get("kind")
+        row_value = item.get("row")
+        if (
+            not isinstance(text_value, str)
+            or not isinstance(url_value, str)
+            or kind_value not in {"url", "web_app"}
+            or not isinstance(row_value, int)
+            or row_value < 0
+        ):
+            raise BroadcastBotError("У сохранённой рассылки повреждена кнопка")
+        buttons.append(
+            ButtonSpec(
+                text=text_value,
+                url=url_value,
+                kind=kind_value,
+                row=row_value,
+            )
+        )
+
+    return BroadcastSnapshot(
+        source_chat_id=source_chat_id,
+        source_message_ids=tuple(message_ids),
+        source_markup=markup,
+        keep_source_markup=bool(data.get("keep_source_markup", True)),
+        buttons=tuple(buttons),
+        audience=audience,
+    )
+
+
+def _draft_from_snapshot(owner_id: int, snapshot: BroadcastSnapshot) -> BroadcastDraft:
+    draft = BroadcastDraft(
+        owner_id=owner_id,
+        mode="ready",
+        source_chat_id=snapshot.source_chat_id,
+        source_message_ids=list(snapshot.source_message_ids),
+        source_markup=snapshot.source_markup,
+        keep_source_markup=snapshot.keep_source_markup,
+        buttons=[
+            ButtonSpec(text=item.text, url=item.url, kind=item.kind, row=item.row)
+            for item in snapshot.buttons
+        ],
+        audience=snapshot.audience,
+    )
+    draft.current_row = max((item.row for item in draft.buttons), default=0)
+    return draft
+
+
+def _save_template(name: str, snapshot: BroadcastSnapshot) -> str:
+    state = _load_state()
+    templates = state["templates"]
+    if len(templates) >= MAX_TEMPLATES:
+        raise BroadcastBotError(f"Можно сохранить не больше {MAX_TEMPLATES} шаблонов")
+
+    template_id = _new_storage_id("t")
+    templates[template_id] = {
+        "id": template_id,
+        "name": name,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "snapshot": _snapshot_to_dict(snapshot),
+    }
+    _save_state(state)
+    return template_id
+
+
+def _delete_template(template_id: str) -> bool:
+    state = _load_state()
+    existed = state["templates"].pop(template_id, None) is not None
+    if existed:
+        _save_state(state)
+    return existed
+
+
+def _save_schedule(run_at: datetime, snapshot: BroadcastSnapshot) -> str:
+    state = _load_state()
+    scheduled = state["scheduled"]
+    pending_count = sum(
+        1
+        for item in scheduled.values()
+        if isinstance(item, dict) and item.get("status") in {"pending", "running", "interrupted"}
+    )
+    if pending_count >= MAX_SCHEDULED:
+        raise BroadcastBotError(f"Можно хранить не больше {MAX_SCHEDULED} отложенных рассылок")
+
+    schedule_id = _new_storage_id("s")
+    scheduled[schedule_id] = {
+        "id": schedule_id,
+        "run_at": run_at.astimezone(timezone.utc).timestamp(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "status": "pending",
+        "snapshot": _snapshot_to_dict(snapshot),
+    }
+    _save_state(state)
+    return schedule_id
+
+
+def _delete_schedule(schedule_id: str) -> bool:
+    state = _load_state()
+    existed = state["scheduled"].pop(schedule_id, None) is not None
+    if existed:
+        _save_state(state)
+    return existed
+
+
+def _set_schedule_status(schedule_id: str, status: str) -> None:
+    state = _load_state()
+    item = state["scheduled"].get(schedule_id)
+    if not isinstance(item, dict):
+        return
+    item["status"] = status
+    _save_state(state)
+
+
+def _recover_interrupted_schedules() -> None:
+    state = _load_state()
+    changed = False
+    for item in state["scheduled"].values():
+        if isinstance(item, dict) and item.get("status") == "running":
+            item["status"] = "interrupted"
+            changed = True
+    if changed:
+        _save_state(state)
+
+
+def _format_msk(timestamp: float) -> str:
+    return datetime.fromtimestamp(timestamp, tz=timezone.utc).astimezone(MOSCOW_TZ).strftime("%d.%m.%Y %H:%M МСК")
+
+
+def _parse_schedule_time(text: str) -> datetime:
+    raw = " ".join(text.strip().lower().split())
+    now = datetime.now(MOSCOW_TZ)
+
+    relative = re.fullmatch(
+        r"через\s+(\d{1,5})\s*(м|мин|минут|m|ч|час|часа|часов|h|д|дн|день|дня|дней|d)",
+        raw,
+    )
+    if relative:
+        value = int(relative.group(1))
+        unit = relative.group(2)
+        if value <= 0:
+            raise BroadcastBotError("Интервал должен быть больше нуля")
+        if unit in {"м", "мин", "минут", "m"}:
+            result = now + timedelta(minutes=value)
+        elif unit in {"ч", "час", "часа", "часов", "h"}:
+            result = now + timedelta(hours=value)
+        else:
+            result = now + timedelta(days=value)
+    else:
+        day_match = re.fullmatch(r"(сегодня|завтра)\s+(\d{1,2}):(\d{2})", raw)
+        if day_match:
+            hour = int(day_match.group(2))
+            minute = int(day_match.group(3))
+            if hour > 23 or minute > 59:
+                raise BroadcastBotError("Некорректное время")
+            base = now.date() + (timedelta(days=1) if day_match.group(1) == "завтра" else timedelta())
+            result = datetime(base.year, base.month, base.day, hour, minute, tzinfo=MOSCOW_TZ)
+        else:
+            result = None
+            for fmt in ("%d.%m.%Y %H:%M", "%d.%m.%y %H:%M"):
+                try:
+                    parsed = datetime.strptime(raw, fmt)
+                except ValueError:
+                    continue
+                result = parsed.replace(tzinfo=MOSCOW_TZ)
+                break
+
+            if result is None:
+                try:
+                    parsed = datetime.strptime(raw, "%d.%m %H:%M")
+                except ValueError as exc:
+                    raise BroadcastBotError(
+                        "Время не распознано. Пример: 21.09 18:30, завтра 10:00 или через 2ч"
+                    ) from exc
+                result = parsed.replace(year=now.year, tzinfo=MOSCOW_TZ)
+                if result <= now:
+                    result = result.replace(year=now.year + 1)
+
+    if result <= now + timedelta(seconds=20):
+        raise BroadcastBotError("Укажите время хотя бы на 20 секунд вперёд")
+    if result > now + timedelta(days=366):
+        raise BroadcastBotError("Отложить рассылку можно максимум на 366 дней")
+    return result
 
 
 def _signed_json_request(payload: dict[str, Any]) -> dict[str, Any]:
@@ -299,6 +597,10 @@ def _menu_markup(draft: BroadcastDraft) -> InlineKeyboardMarkup:
                 InlineKeyboardButton("👁 Предпросмотр", callback_data="bc:preview"),
                 InlineKeyboardButton("🚀 Начать", callback_data="bc:start"),
             ],
+            [
+                InlineKeyboardButton("💾 Сохранить шаблон", callback_data="bc:save_template"),
+                InlineKeyboardButton("🕒 Отложить", callback_data="bc:schedule"),
+            ],
             [InlineKeyboardButton("✖ Отменить черновик", callback_data="bc:cancel_draft")],
         ]
     )
@@ -384,6 +686,7 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     if user.id != _owner_id():
         return
 
+    _ensure_scheduler(context.application)
     draft = BroadcastDraft(owner_id=user.id)
     _drafts[user.id] = draft
     replied = message.reply_to_message
@@ -465,6 +768,47 @@ async def broadcast_message_handler(update: Update, context: ContextTypes.DEFAUL
         draft.buttons.append(spec)
         draft.mode = "ready"
         await message.reply_text(f"Кнопка «{spec.text}» добавлена.")
+        await _show_menu(context.bot, user.id, draft)
+        raise ApplicationHandlerStop
+
+    if draft.mode == "awaiting_template_name":
+        if not message.text:
+            await message.reply_text("Пришлите название шаблона текстом.")
+            raise ApplicationHandlerStop
+        name = " ".join(message.text.split()).strip()
+        if not 1 <= len(name) <= 48:
+            await message.reply_text("Название шаблона должно быть от 1 до 48 символов.")
+            raise ApplicationHandlerStop
+        try:
+            template_id = _save_template(name, _snapshot(draft))
+        except BroadcastBotError as exc:
+            await message.reply_text(str(exc))
+            raise ApplicationHandlerStop
+        draft.mode = "ready"
+        await message.reply_text(
+            f"Шаблон «{name}» сохранён. ID: {template_id}\n"
+            "Открыть шаблоны: /broadcast_templates"
+        )
+        await _show_menu(context.bot, user.id, draft)
+        raise ApplicationHandlerStop
+
+    if draft.mode == "awaiting_schedule_time":
+        if not message.text:
+            await message.reply_text("Пришлите дату и время текстом.")
+            raise ApplicationHandlerStop
+        try:
+            run_at = _parse_schedule_time(message.text)
+            schedule_id = _save_schedule(run_at, _snapshot(draft))
+        except BroadcastBotError as exc:
+            await message.reply_text(str(exc))
+            raise ApplicationHandlerStop
+        draft.mode = "ready"
+        _ensure_scheduler(context.application)
+        await message.reply_text(
+            f"Рассылка запланирована на {_format_msk(run_at.timestamp())}.\n"
+            f"ID: {schedule_id}\n"
+            "Список: /broadcast_scheduled"
+        )
         await _show_menu(context.bot, user.id, draft)
         raise ApplicationHandlerStop
 
@@ -558,7 +902,10 @@ async def _deliver_one(bot, recipient: int, snapshot: BroadcastSnapshot) -> str:
 
 def _progress_text(job: BroadcastJob, *, finished: bool = False) -> str:
     elapsed = max(0.0, time.monotonic() - job.started_at)
-    state = "Завершена" if finished else ("Останавливается" if job.cancel_event.is_set() else "Выполняется")
+    if finished:
+        state = "Остановлена" if job.cancel_event.is_set() else "Завершена"
+    else:
+        state = "Останавливается" if job.cancel_event.is_set() else "Выполняется"
     return (
         f"Рассылка: {state}\n"
         f"Аудитория: {AUDIENCE_LABELS[job.audience]}\n"
@@ -642,6 +989,181 @@ async def _run_broadcast(
             _active_job = None
 
 
+async def _run_scheduled_broadcast(
+    application: Application,
+    schedule_id: str,
+    job: BroadcastJob,
+    snapshot: BroadcastSnapshot,
+) -> None:
+    try:
+        await _run_broadcast(application, job, snapshot)
+    finally:
+        try:
+            _delete_schedule(schedule_id)
+        except BroadcastBotError:
+            logger.exception("scheduled_broadcast_cleanup_failed schedule_id=%s", schedule_id)
+
+
+async def _scheduler_loop(application: Application) -> None:
+    global _active_job
+    while True:
+        try:
+            if _active_job is None:
+                state = _load_state()
+                now_ts = time.time()
+                due: list[tuple[float, str, dict[str, Any]]] = []
+                for schedule_id, item in state["scheduled"].items():
+                    if not isinstance(item, dict) or item.get("status") != "pending":
+                        continue
+                    run_at = item.get("run_at")
+                    if isinstance(run_at, (int, float)) and run_at <= now_ts:
+                        due.append((float(run_at), schedule_id, item))
+
+                if due:
+                    _, schedule_id, item = min(due, key=lambda value: value[0])
+                    snapshot = _snapshot_from_dict(item.get("snapshot"), application.bot)
+                    _set_schedule_status(schedule_id, "running")
+                    job = BroadcastJob(
+                        job_id=f"scheduled:{schedule_id}",
+                        owner_id=_owner_id(),
+                        audience=snapshot.audience,
+                    )
+                    _active_job = job
+                    try:
+                        await application.bot.send_message(
+                            chat_id=job.owner_id,
+                            text=(
+                                "Запускаю отложенную рассылку.\n"
+                                f"Плановое время: {_format_msk(float(item['run_at']))}\n"
+                                f"Аудитория: {AUDIENCE_LABELS[snapshot.audience]}"
+                            ),
+                        )
+                    except TelegramError:
+                        logger.exception("scheduled_broadcast_owner_notice_failed schedule_id=%s", schedule_id)
+                    asyncio.create_task(
+                        _run_scheduled_broadcast(application, schedule_id, job, snapshot),
+                        name=f"nyan-broadcast-{schedule_id}",
+                    )
+
+            await asyncio.sleep(SCHEDULER_INTERVAL_SECONDS)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("broadcast_scheduler_iteration_failed")
+            await asyncio.sleep(5.0)
+
+
+def _ensure_scheduler(application: Application) -> None:
+    global _scheduler_task
+    if _scheduler_task is not None and not _scheduler_task.done():
+        return
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return
+    _scheduler_task = loop.create_task(
+        _scheduler_loop(application),
+        name="nyan-broadcast-scheduler",
+    )
+
+
+async def broadcast_templates_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    message = update.effective_message
+    if user is None or message is None or user.id != _owner_id():
+        return
+
+    try:
+        state = _load_state()
+    except BroadcastBotError as exc:
+        await message.reply_text(str(exc))
+        raise ApplicationHandlerStop
+
+    templates = [
+        item
+        for item in state["templates"].values()
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    ]
+    templates.sort(key=lambda item: str(item.get("created_at", "")), reverse=True)
+
+    if not templates:
+        await message.reply_text(
+            "Сохранённых шаблонов пока нет.\n"
+            "Соберите рассылку через /broadcast и нажмите «💾 Сохранить шаблон»."
+        )
+        raise ApplicationHandlerStop
+
+    rows: list[list[InlineKeyboardButton]] = []
+    for item in templates[:MAX_TEMPLATES]:
+        template_id = item["id"]
+        name = str(item.get("name") or "Без названия")[:40]
+        rows.append(
+            [
+                InlineKeyboardButton(f"📄 {name}", callback_data=f"bc:tpl_load:{template_id}"),
+                InlineKeyboardButton("🗑", callback_data=f"bc:tpl_del:{template_id}"),
+            ]
+        )
+
+    await message.reply_text(
+        f"Шаблоны рассылок: {len(templates)}",
+        reply_markup=InlineKeyboardMarkup(rows),
+    )
+    raise ApplicationHandlerStop
+
+
+async def broadcast_scheduled_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    message = update.effective_message
+    if user is None or message is None or user.id != _owner_id():
+        return
+
+    _ensure_scheduler(context.application)
+    try:
+        state = _load_state()
+    except BroadcastBotError as exc:
+        await message.reply_text(str(exc))
+        raise ApplicationHandlerStop
+
+    items: list[tuple[float, str, dict[str, Any]]] = []
+    for schedule_id, item in state["scheduled"].items():
+        if not isinstance(item, dict):
+            continue
+        run_at = item.get("run_at")
+        if isinstance(run_at, (int, float)) and item.get("status") in {"pending", "running", "interrupted"}:
+            items.append((float(run_at), schedule_id, item))
+    items.sort(key=lambda value: value[0])
+
+    if not items:
+        await message.reply_text("Отложенных рассылок сейчас нет.")
+        raise ApplicationHandlerStop
+
+    rows: list[list[InlineKeyboardButton]] = []
+    lines = ["Отложенные рассылки:"]
+    for index, (run_at, schedule_id, item) in enumerate(items[:MAX_SCHEDULED], 1):
+        status = item.get("status")
+        status_text = {
+            "pending": "ожидает",
+            "running": "выполняется",
+            "interrupted": "прервана после перезапуска",
+        }.get(status, str(status))
+        lines.append(f"{index}. {_format_msk(run_at)} · {status_text}")
+        rows.append(
+            [InlineKeyboardButton(f"✖ Отменить #{index}", callback_data=f"bc:sch_cancel:{schedule_id}")]
+        )
+
+    if any(item.get("status") == "interrupted" for _, _, item in items):
+        lines.append(
+            "\nПрерванные рассылки не запускаются повторно автоматически, "
+            "чтобы не отправить пользователям дубликаты."
+        )
+
+    await message.reply_text(
+        "\n".join(lines),
+        reply_markup=InlineKeyboardMarkup(rows),
+    )
+    raise ApplicationHandlerStop
+
+
 async def broadcast_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     global _active_job
     query = update.callback_query
@@ -659,6 +1181,52 @@ async def broadcast_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if _active_job is not None:
             _active_job.cancel_event.set()
             await _update_progress(context.application, _active_job)
+        raise ApplicationHandlerStop
+
+    if action.startswith("tpl_load:"):
+        template_id = action.split(":", 1)[1]
+        try:
+            state = _load_state()
+            item = state["templates"].get(template_id)
+            if not isinstance(item, dict):
+                raise BroadcastBotError("Шаблон не найден")
+            snapshot = _snapshot_from_dict(item.get("snapshot"), context.bot)
+            draft = _draft_from_snapshot(user.id, snapshot)
+            _drafts[user.id] = draft
+            await _preview(context.bot, user.id, draft)
+            await context.bot.send_message(
+                chat_id=user.id,
+                text=f"Шаблон «{item.get('name') or 'Без названия'}» загружен.",
+            )
+            await _show_menu(context.bot, user.id, draft)
+        except BroadcastBotError as exc:
+            await context.bot.send_message(chat_id=user.id, text=str(exc))
+        raise ApplicationHandlerStop
+
+    if action.startswith("tpl_del:"):
+        template_id = action.split(":", 1)[1]
+        try:
+            deleted = _delete_template(template_id)
+        except BroadcastBotError as exc:
+            await context.bot.send_message(chat_id=user.id, text=str(exc))
+            raise ApplicationHandlerStop
+        await query.edit_message_text("Шаблон удалён." if deleted else "Шаблон уже удалён.")
+        raise ApplicationHandlerStop
+
+    if action.startswith("sch_cancel:"):
+        schedule_id = action.split(":", 1)[1]
+        if _active_job is not None and _active_job.job_id == f"scheduled:{schedule_id}":
+            _active_job.cancel_event.set()
+            await query.edit_message_text("Остановка отложенной рассылки запрошена.")
+        else:
+            try:
+                deleted = _delete_schedule(schedule_id)
+            except BroadcastBotError as exc:
+                await context.bot.send_message(chat_id=user.id, text=str(exc))
+                raise ApplicationHandlerStop
+            await query.edit_message_text(
+                "Отложенная рассылка отменена." if deleted else "Эта рассылка уже отсутствует."
+            )
         raise ApplicationHandlerStop
 
     draft = _drafts.get(user.id)
@@ -697,6 +1265,25 @@ async def broadcast_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     elif action == "audience":
         draft.audience = AUDIENCE_CYCLE[draft.audience]
         await query.edit_message_text(_menu_text(draft), reply_markup=_menu_markup(draft))
+    elif action == "save_template":
+        draft.mode = "awaiting_template_name"
+        await context.bot.send_message(
+            chat_id=user.id,
+            text="Как назвать шаблон? Пришлите название одним сообщением.",
+        )
+    elif action == "schedule":
+        draft.mode = "awaiting_schedule_time"
+        await context.bot.send_message(
+            chat_id=user.id,
+            text=(
+                "Когда отправить рассылку? Время указывается по МСК.\n\n"
+                "Примеры:\n"
+                "21.09 18:30\n"
+                "завтра 10:00\n"
+                "через 30м\n"
+                "через 2ч"
+            ),
+        )
     elif action == "preview":
         try:
             await _preview(context.bot, user.id, draft)
@@ -761,7 +1348,11 @@ async def broadcast_status_command(update: Update, context: ContextTypes.DEFAULT
 
 
 def register_broadcast_handlers(app: Application) -> None:
+    global _scheduler_hook_installed
+
     app.add_handler(CommandHandler("broadcast", broadcast_command), group=-20)
+    app.add_handler(CommandHandler("broadcast_templates", broadcast_templates_command), group=-20)
+    app.add_handler(CommandHandler("broadcast_scheduled", broadcast_scheduled_command), group=-20)
     app.add_handler(CommandHandler("broadcast_cancel", broadcast_cancel_command), group=-20)
     app.add_handler(CommandHandler("broadcast_status", broadcast_status_command), group=-20)
     app.add_handler(CallbackQueryHandler(broadcast_callback, pattern=r"^bc:"), group=-20)
@@ -769,3 +1360,21 @@ def register_broadcast_handlers(app: Application) -> None:
         MessageHandler(filters.ALL & ~filters.COMMAND, broadcast_message_handler),
         group=-20,
     )
+
+    if not _scheduler_hook_installed:
+        previous_post_init = getattr(app, "post_init", None)
+
+        async def _broadcast_post_init(application: Application) -> None:
+            if previous_post_init is not None:
+                await previous_post_init(application)
+            try:
+                _recover_interrupted_schedules()
+            except BroadcastBotError:
+                logger.exception("broadcast_schedule_recovery_failed")
+            _ensure_scheduler(application)
+
+        try:
+            app.post_init = _broadcast_post_init
+            _scheduler_hook_installed = True
+        except Exception:
+            logger.exception("broadcast_scheduler_post_init_hook_failed")
