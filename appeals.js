@@ -32,15 +32,47 @@
         }
     }
 
+    function wait(ms) {
+        return new Promise((resolve) => window.setTimeout(resolve, ms));
+    }
+
     async function api(path, options = {}) {
-        const response = await fetch(API + path, options);
-        const data = await readJson(response);
-        if (!response.ok) {
-            const error = new Error(data.detail || "Ошибка запроса");
-            error.status = response.status;
-            throw error;
+        let lastError = null;
+
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+            try {
+                const response = await fetch(API + path, options);
+                const data = await readJson(response);
+
+                if (!response.ok) {
+                    const error = new Error(data.detail || "Ошибка запроса");
+                    error.status = response.status;
+                    throw error;
+                }
+
+                return data;
+            } catch (error) {
+                lastError = error;
+
+                const isNetworkError = error instanceof TypeError;
+                const isRetryableHttp = [502, 504].includes(Number(error?.status));
+
+                if (attempt < 2 && (isNetworkError || isRetryableHttp)) {
+                    await wait(500 * (attempt + 1));
+                    continue;
+                }
+
+                if (isNetworkError) {
+                    const networkError = new Error("Не удалось связаться с сервером. Попробуйте ещё раз через несколько секунд.");
+                    networkError.cause = error;
+                    throw networkError;
+                }
+
+                throw error;
+            }
         }
-        return data;
+
+        throw lastError || new Error("Не удалось загрузить данные");
     }
 
     function esc(value) {
@@ -580,7 +612,8 @@
         if (q) params.set("q", q);
         box.innerHTML = '<div class="appeal-empty">Загружаем…</div>';
         try {
-            const data = await api("/api/owner/appeals" + (params.toString() ? "?" + params : ""), { headers: headers() });
+            const query = params.toString();
+            const data = await api("/api/owner/appeals" + (query ? "?" + query : ""), { headers: headers() });
             if (!data.appeals?.length) {
                 box.innerHTML = '<div class="appeal-empty">Обращений не найдено.</div>';
                 return;
