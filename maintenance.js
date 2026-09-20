@@ -21,7 +21,10 @@
         view.className = "maintenance-view hidden";
         view.innerHTML = `
             <section class="maintenance-card" aria-live="polite">
-                <div class="maintenance-icon" aria-hidden="true">🐾</div>
+                <div class="maintenance-gear-wrap" aria-hidden="true">
+                    <div class="maintenance-gear">⚙</div>
+                    <div class="maintenance-gear-dot"></div>
+                </div>
                 <div id="maintenance-title" class="maintenance-title">Nyan Wallet становится лучше</div>
                 <div id="maintenance-message" class="maintenance-message">
                     Сейчас мы проводим технические работы: добавляем новые функции,
