@@ -1,7 +1,7 @@
 const tg = window.Telegram?.WebApp;
 const appealDeepLinkActive = (() => {
     const params = new URLSearchParams(window.location.search);
-    return params.has("appeal") || params.has("ownerAppeal");
+    return params.has("appeals") || params.has("appeal") || params.has("ownerAppeal");
 })();
 const API_BASE = "https://nyan-wallet-api.onrender.com";
 
