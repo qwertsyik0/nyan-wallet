@@ -231,6 +231,8 @@ jobs:
               '_save_template',
               '_save_schedule',
               'MOSCOW_TZ',
+              'BotCommandScopeChat',
+              '_ensure_owner_command_menu',
           ):
               assert marker in bot, f"broadcast bot marker missing: {marker}"
 
