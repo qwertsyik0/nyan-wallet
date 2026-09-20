@@ -1069,6 +1069,7 @@
 
     async function handleDeepLinks() {
         const params = new URLSearchParams(window.location.search);
+        const openAppealsList = params.has("appeals");
         const userAppeal = parsePositiveInt(params.get("appeal"));
         const ownerAppeal = parsePositiveInt(params.get("ownerAppeal"));
         if (ownerAppeal) {
@@ -1077,6 +1078,10 @@
         }
         if (userAppeal) {
             await openAppealDetail(userAppeal);
+            return;
+        }
+        if (openAppealsList) {
+            await openAppeals();
         }
     }
 
