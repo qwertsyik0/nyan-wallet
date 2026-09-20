@@ -30,7 +30,18 @@
             const response = await fetch(API + path, { ...options, signal: controller.signal });
             const data = await json(response);
             if (!response.ok) {
-                const error = new Error(data?.detail || "Операция не выполнена");
+                if (response.status === 503 && data?.detail === "maintenance") {
+                    window.dispatchEvent(new CustomEvent("nyan-maintenance-required", {
+                        detail: data.maintenance || {},
+                    }));
+                    const error = new Error("Сейчас идут технические работы.");
+                    error.status = response.status;
+                    throw error;
+                }
+                const detail = typeof data?.detail === "string"
+                    ? data.detail
+                    : "Операция не выполнена";
+                const error = new Error(detail);
                 error.status = response.status;
                 throw error;
             }
@@ -69,9 +80,9 @@
 
         for (const raw of values) {
             const value = String(raw || "").trim();
-            const match = value.match(/^pay_(NW[A-F0-9]{20})$/i);
+            const match = value.match(/^pay_(NW[A-F0-9]{20}|NYAN\d{12})$/i);
             if (match) return match[1].toUpperCase();
-            if (/^NW[A-F0-9]{20}$/i.test(value)) return value.toUpperCase();
+            if (/^(NW[A-F0-9]{20}|NYAN\d{12})$/i.test(value)) return value.toUpperCase();
         }
         return null;
     }
@@ -223,7 +234,7 @@
                 method: "POST",
                 headers: headers(true),
                 body: JSON.stringify({
-                    recipient: canonicalRecipient.wallet_address,
+                    recipient: canonicalRecipient.wallet_address_compact || canonicalRecipient.wallet_address,
                     amount,
                     note: note || null,
                     idempotency_key: pendingIdempotencyKey,
@@ -265,6 +276,8 @@
         const overlay = document.getElementById("wallet-qr-overlay");
         if (overlay) overlay.hidden = true;
         document.body.style.overflow = "";
+        const box = document.getElementById("wallet-qr-box");
+        if (box) box.replaceChildren();
         if (qrObjectUrl) {
             URL.revokeObjectURL(qrObjectUrl);
             qrObjectUrl = null;
@@ -278,23 +291,27 @@
         }
 
         const overlay = document.getElementById("wallet-qr-overlay");
-        const image = document.getElementById("wallet-qr-image");
+        const box = document.getElementById("wallet-qr-box");
         const addressNode = document.getElementById("wallet-qr-address");
         const linkButton = document.getElementById("wallet-qr-copy-link");
+
         overlay.hidden = false;
         document.body.style.overflow = "hidden";
-        image.removeAttribute("src");
+        box.replaceChildren();
+        box.textContent = "Загружаем QR…";
         addressNode.textContent = "Загружаем…";
         linkButton.dataset.link = "";
+        linkButton.disabled = true;
 
         try {
-            let addressData;
             const qrController = new AbortController();
-            const qrTimeout = setTimeout(() => qrController.abort(), 12000);
+            const qrTimeout = setTimeout(() => qrController.abort(), 15000);
+            let addressData;
             let qrResponse;
+
             try {
                 [addressData, qrResponse] = await Promise.all([
-                    api("/api/wallet/address", { headers: headers() }),
+                    api("/api/wallet/address", { headers: headers() }, 15000),
                     fetch(API + "/api/wallet/qr", {
                         headers: headers(),
                         signal: qrController.signal,
@@ -303,40 +320,106 @@
             } finally {
                 clearTimeout(qrTimeout);
             }
+
             if (!qrResponse.ok) {
                 let detail = "Не удалось загрузить QR-код";
                 try {
                     const errorData = await qrResponse.json();
-                    detail = errorData?.detail || detail;
+                    if (qrResponse.status === 503 && errorData?.detail === "maintenance") {
+                        window.dispatchEvent(new CustomEvent("nyan-maintenance-required", {
+                            detail: errorData.maintenance || {},
+                        }));
+                        detail = "Сейчас идут технические работы.";
+                    } else if (typeof errorData?.detail === "string") {
+                        detail = errorData.detail;
+                    }
                 } catch (_) {}
                 throw new Error(detail);
             }
 
-            const blob = await qrResponse.blob();
-            if (qrObjectUrl) URL.revokeObjectURL(qrObjectUrl);
-            qrObjectUrl = URL.createObjectURL(blob);
-            image.src = qrObjectUrl;
+            const svgText = await qrResponse.text();
+            const parsed = new DOMParser().parseFromString(svgText, "image/svg+xml");
+            const svg = parsed.documentElement;
+
+            if (!svg || svg.nodeName.toLowerCase() !== "svg" || parsed.querySelector("parsererror")) {
+                throw new Error("Сервер вернул некорректный QR-код.");
+            }
+
+            svg.querySelectorAll("script, foreignObject").forEach(node => node.remove());
+            svg.querySelectorAll("*").forEach(node => {
+                for (const attribute of Array.from(node.attributes)) {
+                    if (attribute.name.toLowerCase().startsWith("on")) {
+                        node.removeAttribute(attribute.name);
+                    }
+                }
+            });
+
+            box.replaceChildren(document.importNode(svg, true));
             addressNode.textContent = addressData.wallet_address;
-            linkButton.dataset.link = addressData.deep_link;
+            linkButton.dataset.link = addressData.deep_link || "";
+            linkButton.disabled = !linkButton.dataset.link;
         } catch (error) {
-            addressNode.textContent = error.message || "Ошибка загрузки QR-кода";
+            box.textContent = "QR недоступен";
+            addressNode.textContent = error?.name === "AbortError"
+                ? "Сервер не ответил вовремя. Повторите попытку."
+                : (error.message || "Ошибка загрузки QR-кода");
+            linkButton.disabled = true;
+        }
+    }
+
+    async function copyText(text) {
+        if (navigator.clipboard?.writeText) {
+            try {
+                await navigator.clipboard.writeText(text);
+                return true;
+            } catch (_) {}
+        }
+
+        const field = document.createElement("textarea");
+        field.value = text;
+        field.setAttribute("readonly", "");
+        field.style.position = "fixed";
+        field.style.left = "-9999px";
+        field.style.opacity = "0";
+        document.body.appendChild(field);
+
+        try {
+            field.focus();
+            field.select();
+            field.setSelectionRange(0, field.value.length);
+            return Boolean(document.execCommand?.("copy"));
+        } catch (_) {
+            return false;
+        } finally {
+            field.remove();
         }
     }
 
     async function copyQrLink() {
-        const link = document.getElementById("wallet-qr-copy-link")?.dataset.link || "";
-        if (!link) return;
-        try {
-            await navigator.clipboard.writeText(link);
+        const button = document.getElementById("wallet-qr-copy-link");
+        const link = button?.dataset.link || "";
+        if (!button || !link) return;
+
+        const copied = await copyText(link);
+        if (copied) {
             tg?.HapticFeedback?.notificationOccurred?.("success");
-            document.getElementById("wallet-qr-copy-link").textContent = "Скопировано";
+            button.textContent = "Скопировано";
             setTimeout(() => {
-                const button = document.getElementById("wallet-qr-copy-link");
-                if (button) button.textContent = "Скопировать ссылку";
+                const current = document.getElementById("wallet-qr-copy-link");
+                if (current) current.textContent = "Скопировать ссылку";
             }, 1600);
-        } catch (_) {
-            window.open(link, "_blank", "noopener,noreferrer");
+            return;
         }
+
+        tg?.HapticFeedback?.notificationOccurred?.("error");
+        button.textContent = "Не удалось скопировать";
+        if (typeof window.prompt === "function") {
+            window.prompt("Скопируйте ссылку вручную:", link);
+        }
+        setTimeout(() => {
+            const current = document.getElementById("wallet-qr-copy-link");
+            if (current) current.textContent = "Скопировать ссылку";
+        }, 2000);
     }
 
     async function loadPublicWalletAddress() {
@@ -391,10 +474,10 @@
             </div>
             <section class="transfer-panel">
                 <div class="transfer-title">Получатель</div>
-                <div class="transfer-subtitle">Введите @username, Telegram ID или адрес NW…</div>
+                <div class="transfer-subtitle">Введите @username, Telegram ID или номер NYAN…</div>
                 <div class="transfer-form">
                     <label>Получатель
-                        <input id="transfer-target" type="text" maxlength="80" autocomplete="off" placeholder="@username, ID или NW…">
+                        <input id="transfer-target" type="text" maxlength="80" autocomplete="off" placeholder="@username, ID или NYAN…">
                     </label>
                     <label>Количество 🐾
                         <input id="transfer-amount" type="number" inputmode="numeric" min="1" max="100000" step="1" placeholder="Например, 100">
@@ -424,7 +507,7 @@
                 <button class="wallet-qr-close" type="button" aria-label="Закрыть">×</button>
                 <h2 id="wallet-qr-title">Ваш Nyan Wallet</h2>
                 <p>Другой пользователь может отсканировать QR и сразу открыть перевод на ваш кошелёк.</p>
-                <div class="wallet-qr-box"><img id="wallet-qr-image" alt="QR-код Nyan Wallet"></div>
+                <div id="wallet-qr-box" class="wallet-qr-box" role="img" aria-label="QR-код Nyan Wallet"></div>
                 <div id="wallet-qr-address" class="wallet-qr-address"></div>
                 <div class="wallet-qr-actions">
                     <button id="wallet-qr-copy-link" type="button">Скопировать ссылку</button>
