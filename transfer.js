@@ -648,17 +648,16 @@
                     return;
                 }
 
-                const loading = document.getElementById("loading-view");
                 const wallet = document.getElementById("wallet-view");
-
-                if (
-                    !wallet ||
-                    (loading && !loading.classList.contains("hidden"))
-                ) {
+                if (!wallet) {
                     if (attempts < 100) setTimeout(start, 120);
                     return;
                 }
 
+                // Deep-link launch owns initial navigation. Do not wait for
+                // loading-view to disappear: app.js intentionally keeps the
+                // wallet hidden while __nyanPaymentDeepLinkActive is true.
+                document.getElementById("loading-view")?.classList.add("hidden");
                 openTransfer(pending);
                 window.__nyanPaymentDeepLinkActive = false;
 
