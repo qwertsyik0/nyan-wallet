@@ -79,15 +79,15 @@
 .maintenance-background-gear {
     position: absolute;
     z-index: 0;
-    top: -155px;
-    right: -165px;
-    width: 430px;
-    height: 430px;
+    top: -95px;
+    right: -105px;
+    width: 460px;
+    height: 460px;
     display: grid;
     place-items: center;
-    color: rgba(70, 137, 224, .28);
+    color: rgba(46, 116, 214, .48);
     font-family: Arial, sans-serif;
-    font-size: 390px;
+    font-size: 420px;
     line-height: 1;
     pointer-events: none;
     user-select: none;
@@ -103,11 +103,11 @@
 
 @media (max-width: 380px) {
     .maintenance-background-gear {
-        top: -135px;
-        right: -150px;
-        width: 390px;
-        height: 390px;
-        font-size: 350px;
+        top: -80px;
+        right: -100px;
+        width: 410px;
+        height: 410px;
+        font-size: 375px;
     }
 }
 
