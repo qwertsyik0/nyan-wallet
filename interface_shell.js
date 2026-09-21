@@ -1,7 +1,7 @@
 (() => {
     "use strict";
 
-    const STORE_PREFIX = "nyan-ui-v2:";
+    const STORE_PREFIX = "nyan-ui-collapse-v3:";
     const ACTION_ORDER = [
         "earn-button",
         "spend-button",
@@ -26,7 +26,7 @@
         "nyg-my-purchases-button": ["🧾", "Покупки"],
         "owner-button": ["⚙", "Управление"],
     };
-    const OWNER_SECTION_SELECTOR = "#owner-view > .admin-section, #owner-view > .feature-section, #owner-view > .adv-panel, #owner-view > .appeal-panel";
+    const OWNER_SECTION_SELECTOR = "#owner-view > section";
     const OWNER_LISTS = [
         ["owner-users-list", "Список пользователей", false],
         ["owner-user-history", "История пользователя", true],
@@ -39,6 +39,7 @@
     ];
 
     let scheduled = false;
+    let delegated = false;
 
     function safeGet(key) {
         try { return localStorage.getItem(STORE_PREFIX + key); } catch (_) { return null; }
@@ -61,7 +62,7 @@
         return String(node?.textContent || "").replace(/\s+/g, " ").trim();
     }
 
-    function unwrapSection(node, bodySelector, toggleSelector, classNames = []) {
+    function unwrapLegacySection(node, bodySelector, toggleSelector, classNames = []) {
         const body = node.querySelector(`:scope > ${bodySelector}`);
         const toggle = node.querySelector(`:scope > ${toggleSelector}`);
         if (body) {
@@ -73,7 +74,7 @@
         for (const name of classNames) node.classList.remove(name);
     }
 
-    function cleanupBrokenShell() {
+    function cleanupLegacyShell() {
         document.getElementById("nyan-command-center")?.remove();
         document.getElementById("nyan-owner-map")?.remove();
         document.getElementById("nyan-owner-controls")?.remove();
@@ -81,13 +82,13 @@
         document.querySelector("#wallet-view .actions")?.classList.remove("nyan-actions-hidden");
 
         document.querySelectorAll(".nyan-collapsible").forEach(node => {
-            unwrapSection(node, ".nyan-collapse-body", ".nyan-collapse-toggle", ["nyan-collapsible", "nyan-collapsed"]);
+            unwrapLegacySection(node, ".nyan-collapse-body", ".nyan-collapse-toggle", ["nyan-collapsible", "nyan-collapsed"]);
             delete node.dataset.nyanCollapseReady;
             delete node.dataset.nyanCollapseKey;
         });
 
         document.querySelectorAll(".nyan-owner-collapsible").forEach(node => {
-            unwrapSection(node, ".nyan-owner-collapse-body", ".nyan-owner-collapse-toggle", ["nyan-owner-collapsible", "nyan-owner-collapsed"]);
+            unwrapLegacySection(node, ".nyan-owner-collapse-body", ".nyan-owner-collapse-toggle", ["nyan-owner-collapsible", "nyan-owner-collapsed"]);
             delete node.dataset.nyanOwnerCollapseReady;
             delete node.dataset.nyanOwnerCollapseKey;
         });
@@ -95,6 +96,8 @@
 
     function titleForSection(section) {
         if (section.id === "owner-user-card") return "Выбранный пользователь";
+        if (section.id === "owner-stats-section") return "Статистика";
+        if (section.id === "nyg-owner-nav") return "Быстрый доступ";
         const direct = section.querySelector(":scope > .owner-title, :scope > .feature-section-title, :scope > .adv-title, :scope > .appeal-section-title, :scope > h2, :scope > h3");
         if (direct) return textOf(direct);
         const nested = section.querySelector(".owner-title, .feature-section-title, .adv-title, .appeal-section-title, h2, h3");
@@ -104,7 +107,7 @@
 
     function keyForSection(section, title) {
         if (section.id) return "section:" + section.id;
-        return "section:" + String(title || "section").toLowerCase().replace(/[^a-zа-я0-9]+/gi, "-").slice(0, 48);
+        return "section:" + String(title || "section").toLowerCase().replace(/[^a-zа-я0-9]+/gi, "-").slice(0, 64);
     }
 
     function defaultSectionCollapsed(section) {
@@ -113,89 +116,149 @@
         return sections.indexOf(section) > 0;
     }
 
-    function setSectionCollapsed(section, collapsed) {
-        const body = section.querySelector(":scope > .nyan-admin-body");
-        const toggle = section.querySelector(":scope > .nyan-admin-toggle");
-        const state = section.querySelector(":scope > .nyan-admin-toggle .nyan-admin-state");
-        if (!body || !toggle) return;
-        body.hidden = collapsed;
-        section.classList.toggle("nyan-admin-collapsed", collapsed);
-        toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
-        if (state) state.textContent = collapsed ? "развернуть" : "свернуть";
+    function resetButton(button) {
+        if (!button) return null;
+        if (button.dataset.nyanCollapseVersion === "3") return button;
+        const clone = button.cloneNode(true);
+        button.replaceWith(clone);
+        return clone;
     }
 
-    function makeOwnerSectionCollapsible(section) {
+    function setSectionCollapsed(section, collapsed, persist = false) {
+        const body = section.querySelector(":scope > .nyan-admin-body");
+        const toggle = section.querySelector(":scope > .nyan-admin-toggle");
+        const state = toggle?.querySelector(".nyan-admin-state");
+        if (!body || !toggle) return;
+        body.hidden = Boolean(collapsed);
+        section.classList.toggle("nyan-admin-collapsed", Boolean(collapsed));
+        section.dataset.nyanCollapsed = collapsed ? "1" : "0";
+        toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+        if (state) state.textContent = collapsed ? "развернуть" : "свернуть";
+        if (persist && section.dataset.nyanAdminKey) safeSet(section.dataset.nyanAdminKey, collapsed ? "1" : "0");
+    }
+
+    function ensureSectionBody(section) {
+        let toggle = section.querySelector(":scope > .nyan-admin-toggle");
+        let body = section.querySelector(":scope > .nyan-admin-body");
+        if (!body) {
+            body = document.createElement("div");
+            body.className = "nyan-admin-body";
+            for (const child of Array.from(section.childNodes)) {
+                if (child !== toggle) body.appendChild(child);
+            }
+            section.appendChild(body);
+        } else {
+            for (const child of Array.from(section.childNodes)) {
+                if (child !== toggle && child !== body) body.appendChild(child);
+            }
+        }
+        return body;
+    }
+
+    function ensureOwnerSection(section) {
         if (!section || !section.closest("#owner-view")) return;
-        if (section.dataset.nyanAdminReady === "1") return;
         if (section.closest(".nyan-admin-body")) return;
 
         const title = titleForSection(section);
         const key = keyForSection(section, title);
-        const toggle = document.createElement("button");
+        let toggle = section.querySelector(":scope > .nyan-admin-toggle");
+        const body = ensureSectionBody(section);
+
+        if (!toggle) {
+            toggle = document.createElement("button");
+            toggle.type = "button";
+            toggle.className = "nyan-admin-toggle";
+            section.insertBefore(toggle, body);
+        } else if (toggle.nextElementSibling !== body) {
+            section.insertBefore(toggle, body);
+        }
+
+        toggle = resetButton(toggle);
         toggle.type = "button";
         toggle.className = "nyan-admin-toggle";
+        toggle.dataset.nyanCollapseToggle = "section";
+        toggle.dataset.nyanCollapseVersion = "3";
         toggle.innerHTML = `
             <span class="nyan-admin-title">${escapeHtml(title)}</span>
             <span class="nyan-admin-meta"><span class="nyan-admin-state"></span><span class="nyan-admin-arrow">▾</span></span>
         `;
 
-        const body = document.createElement("div");
-        body.className = "nyan-admin-body";
-        for (const child of Array.from(section.childNodes)) body.appendChild(child);
-        section.appendChild(toggle);
-        section.appendChild(body);
         section.classList.add("nyan-admin-section");
         section.dataset.nyanAdminReady = "1";
         section.dataset.nyanAdminKey = key;
+        body.dataset.nyanCollapseBody = "section";
 
         const stored = safeGet(key);
         const collapsed = stored === null ? defaultSectionCollapsed(section) : stored === "1";
-        setSectionCollapsed(section, collapsed);
-
-        toggle.addEventListener("click", () => {
-            const next = !section.classList.contains("nyan-admin-collapsed");
-            setSectionCollapsed(section, next);
-            safeSet(key, next ? "1" : "0");
-        });
+        setSectionCollapsed(section, collapsed, false);
     }
 
-    function setListCollapsed(list, button, collapsed) {
-        list.hidden = collapsed;
-        button.setAttribute("aria-expanded", collapsed ? "false" : "true");
-        const state = button.querySelector(".nyan-owner-list-state");
+    function setListCollapsed(list, collapsed, persist = false) {
+        const button = document.querySelector(`[data-nyan-collapse-toggle="list"][data-nyan-collapse-target="${CSS.escape(list.id)}"]`);
+        const state = button?.querySelector(".nyan-owner-list-state");
+        list.hidden = Boolean(collapsed);
+        list.classList.toggle("nyan-list-collapsed", Boolean(collapsed));
+        list.dataset.nyanCollapsed = collapsed ? "1" : "0";
+        button?.setAttribute("aria-expanded", collapsed ? "false" : "true");
         if (state) state.textContent = collapsed ? "развернуть" : "свернуть";
+        if (persist && list.id) safeSet("list:" + list.id, collapsed ? "1" : "0");
     }
 
     function ensureOwnerListToggle(id, title, collapsedByDefault) {
         const list = document.getElementById(id);
         if (!list || !list.closest("#owner-view")) return;
-        if (list.dataset.nyanOwnerListReady === "1") return;
 
-        const oldToggle = list.previousElementSibling;
-        if (oldToggle?.classList?.contains("nyan-owner-list-toggle")) oldToggle.remove();
-
-        const button = document.createElement("button");
+        let button = list.previousElementSibling?.classList?.contains("nyan-owner-list-toggle")
+            ? list.previousElementSibling
+            : null;
+        if (!button) {
+            button = document.createElement("button");
+            button.type = "button";
+            button.className = "nyan-owner-list-toggle";
+            list.insertAdjacentElement("beforebegin", button);
+        }
+        button = resetButton(button);
         button.type = "button";
         button.className = "nyan-owner-list-toggle";
+        button.dataset.nyanCollapseToggle = "list";
+        button.dataset.nyanCollapseTarget = id;
+        button.dataset.nyanCollapseVersion = "3";
         button.innerHTML = `
             <span>${escapeHtml(title)}</span>
             <span class="nyan-owner-list-state"></span>
         `;
 
-        list.insertAdjacentElement("beforebegin", button);
         list.classList.add("nyan-owner-list-body");
         list.dataset.nyanOwnerListReady = "1";
-
-        const key = "list:" + id;
-        const stored = safeGet(key);
+        const stored = safeGet("list:" + id);
         const collapsed = stored === null ? Boolean(collapsedByDefault) : stored === "1";
-        setListCollapsed(list, button, collapsed);
+        setListCollapsed(list, collapsed, false);
+    }
 
-        button.addEventListener("click", () => {
-            const next = !list.hidden;
-            setListCollapsed(list, button, next);
-            safeSet(key, next ? "1" : "0");
-        });
+    function handleCollapseClick(event) {
+        const control = event.target.closest("[data-nyan-collapse-toggle]");
+        if (!control || !control.closest("#owner-view")) return;
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (control.dataset.nyanCollapseToggle === "section") {
+            const section = control.closest(".nyan-admin-section");
+            if (!section) return;
+            setSectionCollapsed(section, !section.classList.contains("nyan-admin-collapsed"), true);
+            return;
+        }
+
+        if (control.dataset.nyanCollapseToggle === "list") {
+            const list = document.getElementById(control.dataset.nyanCollapseTarget || "");
+            if (!list) return;
+            setListCollapsed(list, !list.hidden, true);
+        }
+    }
+
+    function ensureDelegatedCollapseHandler() {
+        if (delegated) return;
+        delegated = true;
+        document.addEventListener("click", handleCollapseClick, true);
     }
 
     function labelAction(button) {
@@ -256,9 +319,10 @@
 
     function apply() {
         scheduled = false;
-        cleanupBrokenShell();
+        cleanupLegacyShell();
         organizeActions();
-        document.querySelectorAll(OWNER_SECTION_SELECTOR).forEach(makeOwnerSectionCollapsible);
+        ensureDelegatedCollapseHandler();
+        document.querySelectorAll(OWNER_SECTION_SELECTOR).forEach(ensureOwnerSection);
         OWNER_LISTS.forEach(([id, title, collapsedByDefault]) => ensureOwnerListToggle(id, title, collapsedByDefault));
     }
 
@@ -275,5 +339,5 @@
     }
 
     const observer = new MutationObserver(scheduleApply);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden", "class"] });
+    observer.observe(document.body, { childList: true, subtree: true });
 })();
