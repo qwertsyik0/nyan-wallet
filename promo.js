@@ -8,7 +8,12 @@
     const activateButton = document.getElementById("promo-activate");
     const walletButton = document.getElementById("promo-wallet");
     const status = document.getElementById("promo-status");
-    const defaultCode = document.body?.dataset?.defaultPromoCode || "NYANFLASH600";
+    const bodyData = document.body?.dataset || {};
+    const defaultCode = bodyData.defaultPromoCode || "NYANFLASH600";
+    const configuredReward = Number.parseInt(bodyData.promoReward || "600", 10);
+    const rewardAmount = Number.isInteger(configuredReward) && configuredReward > 0 ? configuredReward : 600;
+    const configuredLimit = Number.parseInt(bodyData.promoLimit || "0", 10);
+    const promoLimit = Number.isInteger(configuredLimit) && configuredLimit > 0 ? configuredLimit : null;
 
     tg?.ready?.();
     tg?.expand?.();
@@ -50,9 +55,15 @@
         status.className = "promo-status" + (type ? " " + type : "");
     }
 
+    function limitText() {
+        if (promoLimit === 1) return "осталась 1 активация. кто успел, тот забрал.";
+        if (promoLimit) return `осталось всего ${promoLimit} активаций. кто успел, тот забрал.`;
+        return "промокод готов к активации.";
+    }
+
     function setTelegramMainButton(enabled) {
         if (!tg?.MainButton) return;
-        tg.MainButton.setText(enabled ? "Забрать 600 🐾" : "Откройте в Telegram");
+        tg.MainButton.setText(enabled ? `Забрать ${rewardAmount} 🐾` : "Откройте в Telegram");
         if (enabled) tg.MainButton.enable?.();
         else tg.MainButton.disable?.();
         tg.MainButton.show?.();
@@ -105,10 +116,10 @@
 
         if (activateButton) {
             activateButton.disabled = false;
-            activateButton.textContent = "Забрать 600 🐾";
+            activateButton.textContent = `Забрать ${rewardAmount} 🐾`;
         }
         setTelegramMainButton(true);
-        setStatus("осталось всего 5 мест. кто успел, тот забрал.");
+        setStatus(limitText());
     }
 
     async function activate() {
@@ -166,7 +177,7 @@
     tg?.MainButton?.onClick?.(activate);
 
     walletButton?.addEventListener("click", () => {
-        window.location.href = "./?ui_v=20260921-7";
+        window.location.href = "./";
     });
 
     void warmUp();
