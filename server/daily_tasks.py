@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func, select
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -21,6 +21,80 @@ _REGISTERED = False
 TASK_TYPES = {"automatic", "manual", "link"}
 REWARD_TYPES = {"lapcoins"}
 REPEAT_TYPES = {"daily", "once"}
+SERVER_VERIFIED_ACTION_TYPES = {"activity_check_in_confirmed", "referral_completed"}
+DEFAULT_TASK_SEED_KEY = "default-daily-tasks-v1"
+DEFAULT_DAILY_TASKS = [
+    {
+        "title": "Зайди в кошелёк",
+        "description": "Открой Nyan Wallet сегодня и забери ежедневный бонус.",
+        "task_type": "automatic",
+        "action_type": "open_wallet",
+        "action_value": None,
+        "reward_type": "lapcoins",
+        "reward_amount": 10,
+        "required_progress": 1,
+        "repeat_type": "daily",
+        "max_completions": None,
+        "enabled": True,
+        "sort_order": 1,
+    },
+    {
+        "title": "Активируй серию",
+        "description": "Забери ежедневную серию активности через существующую механику Nyan Wallet.",
+        "task_type": "automatic",
+        "action_type": "activity_check_in_confirmed",
+        "action_value": None,
+        "reward_type": "lapcoins",
+        "reward_amount": 5,
+        "required_progress": 1,
+        "repeat_type": "daily",
+        "max_completions": None,
+        "enabled": True,
+        "sort_order": 5,
+    },
+    {
+        "title": "Открой каталог",
+        "description": "Посмотри, какие награды и товары сейчас доступны за лапкоины.",
+        "task_type": "automatic",
+        "action_type": "open_catalog",
+        "action_value": None,
+        "reward_type": "lapcoins",
+        "reward_amount": 15,
+        "required_progress": 1,
+        "repeat_type": "daily",
+        "max_completions": None,
+        "enabled": True,
+        "sort_order": 10,
+    },
+    {
+        "title": "Напиши отзыв",
+        "description": "Оставь отзыв о Нян Шопе или Nyan Wallet, затем отправь выполнение на проверку.",
+        "task_type": "manual",
+        "action_type": "custom_event",
+        "action_value": "review_submit",
+        "reward_type": "lapcoins",
+        "reward_amount": 50,
+        "required_progress": 1,
+        "repeat_type": "daily",
+        "max_completions": None,
+        "enabled": True,
+        "sort_order": 30,
+    },
+    {
+        "title": "Пригласи 3 друзей",
+        "description": "Пригласи 3 друзей по своему реферальному коду. Прогресс засчитывается по реальным рефералам.",
+        "task_type": "automatic",
+        "action_type": "referral_completed",
+        "action_value": None,
+        "reward_type": "lapcoins",
+        "reward_amount": 170,
+        "required_progress": 3,
+        "repeat_type": "daily",
+        "max_completions": None,
+        "enabled": True,
+        "sort_order": 40,
+    },
+]
 
 
 class DailyTask(core.Base):
@@ -65,6 +139,13 @@ class UserTaskProgress(core.Base):
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class DailyTaskSeedState(core.Base):
+    __tablename__ = "daily_task_seed_state"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    applied_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class TaskCreateRequest(BaseModel):
@@ -129,6 +210,10 @@ def today_key(timestamp: datetime | None = None) -> str:
     if source.tzinfo is None:
         source = source.replace(tzinfo=timezone.utc)
     return source.astimezone(TASK_TZ).date().isoformat()
+
+
+def today_date(timestamp: datetime | None = None):
+    return datetime.fromisoformat(today_key(timestamp)).date()
 
 
 def norm_dt(value: datetime | None) -> datetime | None:
@@ -372,7 +457,79 @@ def record_event_for_session(session, user: core.User, action_type: str, timesta
     return {"changed": changed, "credited_total": credited_total}
 
 
+def sync_verified_tasks(session, user: core.User, timestamp: datetime) -> dict:
+    tasks = session.scalars(
+        select(DailyTask).where(
+            DailyTask.deleted_at.is_(None),
+            DailyTask.enabled.is_(True),
+            DailyTask.task_type == "automatic",
+            DailyTask.action_type.in_(SERVER_VERIFIED_ACTION_TYPES),
+        ).with_for_update()
+    ).all()
+    if not tasks:
+        return {"changed": [], "credited_total": 0}
+
+    activity_done: bool | None = None
+    referral_count: int | None = None
+    changed = []
+    credited_total = 0
+
+    for task in tasks:
+        if lifecycle(task, timestamp) != "active":
+            continue
+
+        verified_amount = 0
+        if task.action_type == "activity_check_in_confirmed":
+            if activity_done is None:
+                try:
+                    from server.activity import ActivityCheckIn
+                    activity_done = session.scalar(
+                        select(ActivityCheckIn.id).where(
+                            ActivityCheckIn.telegram_id == user.telegram_id,
+                            ActivityCheckIn.checkin_date == today_date(timestamp),
+                        )
+                    ) is not None
+                except Exception:
+                    activity_done = False
+            verified_amount = 1 if activity_done else 0
+        elif task.action_type == "referral_completed":
+            if referral_count is None:
+                try:
+                    from server.advanced_features import Referral
+                    referral_count = int(session.scalar(
+                        select(func.count()).select_from(Referral).where(Referral.inviter_id == user.telegram_id)
+                    ) or 0)
+                except Exception:
+                    referral_count = 0
+            verified_amount = referral_count
+
+        if verified_amount <= 0:
+            continue
+
+        progress = get_progress(session, user, task, timestamp)
+        if progress.reward_claimed or progress.review_status == "pending_review":
+            changed.append({"task_id": task.id, "credited": 0, "status": status_for(task, progress, timestamp)})
+            continue
+        if progress.review_status == "rejected":
+            progress.review_status = "none"
+            progress.review_note = None
+        required = max(1, int(task.required_progress or 1))
+        progress.progress = min(required, max(int(progress.progress), int(verified_amount)))
+        progress.updated_at = timestamp
+        if progress.progress >= required:
+            progress.completed = True
+            progress.completed_at = progress.completed_at or timestamp
+        credited = award_task(session, user, task, progress, timestamp)
+        credited_total += credited
+        changed.append({"task_id": task.id, "credited": credited, "status": status_for(task, progress, timestamp)})
+
+    return {"changed": changed, "credited_total": credited_total}
+
+
 def record_task_event(telegram_id: int, action_type: str, action_value: str | None = None, amount: int = 1) -> dict:
+    action_type = action_type.strip().lower()
+    if action_type in SERVER_VERIFIED_ACTION_TYPES:
+        raise HTTPException(status_code=403, detail="Это событие подтверждается сервером")
     timestamp = now_utc()
     with core.SessionLocal() as session:
         with session.begin():
@@ -405,6 +562,67 @@ def audit_safe(session, action: str, target: int | None, details: str) -> None:
         return
 
 
+def task_seed_match(seed: dict):
+    conditions = [
+        DailyTask.task_type == seed["task_type"],
+        DailyTask.action_type == seed.get("action_type"),
+        DailyTask.repeat_type == seed["repeat_type"],
+    ]
+    if seed.get("action_value") is None:
+        conditions.append(DailyTask.action_value.is_(None))
+    else:
+        conditions.append(DailyTask.action_value == seed.get("action_value"))
+    return conditions
+
+
+def seed_default_daily_tasks() -> None:
+    timestamp = now_utc()
+    with core.SessionLocal() as session:
+        with session.begin():
+            session.execute(text("SELECT pg_advisory_xact_lock(:lock_id)"), {"lock_id": 920260921001})
+            if session.get(DailyTaskSeedState, DEFAULT_TASK_SEED_KEY) is not None:
+                return
+
+            for seed in DEFAULT_DAILY_TASKS:
+                existing = session.scalar(
+                    select(DailyTask).where(*task_seed_match(seed)).order_by(DailyTask.id.asc()).with_for_update()
+                )
+                if existing is None:
+                    session.add(DailyTask(
+                        title=seed["title"],
+                        description=seed["description"],
+                        task_type=seed["task_type"],
+                        action_type=seed["action_type"],
+                        action_value=seed.get("action_value"),
+                        reward_type=seed["reward_type"],
+                        reward_amount=seed["reward_amount"],
+                        required_progress=seed["required_progress"],
+                        repeat_type=seed["repeat_type"],
+                        start_at=None,
+                        end_at=None,
+                        max_completions=seed.get("max_completions"),
+                        enabled=seed["enabled"],
+                        sort_order=seed["sort_order"],
+                        created_at=timestamp,
+                        updated_at=timestamp,
+                        deleted_at=None,
+                    ))
+                    continue
+
+                existing.title = seed["title"]
+                existing.description = seed["description"]
+                existing.reward_type = seed["reward_type"]
+                existing.reward_amount = seed["reward_amount"]
+                existing.required_progress = seed["required_progress"]
+                existing.max_completions = seed.get("max_completions")
+                existing.enabled = seed["enabled"]
+                existing.sort_order = seed["sort_order"]
+                existing.deleted_at = None
+                existing.updated_at = timestamp
+
+            session.add(DailyTaskSeedState(key=DEFAULT_TASK_SEED_KEY, applied_at=timestamp))
+
+
 @router.get("/api/tasks")
 async def list_tasks(x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data")):
     tg_user = core.verify_init_data(x_telegram_init_data or "")
@@ -413,6 +631,7 @@ async def list_tasks(x_telegram_init_data: str | None = Header(default=None, ali
         with session.begin():
             user = ensure_user(session, tg_user, timestamp)
             record_event_for_session(session, user, "open_wallet", timestamp)
+            sync_verified_tasks(session, user, timestamp)
             tasks = session.scalars(select(DailyTask).where(DailyTask.deleted_at.is_(None)).order_by(DailyTask.sort_order.asc(), DailyTask.id.asc())).all()
             rows = session.scalars(select(UserTaskProgress).where(UserTaskProgress.telegram_id == user.telegram_id)).all()
             by_key = {(row.task_id, row.period_key): row for row in rows}
@@ -434,13 +653,16 @@ async def list_tasks(x_telegram_init_data: str | None = Header(default=None, ali
 @router.post("/api/tasks/events")
 async def task_event(payload: TaskEventRequest, x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data")):
     tg_user = core.verify_init_data(x_telegram_init_data or "")
+    action_type = payload.action_type.strip().lower()
+    if action_type in SERVER_VERIFIED_ACTION_TYPES:
+        raise HTTPException(status_code=403, detail="Это событие подтверждается сервером")
     timestamp = now_utc()
     with core.SessionLocal() as session:
         with session.begin():
             user = ensure_user(session, tg_user, timestamp)
-            result = record_event_for_session(session, user, payload.action_type, timestamp, payload.action_value, payload.amount)
+            result = record_event_for_session(session, user, action_type, timestamp, payload.action_value, payload.amount)
             balance = user.balance
-    return {"ok": True, "event": payload.action_type, "result": result, "balance": balance}
+    return {"ok": True, "event": action_type, "result": result, "balance": balance}
 
 
 @router.post("/api/tasks/{task_id}/submit")
@@ -650,5 +872,6 @@ def register_daily_tasks(app) -> None:
     if _REGISTERED:
         return
     core.Base.metadata.create_all(core.engine)
+    seed_default_daily_tasks()
     app.include_router(router)
     _REGISTERED = True
