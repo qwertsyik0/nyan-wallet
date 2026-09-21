@@ -1,7 +1,7 @@
 (() => {
     "use strict";
 
-    const UI_CACHE_VERSION = "20260921-7";
+    const UI_CACHE_VERSION = "20260921-8";
 
     function forceFreshTelegramDocument() {
         try {
