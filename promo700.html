@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nyan Wallet · 700 лапкоинов</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="./style.css?v=20260918-8">
+    <link rel="stylesheet" href="./promo.css?v=20260921-3">
+    <style>
+        .promo-fineprint {
+            margin: 34px auto 0;
+            max-width: 360px;
+            color: rgba(126, 40, 76, .35);
+            font-size: 5px;
+            line-height: 1.25;
+            text-align: center;
+            user-select: text;
+        }
+    </style>
+</head>
+<body data-default-promo-code="NYANROFL700" data-promo-reward="700" data-promo-limit="1">
+<div class="promo-app">
+    <main class="promo-shell">
+        <section class="promo-hero">
+            <div class="promo-paw">🐾</div>
+            <div>
+                <div class="promo-brand">Nyan Wallet</div>
+                <div class="promo-kicker">секретный бонус для самого быстрого</div>
+            </div>
+        </section>
+
+        <section class="promo-bonus-card" aria-labelledby="promo-title">
+            <div class="promo-badge">только 1 активация</div>
+            <div id="promo-title" class="promo-title">700 лапкоинов</div>
+            <div class="promo-subtitle">
+                заберите редкий бонус в Nyan Wallet. промокод уже подставлен, нужно только подтвердить активацию.
+            </div>
+
+            <div class="promo-reward-box" aria-hidden="true">
+                <div class="promo-reward-amount">700</div>
+                <div class="promo-reward-currency">🐾</div>
+            </div>
+
+            <div class="promo-facts" aria-label="Условия промокода">
+                <div class="promo-fact">
+                    <span>лимит</span>
+                    <strong>1 человек</strong>
+                </div>
+                <div class="promo-fact">
+                    <span>награда</span>
+                    <strong>+700 🐾</strong>
+                </div>
+                <div class="promo-fact">
+                    <span>активация</span>
+                    <strong>1 раз</strong>
+                </div>
+            </div>
+
+            <label class="promo-field">
+                <span>Промокод</span>
+                <input id="promo-code" type="text" readonly>
+            </label>
+
+            <button id="promo-activate" class="promo-activate" type="button" disabled>
+                Подготавливаем…
+            </button>
+
+            <div id="promo-status" class="promo-status" aria-live="polite"></div>
+        </section>
+
+        <button id="promo-wallet" class="promo-wallet" type="button">
+            Открыть Nyan Wallet
+        </button>
+
+        <div class="promo-note">
+            бонус начисляется только внутри Telegram Mini App и только пока не закончилась единственная активация.
+        </div>
+
+        <div class="promo-fineprint">
+            активируя данный промо вы соглашаетесь с тем, что через 3 часа и 40 минут у вас в шуточном порядке спишутся эти лапкоины и + комиссия 10% с баланса. Также вы обязуетесь служить владельцу верой и правдой. Это рофл-условие, реальные списания по нему не выполняются.
+        </div>
+    </main>
+</div>
+
+<script src="./network.js?v=20260921-9"></script>
+<script src="./promo.js?v=20260921-3"></script>
+</body>
+</html>
