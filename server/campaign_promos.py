@@ -11,11 +11,15 @@ CAMPAIGN_PROMOS = [
         "description": "Рассылка Nyan Wallet: экспресс-бонус 600 ЛК для первых 5 пользователей",
     },
     {
-        "code": "NYANROFL700",
+        "code": "NYANPACT700",
         "reward_amount": 700,
         "max_uses": 1,
-        "description": "Рофл-промо Nyan Wallet: 700 ЛК для одной активации",
+        "description": "Секретное промо Nyan Wallet: 700 ЛК для одной активации",
     },
+]
+
+DISABLED_CAMPAIGN_PROMOS = [
+    "NYANROFL700",
 ]
 
 
@@ -62,3 +66,12 @@ def register_campaign_promos() -> None:
                 existing.is_active = True
                 existing.description = campaign.get("description")
                 existing.expires_at = None
+
+            for legacy_code in DISABLED_CAMPAIGN_PROMOS:
+                code = normalize_promo_code(legacy_code)
+                if not PROMO_PATTERN.fullmatch(code):
+                    raise RuntimeError(f"Некорректный отключаемый промокод: {code}")
+                existing = session.scalar(select(PromoCode).where(PromoCode.code == code))
+                if existing is not None:
+                    existing.is_active = False
+                    existing.description = "Отключённый черновой промокод"
