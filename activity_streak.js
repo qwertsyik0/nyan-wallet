@@ -26,7 +26,7 @@
             .activity-streak-card {
                 position: relative;
                 overflow: hidden;
-                margin: 18px 0;
+                margin: 14px 0 18px;
                 padding: 18px;
                 border: 1px solid rgba(222,165,188,.55);
                 border-radius: 24px;
@@ -153,9 +153,14 @@
         card.className = "activity-streak-card";
         card.setAttribute("aria-live", "polite");
 
-        const history = wallet.querySelector(".history");
-        if (history?.parentNode) history.parentNode.insertBefore(card, history);
-        else wallet.appendChild(card);
+        const balanceCard = wallet.querySelector("#wallet-card, .balance-card");
+        if (balanceCard?.parentNode) {
+            balanceCard.insertAdjacentElement("afterend", card);
+        } else {
+            const firstSection = wallet.querySelector(":scope > section");
+            if (firstSection?.parentNode) firstSection.parentNode.insertBefore(card, firstSection);
+            else wallet.appendChild(card);
+        }
         return card;
     }
 
