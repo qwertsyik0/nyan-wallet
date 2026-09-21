@@ -3,7 +3,6 @@
 
     const tg = window.Telegram?.WebApp;
     const API = "https://nyan-wallet-api.onrender.com";
-    const BOOTSTRAP_RECOVERY_KEY = "nyan-maintenance-bootstrap-retry:20260921-7";
     let hiddenByMaintenance = [];
     let bootstrapMaintenanceRecoveryNeeded = false;
 
@@ -16,42 +15,28 @@
         return Boolean(loading && !loading.classList.contains("hidden"));
     }
 
+    function anyAppViewVisible() {
+        return Array.from(document.querySelectorAll(".app > main"))
+            .some(node => node.id !== "loading-view" && !node.classList.contains("hidden"));
+    }
+
     function revealWalletFallback(reason) {
         const loading = document.getElementById("loading-view");
         const wallet = document.getElementById("wallet-view");
         const currencyName = document.getElementById("currency-name");
+        if (!isLoadingVisible() || anyAppViewVisible()) return false;
         if (loading) loading.classList.add("hidden");
         if (wallet) wallet.classList.remove("hidden");
         if (currencyName && currencyName.textContent === "лапкоинов") {
             currencyName.textContent = "данные временно недоступны";
         }
+        bootstrapMaintenanceRecoveryNeeded = false;
         console.warn("Nyan maintenance bootstrap fallback:", reason);
+        return true;
     }
 
     function recoverInitialBootstrap(reason) {
-        const wallet = document.getElementById("wallet-view");
-        if (!isLoadingVisible() || (wallet && !wallet.classList.contains("hidden"))) {
-            return false;
-        }
-
-        try {
-            if (sessionStorage.getItem(BOOTSTRAP_RECOVERY_KEY) === "1") {
-                revealWalletFallback(reason);
-                bootstrapMaintenanceRecoveryNeeded = false;
-                return true;
-            }
-            sessionStorage.setItem(BOOTSTRAP_RECOVERY_KEY, "1");
-
-            const currentUrl = new URL(window.location.href);
-            currentUrl.searchParams.set("_nyan_maintenance_retry", String(Date.now()));
-            window.location.replace(currentUrl.toString());
-            return true;
-        } catch (error) {
-            console.error("Maintenance bootstrap recovery failed:", error);
-            revealWalletFallback(reason);
-            bootstrapMaintenanceRecoveryNeeded = false;
-            return true;
-        }
+        return revealWalletFallback(reason);
     }
 
     function ensureView() {
@@ -140,18 +125,16 @@
 
         const transfer = document.getElementById("transfer-view");
         const wallet = document.getElementById("wallet-view");
-        const loading = document.getElementById("loading-view");
 
         if (transfer && transfer.dataset.maintenanceRestore === "1") {
             transfer.classList.remove("hidden");
             delete transfer.dataset.maintenanceRestore;
         } else if (wallet) {
             wallet.classList.remove("hidden");
-        } else if (loading) {
-            loading.classList.remove("hidden");
-            if (bootstrapMaintenanceRecoveryNeeded) {
-                recoverInitialBootstrap("maintenance view had only loading screen to restore");
-            }
+        }
+
+        if (bootstrapMaintenanceRecoveryNeeded) {
+            recoverInitialBootstrap("maintenance view had only loading screen to restore");
         }
     }
 
@@ -189,6 +172,11 @@
         ensureView();
         void checkMaintenance(false);
         window.setInterval(() => void checkMaintenance(false), 60_000);
+        window.setTimeout(() => {
+            if (!window.__nyanMaintenanceBlocked) {
+                revealWalletFallback("initial bootstrap timed out without maintenance");
+            }
+        }, 12_000);
     }, { once: true });
 
     window.addEventListener("nyan-maintenance-required", () => {
