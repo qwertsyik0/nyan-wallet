@@ -212,17 +212,27 @@
         button.dataset.nyanRelabelled = "1";
     }
 
+    function moveAfter(anchor, node) {
+        if (!anchor || !node || anchor.parentNode !== node.parentNode) return;
+        if (anchor.nextElementSibling !== node) anchor.insertAdjacentElement("afterend", node);
+    }
+
     function organizeActions() {
         const wallet = document.getElementById("wallet-view");
         const actions = wallet?.querySelector(":scope > .actions");
         if (!wallet || !actions) return;
 
         actions.classList.add("nyan-actions-grid");
-        for (const id of ACTION_ORDER) {
-            const button = document.getElementById(id);
-            if (!button || button.parentElement !== actions || button.hidden) continue;
-            labelAction(button);
-            actions.appendChild(button);
+        const orderedButtons = ACTION_ORDER
+            .map(id => document.getElementById(id))
+            .filter(button => button && button.parentElement === actions && !button.hidden);
+        for (const button of orderedButtons) labelAction(button);
+
+        const currentButtons = Array.from(actions.children).filter(node => orderedButtons.includes(node));
+        const isAlreadyOrdered = currentButtons.length === orderedButtons.length
+            && currentButtons.every((node, index) => node === orderedButtons[index]);
+        if (!isAlreadyOrdered) {
+            for (const button of orderedButtons) actions.appendChild(button);
         }
 
         const walletCard = document.getElementById("wallet-card") || wallet.querySelector(".balance-card");
@@ -231,17 +241,17 @@
         const home = document.getElementById("ny-home");
         const history = wallet.querySelector(":scope > .history");
 
-        if (streak?.parentNode === wallet) walletCard?.insertAdjacentElement("afterend", streak);
+        if (walletCard && streak?.parentNode === wallet) moveAfter(walletCard, streak);
         if (actions.parentNode === wallet) {
-            if (streak?.parentNode === wallet) streak.insertAdjacentElement("afterend", actions);
-            else walletCard?.insertAdjacentElement("afterend", actions);
+            if (streak?.parentNode === wallet) moveAfter(streak, actions);
+            else if (walletCard) moveAfter(walletCard, actions);
         }
-        if (level?.parentNode === wallet && actions.parentNode === wallet) actions.insertAdjacentElement("afterend", level);
+        if (level?.parentNode === wallet && actions.parentNode === wallet) moveAfter(actions, level);
         if (home?.parentNode === wallet) {
-            if (level?.parentNode === wallet) level.insertAdjacentElement("afterend", home);
-            else if (actions.parentNode === wallet) actions.insertAdjacentElement("afterend", home);
+            if (level?.parentNode === wallet) moveAfter(level, home);
+            else if (actions.parentNode === wallet) moveAfter(actions, home);
         }
-        if (history?.parentNode === wallet && home?.parentNode === wallet) home.insertAdjacentElement("afterend", history);
+        if (history?.parentNode === wallet && home?.parentNode === wallet) moveAfter(home, history);
     }
 
     function apply() {
