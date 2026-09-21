@@ -3,8 +3,9 @@
 
     const tg = window.Telegram?.WebApp;
     const API = "https://nyan-wallet-api.onrender.com";
-    const BOOTSTRAP_RECOVERY_KEY = "nyan-maintenance-bootstrap-retry:20260921-6";
+    const BOOTSTRAP_RECOVERY_KEY = "nyan-maintenance-bootstrap-retry:20260921-7";
     let hiddenByMaintenance = [];
+    let bootstrapMaintenanceRecoveryNeeded = false;
 
     function headers() {
         return { "X-Telegram-Init-Data": tg?.initData || "" };
@@ -36,6 +37,7 @@
         try {
             if (sessionStorage.getItem(BOOTSTRAP_RECOVERY_KEY) === "1") {
                 revealWalletFallback(reason);
+                bootstrapMaintenanceRecoveryNeeded = false;
                 return true;
             }
             sessionStorage.setItem(BOOTSTRAP_RECOVERY_KEY, "1");
@@ -47,6 +49,7 @@
         } catch (error) {
             console.error("Maintenance bootstrap recovery failed:", error);
             revealWalletFallback(reason);
+            bootstrapMaintenanceRecoveryNeeded = false;
             return true;
         }
     }
@@ -87,6 +90,10 @@
         const view = ensureView();
         if (!view) return;
 
+        if (isLoadingVisible()) {
+            bootstrapMaintenanceRecoveryNeeded = true;
+        }
+
         hiddenByMaintenance = Array.from(document.querySelectorAll(".app > main"))
             .filter(node => node !== view && !node.classList.contains("hidden"));
 
@@ -114,7 +121,9 @@
 
         if (!wasVisible) {
             hiddenByMaintenance = [];
-            recoverInitialBootstrap("maintenance status cleared before maintenance view opened");
+            if (bootstrapMaintenanceRecoveryNeeded) {
+                recoverInitialBootstrap("maintenance status cleared before maintenance view opened");
+            }
             return;
         }
 
@@ -123,7 +132,9 @@
 
         if (restorable.length) {
             restorable.forEach(node => node.classList.remove("hidden"));
-            recoverInitialBootstrap("maintenance view restored loading screen");
+            if (bootstrapMaintenanceRecoveryNeeded) {
+                recoverInitialBootstrap("maintenance view restored loading screen");
+            }
             return;
         }
 
@@ -138,7 +149,9 @@
             wallet.classList.remove("hidden");
         } else if (loading) {
             loading.classList.remove("hidden");
-            recoverInitialBootstrap("maintenance view had only loading screen to restore");
+            if (bootstrapMaintenanceRecoveryNeeded) {
+                recoverInitialBootstrap("maintenance view had only loading screen to restore");
+            }
         }
     }
 
@@ -181,6 +194,7 @@
     window.addEventListener("nyan-maintenance-required", () => {
         // A 503 can arrive after maintenance has already been switched off.
         // Re-check the authoritative status endpoint before changing the UI.
+        bootstrapMaintenanceRecoveryNeeded = true;
         void checkMaintenance(false);
     });
 })();
