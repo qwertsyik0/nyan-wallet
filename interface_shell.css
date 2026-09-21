@@ -1,4 +1,8 @@
-/* Nyan Wallet interface shell v2: compact wallet actions + real owner-panel collapses. */
+/* Nyan Wallet interface shell v3: compact wallet actions + delegated owner-panel collapses. */
+[hidden] {
+    display: none !important;
+}
+
 .nyan-actions-hidden {
     position: static !important;
     width: auto !important;
@@ -146,8 +150,14 @@
     transform: rotate(-90deg);
 }
 
-#owner-view .nyan-admin-body {
+#owner-view .nyan-admin-body:not([hidden]) {
     display: block;
+}
+
+#owner-view .nyan-admin-body[hidden],
+#owner-view .nyan-owner-list-body[hidden],
+#owner-view [data-nyan-collapse-body][hidden] {
+    display: none !important;
 }
 
 #owner-view .nyan-owner-list-toggle {
