@@ -1,4 +1,4 @@
-/* Owner panel shell only. Collapse controls must not appear on wallet, earn, spend or history screens. */
+/* Cleanup shell: no global interface rewrites. Only small list toggles inside owner panel. */
 .nyan-actions-hidden {
     position: static !important;
     width: auto !important;
@@ -9,136 +9,15 @@
 }
 
 #nyan-command-center,
-#wallet-view .nyan-view-controls,
-#earn-view .nyan-view-controls,
-#spend-view .nyan-view-controls,
-#transfer-view .nyan-view-controls,
-#promo-deeplink-view .nyan-view-controls {
+#nyan-owner-map,
+#nyan-owner-controls,
+.nyan-view-controls {
     display: none !important;
 }
 
-#owner-view .nyan-owner-controls {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin: 14px 0 18px;
-    padding: 12px;
-    border: 1px solid rgba(226, 195, 210, .85);
-    border-radius: 22px;
-    background: rgba(255, 255, 255, .68);
-    box-shadow: 0 12px 28px rgba(137, 41, 82, .06);
-}
-
-#owner-view .nyan-owner-control-button,
-#owner-view .nyan-owner-map-button,
-#owner-view .nyan-owner-collapse-toggle,
-#owner-view .nyan-owner-list-toggle {
-    border: 1px solid rgba(226, 195, 210, .9);
-    background: rgba(255, 255, 255, .9);
-    color: #7d284a;
-    font: inherit;
-    font-weight: 800;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-}
-
-#owner-view .nyan-owner-control-button {
-    min-height: 46px;
-    border-radius: 16px;
-    padding: 10px 12px;
-    font-size: 13px;
-}
-
-#owner-view .nyan-owner-map {
-    margin: 0 0 18px;
-    padding: 18px;
-    border: 1px solid rgba(226, 195, 210, .86);
-    border-radius: 24px;
-    background: linear-gradient(145deg, rgba(255,255,255,.96), rgba(255,247,251,.9));
-    box-shadow: 0 14px 34px rgba(137, 41, 82, .07);
-}
-
-#owner-view .nyan-owner-map-title {
-    font-size: 19px;
-    line-height: 1.15;
-    font-weight: 900;
-    color: #7d284a;
-}
-
-#owner-view .nyan-owner-map-subtitle {
-    margin-top: 5px;
-    font-size: 12px;
-    line-height: 1.35;
-    color: #a37388;
-}
-
-#owner-view .nyan-owner-map-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 9px;
-    margin-top: 14px;
-}
-
-#owner-view .nyan-owner-map-button {
-    min-height: 42px;
-    border-radius: 14px;
-    padding: 9px 10px;
-    font-size: 12px;
-    text-align: center;
-}
-
-#owner-view .nyan-owner-collapsible {
-    overflow: hidden;
-}
-
-#owner-view .nyan-owner-collapse-toggle {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    min-height: 54px;
-    margin: -2px 0 12px;
-    padding: 12px 14px;
-    border-radius: 18px;
-    text-align: left;
-}
-
-#owner-view .nyan-owner-collapse-title {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 15px;
-}
-
-#owner-view .nyan-owner-collapse-meta {
-    flex: 0 0 auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    color: #a37388;
-    font-size: 12px;
-    font-weight: 800;
-}
-
-#owner-view .nyan-owner-collapse-chevron {
-    display: inline-grid;
-    place-items: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 11px;
-    background: rgba(255, 238, 246, .9);
-    color: #9b2d58;
-    transition: transform .18s ease;
-}
-
-#owner-view .nyan-owner-collapsed > .nyan-owner-collapse-toggle .nyan-owner-collapse-chevron {
-    transform: rotate(-90deg);
-}
-
-#owner-view .nyan-owner-collapse-body {
-    display: block;
+.nyan-collapsible > .nyan-collapse-toggle,
+.nyan-owner-collapsible > .nyan-owner-collapse-toggle {
+    display: none !important;
 }
 
 #owner-view .nyan-owner-list-toggle {
@@ -150,9 +29,16 @@
     min-height: 42px;
     margin: 10px 0;
     padding: 10px 12px;
+    border: 1px solid rgba(226, 195, 210, .9);
     border-radius: 14px;
+    background: rgba(255, 255, 255, .9);
+    color: #7d284a;
+    font: inherit;
     font-size: 12px;
+    font-weight: 800;
     text-align: left;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
 }
 
 #owner-view .nyan-owner-list-state {
@@ -160,11 +46,4 @@
     color: #a37388;
     font-size: 11px;
     font-weight: 800;
-}
-
-@media (max-width: 380px) {
-    #owner-view .nyan-owner-controls,
-    #owner-view .nyan-owner-map-grid {
-        grid-template-columns: 1fr;
-    }
 }
