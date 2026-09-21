@@ -18,6 +18,7 @@ from .release_hardening import register_release_hardening
 from .achievements import register_achievements
 from .activity import register_activity
 from .daily_tasks import register_daily_tasks
+from .daily_tasks_defaults_v2 import register_daily_tasks_defaults_v2
 from .daily_task_hooks import register_daily_task_hooks
 from .giveaways import register_giveaways
 from .appeals import register_appeals
@@ -35,6 +36,7 @@ register_release_hardening(backend_app.app)
 register_achievements(backend_app.app)
 register_activity(backend_app.app)
 register_daily_tasks(backend_app.app)
+register_daily_tasks_defaults_v2()
 register_daily_task_hooks()
 register_giveaways(backend_app.app)
 register_appeals(backend_app.app)
