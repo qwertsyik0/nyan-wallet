@@ -138,7 +138,20 @@
         }
     }
 
-    async function checkMaintenance(reloadWhenAvailable = false) {
+    async function refreshWalletDataWithoutReload() {
+        try {
+            if (typeof window.loadWallet === "function") {
+                await window.loadWallet();
+            }
+            if (typeof window.__nyanLoadTasks === "function") {
+                await window.__nyanLoadTasks();
+            }
+        } catch (error) {
+            console.warn("Nyan maintenance soft refresh failed:", error);
+        }
+    }
+
+    async function checkMaintenance(refreshWhenAvailable = false) {
         try {
             const response = await fetch(API + "/api/maintenance/status", {
                 headers: headers(),
@@ -154,10 +167,8 @@
 
             clearMaintenance();
 
-            if (reloadWhenAvailable) {
-                const currentUrl = new URL(window.location.href);
-                currentUrl.searchParams.set("_nyan_refresh", String(Date.now()));
-                window.location.replace(currentUrl.toString());
+            if (refreshWhenAvailable) {
+                await refreshWalletDataWithoutReload();
             }
             return false;
         } catch (error) {
