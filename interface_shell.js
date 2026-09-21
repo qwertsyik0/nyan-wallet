@@ -194,7 +194,9 @@
     }
 
     function setListCollapsed(list, collapsed, persist = false) {
-        const button = document.querySelector(`[data-nyan-collapse-toggle="list"][data-nyan-collapse-target="${CSS.escape(list.id)}"]`);
+        const button = list.previousElementSibling?.dataset?.nyanCollapseTarget === list.id
+            ? list.previousElementSibling
+            : null;
         const state = button?.querySelector(".nyan-owner-list-state");
         list.hidden = Boolean(collapsed);
         list.classList.toggle("nyan-list-collapsed", Boolean(collapsed));
