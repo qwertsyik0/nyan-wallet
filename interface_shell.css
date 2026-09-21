@@ -1,269 +1,170 @@
-/* Nyan Wallet interface shell: compact navigation, collapsible sections and owner lists */
+/* Owner panel shell only. Collapse controls must not appear on wallet, earn, spend or history screens. */
 .nyan-actions-hidden {
-    position: absolute !important;
-    width: 1px !important;
-    height: 1px !important;
-    overflow: hidden !important;
-    clip: rect(0 0 0 0) !important;
-    white-space: nowrap !important;
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    clip: auto !important;
+    white-space: normal !important;
 }
 
-.nyan-command-center,
-.nyan-view-controls,
-.nyan-owner-map {
-    border: 1px solid rgba(239, 216, 226, .85);
-    border-radius: 24px;
-    background: linear-gradient(145deg, rgba(255,255,255,.94), rgba(255,246,250,.88));
-    box-shadow: 0 12px 30px rgba(137, 41, 82, .07);
+#nyan-command-center,
+#wallet-view .nyan-view-controls,
+#earn-view .nyan-view-controls,
+#spend-view .nyan-view-controls,
+#transfer-view .nyan-view-controls,
+#promo-deeplink-view .nyan-view-controls {
+    display: none !important;
 }
 
-.nyan-command-center {
-    margin: 16px 0 18px;
-    padding: 14px;
-}
-
-.nyan-command-head,
-.nyan-owner-map-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 12px;
-}
-
-.nyan-command-title,
-.nyan-owner-map-title {
-    color: #84264d;
-    font-size: 16px;
-    font-weight: 900;
-    line-height: 1.15;
-}
-
-.nyan-command-subtitle,
-.nyan-owner-map-subtitle {
-    margin-top: 4px;
-    color: #a67589;
-    font-size: 11px;
-    line-height: 1.35;
-}
-
-.nyan-command-grid {
+#owner-view .nyan-owner-controls {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 9px;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 14px 0 18px;
+    padding: 12px;
+    border: 1px solid rgba(226, 195, 210, .85);
+    border-radius: 22px;
+    background: rgba(255, 255, 255, .68);
+    box-shadow: 0 12px 28px rgba(137, 41, 82, .06);
 }
 
-.nyan-command-tile,
-.nyan-owner-map-button,
-.nyan-view-control-button,
-.nyan-list-toggle,
-.nyan-collapse-toggle {
-    border: 0;
+#owner-view .nyan-owner-control-button,
+#owner-view .nyan-owner-map-button,
+#owner-view .nyan-owner-collapse-toggle,
+#owner-view .nyan-owner-list-toggle {
+    border: 1px solid rgba(226, 195, 210, .9);
+    background: rgba(255, 255, 255, .9);
+    color: #7d284a;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
     -webkit-tap-highlight-color: transparent;
 }
 
-.nyan-command-tile {
-    min-height: 76px;
-    padding: 12px;
-    border: 1px solid rgba(239, 220, 229, .95);
-    border-radius: 18px;
-    background: rgba(255,255,255,.76);
-    color: #7e284c;
-    text-align: left;
-    box-shadow: 0 8px 20px rgba(137, 41, 82, .045);
-}
-
-.nyan-command-tile:active,
-.nyan-owner-map-button:active,
-.nyan-view-control-button:active,
-.nyan-list-toggle:active,
-.nyan-collapse-toggle:active {
-    transform: translateY(1px);
-}
-
-.nyan-command-icon {
-    width: 30px;
-    height: 30px;
-    display: grid;
-    place-items: center;
-    margin-bottom: 8px;
-    border-radius: 11px;
-    background: #fff0f6;
-    color: #922954;
-    font-size: 16px;
-    font-weight: 900;
-}
-
-.nyan-command-label {
+#owner-view .nyan-owner-control-button {
+    min-height: 46px;
+    border-radius: 16px;
+    padding: 10px 12px;
     font-size: 13px;
-    font-weight: 900;
+}
+
+#owner-view .nyan-owner-map {
+    margin: 0 0 18px;
+    padding: 18px;
+    border: 1px solid rgba(226, 195, 210, .86);
+    border-radius: 24px;
+    background: linear-gradient(145deg, rgba(255,255,255,.96), rgba(255,247,251,.9));
+    box-shadow: 0 14px 34px rgba(137, 41, 82, .07);
+}
+
+#owner-view .nyan-owner-map-title {
+    font-size: 19px;
     line-height: 1.15;
+    font-weight: 900;
+    color: #7d284a;
 }
 
-.nyan-command-note {
-    margin-top: 4px;
-    color: #a67589;
-    font-size: 10px;
-    line-height: 1.3;
+#owner-view .nyan-owner-map-subtitle {
+    margin-top: 5px;
+    font-size: 12px;
+    line-height: 1.35;
+    color: #a37388;
 }
 
-.nyan-view-controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin: 14px 0;
-    padding: 10px;
+#owner-view .nyan-owner-map-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+    margin-top: 14px;
 }
 
-.nyan-view-control-button,
-.nyan-owner-map-button,
-.nyan-list-toggle {
-    width: auto;
-    padding: 9px 11px;
-    border: 1px solid rgba(239, 220, 229, .95);
-    border-radius: 13px;
-    background: rgba(255,255,255,.76);
-    color: #8f2955;
-    font-size: 11px;
-    font-weight: 800;
+#owner-view .nyan-owner-map-button {
+    min-height: 42px;
+    border-radius: 14px;
+    padding: 9px 10px;
+    font-size: 12px;
+    text-align: center;
 }
 
-.nyan-owner-map {
-    margin: 14px 0;
-    padding: 13px;
+#owner-view .nyan-owner-collapsible {
+    overflow: hidden;
 }
 
-.nyan-owner-map-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.nyan-collapsible {
-    position: relative;
-}
-
-.nyan-collapse-toggle {
+#owner-view .nyan-owner-collapse-toggle {
     width: 100%;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin: 0 0 12px;
-    padding: 12px 13px;
-    border: 1px solid rgba(239, 220, 229, .98);
-    border-radius: 17px;
-    background: rgba(255,255,255,.74);
-    color: #84264d;
+    min-height: 54px;
+    margin: -2px 0 12px;
+    padding: 12px 14px;
+    border-radius: 18px;
     text-align: left;
-    box-shadow: 0 8px 18px rgba(137, 41, 82, .045);
 }
 
-.nyan-collapse-title {
+#owner-view .nyan-owner-collapse-title {
     min-width: 0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    font-weight: 900;
-    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 15px;
 }
 
-.nyan-collapse-meta {
+#owner-view .nyan-owner-collapse-meta {
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    color: #a67589;
-    font-size: 10px;
+    gap: 7px;
+    color: #a37388;
+    font-size: 12px;
     font-weight: 800;
 }
 
-.nyan-collapse-chevron {
+#owner-view .nyan-owner-collapse-chevron {
     display: inline-grid;
     place-items: center;
-    width: 22px;
-    height: 22px;
-    border-radius: 9px;
-    background: #fff0f6;
-    color: #922954;
+    width: 28px;
+    height: 28px;
+    border-radius: 11px;
+    background: rgba(255, 238, 246, .9);
+    color: #9b2d58;
     transition: transform .18s ease;
 }
 
-.nyan-collapsible.nyan-collapsed > .nyan-collapse-toggle .nyan-collapse-chevron {
+#owner-view .nyan-owner-collapsed > .nyan-owner-collapse-toggle .nyan-owner-collapse-chevron {
     transform: rotate(-90deg);
 }
 
-.nyan-collapse-body[hidden] {
-    display: none !important;
-}
-
-.nyan-collapse-body {
-    position: relative;
-}
-
-.nyan-list-shell {
-    margin-top: 10px;
-}
-
-.nyan-list-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    margin: 4px 0 10px;
-}
-
-.nyan-list-toggle::after {
-    content: "▾";
-    font-size: 10px;
-    transition: transform .18s ease;
-}
-
-.nyan-list-shell.nyan-list-collapsed > .nyan-list-toggle::after {
-    transform: rotate(-90deg);
-}
-
-.nyan-list-shell.nyan-list-collapsed > .nyan-list-target {
-    display: none !important;
-}
-
-#owner-view .admin-section,
-#owner-view .feature-section,
-#spend-view .feature-section,
-#activity-streak-card,
-.history,
-.promo-card,
-.earn-list,
-.transfer-panel {
-    scroll-margin-top: 14px;
-}
-
-#owner-view .admin-section.nyan-collapsible,
-#owner-view .feature-section.nyan-collapsible,
-#spend-view .feature-section.nyan-collapsible,
-#activity-streak-card.nyan-collapsible,
-.history.nyan-collapsible,
-.promo-card.nyan-collapsible,
-.earn-list.nyan-collapsible,
-.transfer-panel.nyan-collapsible {
-    padding-top: 14px;
-}
-
-#earn-view .earn-list.nyan-collapsible {
+#owner-view .nyan-owner-collapse-body {
     display: block;
 }
 
-#earn-view .earn-list .nyan-collapse-body {
-    display: grid;
-    gap: 12px;
+#owner-view .nyan-owner-list-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 42px;
+    margin: 10px 0;
+    padding: 10px 12px;
+    border-radius: 14px;
+    font-size: 12px;
+    text-align: left;
 }
 
-@media (max-width: 390px) {
-    .nyan-command-grid {
-        grid-template-columns: 1fr;
-    }
+#owner-view .nyan-owner-list-state {
+    flex: 0 0 auto;
+    color: #a37388;
+    font-size: 11px;
+    font-weight: 800;
+}
 
-    .nyan-command-tile {
-        min-height: 62px;
+@media (max-width: 380px) {
+    #owner-view .nyan-owner-controls,
+    #owner-view .nyan-owner-map-grid {
+        grid-template-columns: 1fr;
     }
 }
