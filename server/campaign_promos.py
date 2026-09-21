@@ -10,6 +10,12 @@ CAMPAIGN_PROMOS = [
         "max_uses": 5,
         "description": "Рассылка Nyan Wallet: экспресс-бонус 600 ЛК для первых 5 пользователей",
     },
+    {
+        "code": "NYANROFL700",
+        "reward_amount": 700,
+        "max_uses": 1,
+        "description": "Рофл-промо Nyan Wallet: 700 ЛК для одной активации",
+    },
 ]
 
 
