@@ -1,6 +1,26 @@
 (() => {
     "use strict";
 
+    const UI_CACHE_VERSION = "20260921-6";
+
+    function forceFreshTelegramDocument() {
+        try {
+            const url = new URL(window.location.href);
+            if (url.origin !== "https://qwertsyik0.github.io") return;
+            if (!url.pathname.startsWith("/nyan-wallet")) return;
+            if (url.searchParams.get("ui_v") === UI_CACHE_VERSION) return;
+
+            const key = "nyan-ui-document-refresh:" + UI_CACHE_VERSION;
+            if (sessionStorage.getItem(key) === "1") return;
+            sessionStorage.setItem(key, "1");
+
+            url.searchParams.set("ui_v", UI_CACHE_VERSION);
+            window.location.replace(url.toString());
+        } catch (_) {}
+    }
+
+    forceFreshTelegramDocument();
+
     const nativeFetch = window.fetch.bind(window);
     const API_ORIGIN = "https://nyan-wallet-api.onrender.com";
     const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
