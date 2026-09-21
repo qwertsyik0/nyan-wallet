@@ -3,10 +3,52 @@
 
     const tg = window.Telegram?.WebApp;
     const API = "https://nyan-wallet-api.onrender.com";
+    const BOOTSTRAP_RECOVERY_KEY = "nyan-maintenance-bootstrap-retry:20260921-6";
     let hiddenByMaintenance = [];
 
     function headers() {
         return { "X-Telegram-Init-Data": tg?.initData || "" };
+    }
+
+    function isLoadingVisible() {
+        const loading = document.getElementById("loading-view");
+        return Boolean(loading && !loading.classList.contains("hidden"));
+    }
+
+    function revealWalletFallback(reason) {
+        const loading = document.getElementById("loading-view");
+        const wallet = document.getElementById("wallet-view");
+        const currencyName = document.getElementById("currency-name");
+        if (loading) loading.classList.add("hidden");
+        if (wallet) wallet.classList.remove("hidden");
+        if (currencyName && currencyName.textContent === "лапкоинов") {
+            currencyName.textContent = "данные временно недоступны";
+        }
+        console.warn("Nyan maintenance bootstrap fallback:", reason);
+    }
+
+    function recoverInitialBootstrap(reason) {
+        const wallet = document.getElementById("wallet-view");
+        if (!isLoadingVisible() || (wallet && !wallet.classList.contains("hidden"))) {
+            return false;
+        }
+
+        try {
+            if (sessionStorage.getItem(BOOTSTRAP_RECOVERY_KEY) === "1") {
+                revealWalletFallback(reason);
+                return true;
+            }
+            sessionStorage.setItem(BOOTSTRAP_RECOVERY_KEY, "1");
+
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set("_nyan_maintenance_retry", String(Date.now()));
+            window.location.replace(currentUrl.toString());
+            return true;
+        } catch (error) {
+            console.error("Maintenance bootstrap recovery failed:", error);
+            revealWalletFallback(reason);
+            return true;
+        }
     }
 
     function ensureView() {
@@ -45,7 +87,6 @@
         const view = ensureView();
         if (!view) return;
 
-
         hiddenByMaintenance = Array.from(document.querySelectorAll(".app > main"))
             .filter(node => node !== view && !node.classList.contains("hidden"));
 
@@ -73,6 +114,7 @@
 
         if (!wasVisible) {
             hiddenByMaintenance = [];
+            recoverInitialBootstrap("maintenance status cleared before maintenance view opened");
             return;
         }
 
@@ -81,6 +123,7 @@
 
         if (restorable.length) {
             restorable.forEach(node => node.classList.remove("hidden"));
+            recoverInitialBootstrap("maintenance view restored loading screen");
             return;
         }
 
@@ -95,6 +138,7 @@
             wallet.classList.remove("hidden");
         } else if (loading) {
             loading.classList.remove("hidden");
+            recoverInitialBootstrap("maintenance view had only loading screen to restore");
         }
     }
 
