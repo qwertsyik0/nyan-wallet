@@ -1,4 +1,4 @@
-/* Cleanup shell: no global interface rewrites. Only small list toggles inside owner panel. */
+/* Nyan Wallet interface shell v2: compact wallet actions + real owner-panel collapses. */
 .nyan-actions-hidden {
     position: static !important;
     width: auto !important;
@@ -20,6 +20,136 @@
     display: none !important;
 }
 
+#wallet-view .actions.nyan-actions-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    margin: 14px 0 18px !important;
+}
+
+#wallet-view .actions.nyan-actions-grid button {
+    grid-column: auto !important;
+    width: 100% !important;
+    min-height: 62px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding: 12px 10px !important;
+    border: 1px solid rgba(226, 195, 210, .9) !important;
+    border-radius: 18px !important;
+    background: rgba(255, 255, 255, .9) !important;
+    color: #7d284a !important;
+    box-shadow: 0 8px 22px rgba(137, 41, 82, .045) !important;
+    font-size: 14px !important;
+    font-weight: 850 !important;
+    line-height: 1.1 !important;
+    text-align: center !important;
+}
+
+#wallet-view .actions.nyan-actions-grid #earn-button,
+#wallet-view .actions.nyan-actions-grid #spend-button {
+    background: linear-gradient(135deg, rgba(255, 244, 249, .98), rgba(255, 255, 255, .95)) !important;
+}
+
+#wallet-view .actions.nyan-actions-grid #owner-button {
+    grid-column: 1 / -1 !important;
+    min-height: 54px !important;
+    background: #922954 !important;
+    color: #fff !important;
+    box-shadow: 0 12px 28px rgba(146, 41, 84, .18) !important;
+}
+
+#wallet-view .actions.nyan-actions-grid #adv-unread-badge {
+    margin-left: 2px !important;
+}
+
+.nyan-action-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 30px;
+    border-radius: 12px;
+    background: rgba(255, 237, 246, .95);
+    color: #9b2d58;
+    font-size: 15px;
+    line-height: 1;
+}
+
+#wallet-view .actions.nyan-actions-grid #owner-button .nyan-action-icon {
+    background: rgba(255, 255, 255, .18);
+    color: #fff;
+}
+
+@media (max-width: 360px) {
+    #wallet-view .actions.nyan-actions-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+#owner-view .nyan-admin-section {
+    overflow: hidden;
+}
+
+#owner-view .nyan-admin-toggle {
+    width: 100%;
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 12px;
+    padding: 12px 14px;
+    border: 1px solid rgba(226, 195, 210, .92);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, .92);
+    color: #7d284a;
+    font: inherit;
+    font-weight: 850;
+    text-align: left;
+    box-shadow: 0 8px 22px rgba(137, 41, 82, .035);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+#owner-view .nyan-admin-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 15px;
+}
+
+#owner-view .nyan-admin-meta {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: #a37388;
+    font-size: 12px;
+    font-weight: 850;
+}
+
+#owner-view .nyan-admin-arrow {
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 11px;
+    background: rgba(255, 238, 246, .95);
+    color: #9b2d58;
+    transition: transform .18s ease;
+}
+
+#owner-view .nyan-admin-collapsed > .nyan-admin-toggle .nyan-admin-arrow {
+    transform: rotate(-90deg);
+}
+
+#owner-view .nyan-admin-body {
+    display: block;
+}
+
 #owner-view .nyan-owner-list-toggle {
     width: 100%;
     display: flex;
@@ -35,7 +165,7 @@
     color: #7d284a;
     font: inherit;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 850;
     text-align: left;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
@@ -45,5 +175,5 @@
     flex: 0 0 auto;
     color: #a37388;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 850;
 }
