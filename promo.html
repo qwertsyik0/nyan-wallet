@@ -3,25 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nyan Wallet · Бонус</title>
+    <title>Nyan Wallet · 600 лапкоинов</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="./style.css?v=20260918-8">
-    <link rel="stylesheet" href="./promo.css?v=20260920-1">
+    <link rel="stylesheet" href="./promo.css?v=20260921-2">
 </head>
-<body>
+<body data-default-promo-code="NYANFLASH600" data-promo-reward="600" data-promo-limit="5">
 <div class="promo-app">
     <main class="promo-shell">
         <section class="promo-hero">
             <div class="promo-paw">🐾</div>
             <div>
                 <div class="promo-brand">Nyan Wallet</div>
-                <div class="promo-kicker">бонус по промокоду</div>
+                <div class="promo-kicker">экспресс-бонус для рассылки</div>
             </div>
         </section>
 
-        <section class="promo-bonus-card">
-            <div class="promo-title">Забрать бонус</div>
-            <div class="promo-subtitle">Промокод уже подставлен. Подтвердите активацию.</div>
+        <section class="promo-bonus-card" aria-labelledby="promo-title">
+            <div class="promo-badge">только первые 5 активаций</div>
+            <div id="promo-title" class="promo-title">600 лапкоинов</div>
+            <div class="promo-subtitle">
+                заберите быстрый бонус в Nyan Wallet. промокод уже подставлен, нужно только подтвердить активацию.
+            </div>
+
+            <div class="promo-reward-box" aria-hidden="true">
+                <div class="promo-reward-amount">600</div>
+                <div class="promo-reward-currency">🐾</div>
+            </div>
+
+            <div class="promo-facts" aria-label="Условия промокода">
+                <div class="promo-fact">
+                    <span>лимит</span>
+                    <strong>5 человек</strong>
+                </div>
+                <div class="promo-fact">
+                    <span>награда</span>
+                    <strong>+600 🐾</strong>
+                </div>
+                <div class="promo-fact">
+                    <span>активация</span>
+                    <strong>1 раз</strong>
+                </div>
+            </div>
 
             <label class="promo-field">
                 <span>Промокод</span>
@@ -38,10 +61,14 @@
         <button id="promo-wallet" class="promo-wallet" type="button">
             Открыть Nyan Wallet
         </button>
+
+        <div class="promo-note">
+            бонус начисляется только внутри Telegram Mini App и только пока не закончились 5 активаций.
+        </div>
     </main>
 </div>
 
-<script src="./network.js?v=20260920-1"></script>
-<script src="./promo.js?v=20260920-1"></script>
+<script src="./network.js?v=20260921-7"></script>
+<script src="./promo.js?v=20260921-2"></script>
 </body>
 </html>
