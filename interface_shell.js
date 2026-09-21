@@ -49,6 +49,20 @@
         try { localStorage.setItem(STORE_PREFIX + key, value); } catch (_) {}
     }
 
+    function isOwnerAllowed() {
+        return window.__nyanIsOwner === true || document.body?.dataset?.nyanRole === "owner";
+    }
+
+    function enforceOwnerButton() {
+        const button = document.getElementById("owner-button");
+        if (!button) return;
+        const allowed = isOwnerAllowed();
+        button.hidden = !allowed;
+        button.disabled = !allowed;
+        button.dataset.ownerAllowed = allowed ? "1" : "0";
+        button.setAttribute("aria-hidden", allowed ? "false" : "true");
+    }
+
     function escapeHtml(value) {
         return String(value ?? "")
             .replaceAll("&", "&amp;")
@@ -156,6 +170,7 @@
     }
 
     function ensureOwnerSection(section) {
+        if (!isOwnerAllowed()) return;
         if (!section || !section.closest("#owner-view")) return;
         if (section.closest(".nyan-admin-body")) return;
 
@@ -207,6 +222,7 @@
     }
 
     function ensureOwnerListToggle(id, title, collapsedByDefault) {
+        if (!isOwnerAllowed()) return;
         const list = document.getElementById(id);
         if (!list || !list.closest("#owner-view")) return;
 
@@ -287,6 +303,7 @@
         const actions = wallet?.querySelector(":scope > .actions");
         if (!wallet || !actions) return;
 
+        enforceOwnerButton();
         actions.classList.add("nyan-actions-grid");
         const orderedButtons = ACTION_ORDER
             .map(id => document.getElementById(id))
@@ -301,14 +318,20 @@
         }
 
         const walletCard = document.getElementById("wallet-card") || wallet.querySelector(".balance-card");
+        const tasks = document.getElementById("daily-tasks-card");
         const streak = document.getElementById("activity-streak-card");
         const level = document.getElementById("adv-level-card");
         const home = document.getElementById("ny-home");
         const history = wallet.querySelector(":scope > .history");
 
-        if (walletCard && streak?.parentNode === wallet) moveAfter(walletCard, streak);
+        if (walletCard && tasks?.parentNode === wallet) moveAfter(walletCard, tasks);
+        if (walletCard && streak?.parentNode === wallet) {
+            if (tasks?.parentNode === wallet) moveAfter(tasks, streak);
+            else moveAfter(walletCard, streak);
+        }
         if (actions.parentNode === wallet) {
             if (streak?.parentNode === wallet) moveAfter(streak, actions);
+            else if (tasks?.parentNode === wallet) moveAfter(tasks, actions);
             else if (walletCard) moveAfter(walletCard, actions);
         }
         if (level?.parentNode === wallet && actions.parentNode === wallet) moveAfter(actions, level);
@@ -324,8 +347,10 @@
         cleanupLegacyShell();
         organizeActions();
         ensureDelegatedCollapseHandler();
-        document.querySelectorAll(OWNER_SECTION_SELECTOR).forEach(ensureOwnerSection);
-        OWNER_LISTS.forEach(([id, title, collapsedByDefault]) => ensureOwnerListToggle(id, title, collapsedByDefault));
+        if (isOwnerAllowed()) {
+            document.querySelectorAll(OWNER_SECTION_SELECTOR).forEach(ensureOwnerSection);
+            OWNER_LISTS.forEach(([id, title, collapsedByDefault]) => ensureOwnerListToggle(id, title, collapsedByDefault));
+        }
     }
 
     function scheduleApply() {
@@ -339,6 +364,8 @@
     } else {
         scheduleApply();
     }
+
+    window.addEventListener("nyan-owner-state", scheduleApply);
 
     const observer = new MutationObserver(scheduleApply);
     observer.observe(document.body, { childList: true, subtree: true });
