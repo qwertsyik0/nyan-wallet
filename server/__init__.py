@@ -12,6 +12,7 @@ from .root_health import register_root_health
 from .extended_features import register_extended_features
 from .promo_notify import register_promo_notify
 from .campaign_promos import register_campaign_promos
+from .limited_promos import register_limited_promos
 from .instant_notifications import register_instant_notifications
 from .advanced_features import register_advanced_features
 from .referral_fix import register_referral_fix
@@ -28,6 +29,7 @@ from .broadcast import register_broadcast
 from .maintenance import register_maintenance
 
 register_campaign_promos()
+register_limited_promos(backend_app.app)
 register_root_health(backend_app.app)
 register_extended_features(backend_app.app)
 register_promo_notify(backend_app.app)
