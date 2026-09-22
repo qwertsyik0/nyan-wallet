@@ -10,7 +10,9 @@ on:
       - "bot_addons/giveaway_bot.py.gz.b64"
       - "bot_addons/maintenance_bot.py"
       - "bot_addons/broadcast_bot.py"
+      - "bot_addons/channel_publish_bot.py"
       - "tools/install_broadcast_bot.py"
+      - "tools/install_channel_publish_bot.py"
       - ".github/workflows/backend-check.yml"
   workflow_dispatch:
 
@@ -26,7 +28,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Compile backend and installer
-        run: python -m py_compile server/*.py tools/install_giveaway_bot.py tools/install_maintenance_bot.py tools/install_broadcast_bot.py bot_addons/broadcast_bot.py
+        run: python -m py_compile server/*.py tools/install_giveaway_bot.py tools/install_maintenance_bot.py tools/install_broadcast_bot.py tools/install_channel_publish_bot.py bot_addons/broadcast_bot.py bot_addons/channel_publish_bot.py
       - name: Validate giveaway bot payload
         run: |
           python - <<'PY'
@@ -236,9 +238,27 @@ jobs:
           ):
               assert marker in bot, f"broadcast bot marker missing: {marker}"
 
+          channel = Path("bot_addons/channel_publish_bot.py").read_text(encoding="utf-8")
+          compile(channel, "bot_addons/channel_publish_bot.py", "exec")
+          for marker in (
+              'CommandHandler("channel_post"',
+              'TELEGRAM_CHANNEL_ID',
+              'copy_message',
+              'copy_messages',
+              'confirm_publish',
+              'promo:nyan109',
+              'startapp=promo_',
+              '_channel_markup',
+              'Forbidden',
+              'BadRequest',
+          ):
+              assert marker in channel, f"channel publisher marker missing: {marker}"
+
           installer = Path("tools/install_broadcast_bot.py").read_text(encoding="utf-8")
           compile(installer, "tools/install_broadcast_bot.py", "exec")
-          print("broadcast subsystem static audit OK")
+          channel_installer = Path("tools/install_channel_publish_bot.py").read_text(encoding="utf-8")
+          compile(channel_installer, "tools/install_channel_publish_bot.py", "exec")
+          print("broadcast and channel publisher static audit OK")
           PY
       - name: Check browser JavaScript syntax
         run: |
