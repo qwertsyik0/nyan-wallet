@@ -64,25 +64,42 @@
         return data.application || null;
     }
 
+    async function submitNew(payload) {
+        const response = await fetch(`${API_BASE}/api/paris/applications`, {
+            method: "POST",
+            headers: authHeaders(true),
+            body: JSON.stringify(payload),
+        });
+        const data = await readJson(response);
+        if (!response.ok) throw new Error(data?.detail || "Не удалось отправить анкету");
+        return data.application;
+    }
+
+    async function submitChanges(payload) {
+        const response = await fetch(`${API_BASE}/api/paris/applications/me`, {
+            method: "POST",
+            headers: authHeaders(true),
+            body: JSON.stringify(payload),
+        });
+        const data = await readJson(response);
+        if (!response.ok) throw new Error(data?.detail || "Не удалось отправить правки");
+        return data.application;
+    }
+
     async function handleSubmitCapture(event) {
         const form = event.target;
         if (!form || form.id !== "paris-application-form") return;
-        if (!initData()) return;
-
-        let application;
-        try {
-            application = await currentApplication();
-        } catch (_) {
-            return;
-        }
-
-        if (!application || application.status !== "needs_changes") return;
 
         event.preventDefault();
         event.stopImmediatePropagation();
 
         const status = document.getElementById("paris-form-status");
         const submit = document.getElementById("paris-submit");
+
+        if (!initData()) {
+            if (status) status.textContent = "Открой Nyan Wallet через Telegram.";
+            return;
+        }
 
         let payload;
         try {
@@ -95,31 +112,36 @@
 
         if (submit) {
             submit.disabled = true;
-            submit.textContent = "ОТПРАВЛЯЕМ ПРАВКИ…";
+            submit.textContent = "ОТПРАВЛЯЕМ…";
         }
         if (status) status.textContent = "";
 
         try {
-            const response = await fetch(`${API_BASE}/api/paris/applications/me`, {
-                method: "POST",
-                headers: authHeaders(true),
-                body: JSON.stringify(payload),
-            });
-            const data = await readJson(response);
-            if (!response.ok) throw new Error(data?.detail || "Не удалось отправить правки");
+            const existing = await currentApplication();
+            if (existing && existing.status !== "needs_changes") {
+                if (status) status.textContent = "Анкета уже отправлена. Повторная отправка сейчас недоступна.";
+                if (form) form.hidden = true;
+                return;
+            }
 
-            form.hidden = true;
+            const application = existing && existing.status === "needs_changes"
+                ? await submitChanges(payload)
+                : await submitNew(payload);
+
+            if (form) form.hidden = true;
             if (status) {
-                status.textContent = "Правки отправлены. Заявка снова на рассмотрении у владельца.";
+                status.textContent = application?.status === "pending"
+                    ? "Анкета отправлена. Владелец рассмотрит её и выдаст роль лично."
+                    : "Анкета сохранена.";
             }
             tgApp?.HapticFeedback?.notificationOccurred?.("success");
         } catch (error) {
-            if (status) status.textContent = error.message || "Не удалось отправить правки";
+            if (status) status.textContent = error.message || "Не удалось отправить анкету";
             tgApp?.HapticFeedback?.notificationOccurred?.("error");
         } finally {
             if (submit) {
                 submit.disabled = false;
-                submit.textContent = "ОТПРАВИТЬ ПРАВКИ";
+                submit.textContent = "ОТПРАВИТЬ АНКЕТУ";
             }
         }
     }
