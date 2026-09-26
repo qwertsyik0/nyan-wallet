@@ -129,3 +129,81 @@
         }
     };
 })();
+
+(function () {
+    "use strict";
+
+    const PARIS_PARAMS = new Set([
+        "paris",
+        "nyan_paris",
+        "le_nyan_paris",
+        "le-nyan-paris",
+        "le-nyan-paris-event",
+    ]);
+    let opened = false;
+
+    function normalize(value) {
+        return String(value || "").trim().toLowerCase().replace(/\s+/g, "_");
+    }
+
+    function valueWantsParis(value) {
+        const normalized = normalize(value);
+        return PARIS_PARAMS.has(normalized) || PARIS_PARAMS.has(normalized.replace(/_/g, "-"));
+    }
+
+    function urlWantsParis() {
+        const params = new URLSearchParams(window.location.search || "");
+        if (params.has("paris")) {
+            const value = normalize(params.get("paris") || "1");
+            if (!value || value === "1" || value === "true" || value === "open") return true;
+        }
+        for (const key of ["event", "page", "screen", "startapp", "start_param", "tgWebAppStartParam"]) {
+            if (valueWantsParis(params.get(key))) return true;
+        }
+        if (valueWantsParis(window.location.hash.replace(/^#/, ""))) return true;
+        return false;
+    }
+
+    function telegramWantsParis() {
+        const tgApp = window.Telegram?.WebApp;
+        const unsafe = tgApp?.initDataUnsafe || {};
+        return valueWantsParis(unsafe.start_param)
+            || valueWantsParis(unsafe.startapp)
+            || valueWantsParis(unsafe.tgWebAppStartParam);
+    }
+
+    function shouldOpenParis() {
+        return urlWantsParis() || telegramWantsParis();
+    }
+
+    function openParisEvent() {
+        if (opened || !shouldOpenParis()) return;
+        const banner = document.getElementById("paris-event-banner");
+        const eventView = document.getElementById("paris-event-view");
+        if (!banner || !eventView) return;
+        opened = true;
+        banner.click();
+    }
+
+    function runPasses() {
+        openParisEvent();
+        window.setTimeout(openParisEvent, 120);
+        window.setTimeout(openParisEvent, 450);
+        window.setTimeout(openParisEvent, 1000);
+        window.setTimeout(openParisEvent, 1800);
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", runPasses, { once: true });
+    } else {
+        runPasses();
+    }
+    window.addEventListener("load", runPasses, { once: true });
+
+    const appRoot = document.querySelector(".app");
+    if (appRoot && window.MutationObserver) {
+        const observer = new MutationObserver(openParisEvent);
+        observer.observe(appRoot, { childList: true, subtree: true });
+        window.setTimeout(() => observer.disconnect(), 5000);
+    }
+})();
