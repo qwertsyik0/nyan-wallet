@@ -29,6 +29,7 @@ from .broadcast import register_broadcast
 from .maintenance import register_maintenance
 from .paris_event import register_paris_event
 from .paris_event_compat import register_paris_event_compat
+from .paris_event_accept_fix import register_paris_event_accept_fix
 
 register_campaign_promos()
 register_limited_promos(backend_app.app)
@@ -51,3 +52,4 @@ register_broadcast(backend_app.app)
 register_maintenance(backend_app.app)
 register_paris_event(backend_app.app)
 register_paris_event_compat(backend_app.app)
+register_paris_event_accept_fix(backend_app.app)
