@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Le Nyan Paris</title>
+    <meta name="description" content="Le Nyan Paris — событие сетки Нян во Франции эпохи Наполеона.">
+    <style>
+        :root {
+            --blue: #163f8f;
+            --blue-deep: #0b245a;
+            --white: #fff7f3;
+            --red: #d4303f;
+            --red-deep: #8b1021;
+            --ink: #261628;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            display: grid;
+            place-items: center;
+            padding: 22px;
+            color: var(--ink);
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background:
+                radial-gradient(circle at 50% 22%, rgba(255, 255, 255, 0.86), transparent 34%),
+                linear-gradient(90deg, rgba(22, 63, 143, 0.58) 0%, rgba(255, 247, 243, 0.96) 47%, rgba(212, 48, 63, 0.62) 100%),
+                linear-gradient(135deg, #f9f1f1, #ffffff 45%, #ffe8ea);
+        }
+
+        .card {
+            width: min(560px, 100%);
+            border-radius: 34px;
+            padding: 30px 24px 26px;
+            background:
+                linear-gradient(90deg, rgba(22, 63, 143, 0.16), rgba(255, 255, 255, 0.9), rgba(212, 48, 63, 0.18)),
+                rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(255, 255, 255, 0.72);
+            box-shadow: 0 28px 70px rgba(45, 26, 52, 0.2);
+            text-align: center;
+            backdrop-filter: blur(18px);
+        }
+
+        .flag {
+            height: 12px;
+            border-radius: 999px;
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            margin-bottom: 24px;
+            box-shadow: 0 12px 32px rgba(25, 44, 97, 0.18);
+        }
+
+        .flag span:nth-child(1) { background: var(--blue); }
+        .flag span:nth-child(2) { background: var(--white); }
+        .flag span:nth-child(3) { background: var(--red); }
+
+        .kicker {
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--blue);
+        }
+
+        h1 {
+            margin: 10px 0 12px;
+            font-size: clamp(34px, 8vw, 54px);
+            line-height: 0.95;
+            letter-spacing: -0.06em;
+            color: var(--red-deep);
+        }
+
+        p {
+            margin: 0 auto 18px;
+            max-width: 460px;
+            font-size: 16px;
+            line-height: 1.55;
+            color: rgba(38, 22, 40, 0.78);
+        }
+
+        .button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            min-height: 58px;
+            margin-top: 22px;
+            border-radius: 22px;
+            color: #fff;
+            text-decoration: none;
+            font-weight: 950;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            background:
+                linear-gradient(90deg, var(--blue-deep), var(--blue) 34%, var(--red) 100%);
+            box-shadow: 0 18px 34px rgba(124, 28, 56, 0.28);
+        }
+
+        .hint {
+            margin-top: 14px;
+            font-size: 13px;
+            color: rgba(38, 22, 40, 0.58);
+        }
+    </style>
+</head>
+<body>
+    <main class="card" aria-live="polite">
+        <div class="flag" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="kicker">событие сетки Нян</div>
+        <h1>Le Nyan Paris</h1>
+        <p>Париж эпохи Наполеона открывает ворота. Создай персонажа, подай анкету и стань частью городского события Нян.</p>
+        <a id="open-mini-app" class="button" href="https://t.me/nyancash_bot?startapp=paris">ВСТУПИТЬ В ПАРИЖ</a>
+        <div class="hint">сейчас откроется Nyan Wallet. если переход не сработал, нажми кнопку выше.</div>
+    </main>
+
+    <script>
+        (function () {
+            "use strict";
+            const target = "https://t.me/nyancash_bot?startapp=paris";
+            const link = document.getElementById("open-mini-app");
+            if (link) link.href = target;
+            window.setTimeout(function () {
+                window.location.href = target;
+            }, 700);
+        })();
+    </script>
+</body>
+</html>
