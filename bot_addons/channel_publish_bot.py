@@ -14,6 +14,14 @@ from broadcast_bot import BroadcastBotError, BroadcastDraft, ButtonSpec, _owner_
 
 DEFAULT_MINI_APP_URL = "https://qwertsyik0.github.io/nyan-wallet/"
 PROMO_SLUG_PATTERN = re.compile(r"^[a-z0-9_-]{2,48}$", re.IGNORECASE)
+PARIS_START_PARAMS = {
+    "paris",
+    "nyan_paris",
+    "le_nyan_paris",
+    "nyan-paris",
+    "le-nyan-paris",
+    "le-nyan-paris-event",
+}
 _channel_drafts: dict[int, BroadcastDraft] = {}
 _channel_post_init_hook_installed = False
 
@@ -32,6 +40,33 @@ def _promo_page_url(slug: str) -> str:
         raise BroadcastBotError("Некорректный slug промо")
     base = _mini_app_base().rstrip("/") + "/"
     return f"{base}?promo={urllib.parse.quote(normalized, safe='-_')}"
+
+
+def _paris_page_url() -> str:
+    return _mini_app_base().rstrip("/") + "/paris.html"
+
+
+def _normalize_start_value(value: str | None) -> str:
+    return str(value or "").strip().lower().replace(" ", "_")
+
+
+def _is_paris_start_value(value: str | None) -> bool:
+    normalized = _normalize_start_value(value)
+    if not normalized:
+        return False
+    return normalized in PARIS_START_PARAMS or normalized.replace("_", "-") in PARIS_START_PARAMS
+
+
+def _web_app_shortcut_url(raw_url: str) -> str | None:
+    value = raw_url.strip()
+    lower = value.lower()
+    if _is_paris_start_value(value.rstrip(":")):
+        return _paris_page_url()
+    if lower.startswith("paris:"):
+        return _paris_page_url()
+    if lower.startswith("event:") and _is_paris_start_value(value.split(":", 1)[1]):
+        return _paris_page_url()
+    return None
 
 
 def _configured_channel_id() -> int | str:
@@ -80,14 +115,33 @@ async def _bot_username(bot) -> str | None:
     return username.lstrip("@") if isinstance(username, str) and username else None
 
 
+def _first_query_value(query: dict[str, list[str]], key: str) -> str:
+    return (query.get(key) or [""])[0]
+
+
 def _start_param_for_url(url: str) -> str:
     try:
         parsed = urllib.parse.urlparse(url)
         query = urllib.parse.parse_qs(parsed.query)
+
         for key in ("promo", "slug"):
-            value = (query.get(key) or [""])[0]
+            value = _first_query_value(query, key)
             if value and PROMO_SLUG_PATTERN.fullmatch(value):
                 return f"promo_{value.lower().replace('_', '-')}"
+
+        for key in ("event", "page", "screen", "startapp", "start_param", "tgWebAppStartParam"):
+            if _is_paris_start_value(_first_query_value(query, key)):
+                return "paris"
+
+        if _is_paris_start_value(parsed.fragment):
+            return "paris"
+
+        normalized_path = parsed.path.rstrip("/").lower()
+        if normalized_path.endswith("/paris") or normalized_path.endswith("/paris.html"):
+            return "paris"
+        if "le-nyan-paris" in normalized_path or "nyan-paris" in normalized_path:
+            return "paris"
+
         path_match = re.search(r"/promo/([a-z0-9_-]{2,48})", parsed.path, re.IGNORECASE)
         if path_match:
             return f"promo_{path_match.group(1).lower().replace('_', '-')}"
@@ -117,15 +171,19 @@ def _parse_channel_button(text: str, *, kind: Literal["url", "web_app"]) -> Butt
     if len(label) > 64:
         raise BroadcastBotError("Текст кнопки должен быть не длиннее 64 символов")
 
-    if kind == "web_app" and raw_url.lower().startswith("promo:"):
-        raw_url = _promo_page_url(raw_url.split(":", 1)[1])
+    if kind == "web_app":
+        shortcut_url = _web_app_shortcut_url(raw_url)
+        if shortcut_url:
+            raw_url = shortcut_url
+        elif raw_url.lower().startswith("promo:"):
+            raw_url = _promo_page_url(raw_url.split(":", 1)[1])
 
     if len(raw_url) > 2048:
         raise BroadcastBotError("Ссылка слишком длинная")
     parsed = urllib.parse.urlparse(raw_url)
     if kind == "web_app":
         if parsed.scheme != "https" or not parsed.netloc:
-            raise BroadcastBotError("Mini App кнопка должна вести на HTTPS URL или promo:slug")
+            raise BroadcastBotError("Mini App кнопка должна вести на HTTPS URL, promo:slug или paris:")
     else:
         if parsed.scheme not in {"https", "http", "tg"}:
             raise BroadcastBotError("URL-кнопка должна использовать https://, http:// или tg://")
@@ -282,7 +340,7 @@ async def _start_channel_draft(update: Update, context: ContextTypes.DEFAULT_TYP
     await message.reply_text(
         "Режим публикации в канал включён.\n\n"
         "Пришлите текст, фото, видео, GIF, документ или альбом. Форматирование Telegram будет сохранено через копирование сообщения.\n\n"
-        "Для кнопки на промо можно будет отправить: 🐾 Забрать 109 | promo:nyan109"
+        "Для Mini App кнопки на Париж используйте: 🇫🇷 ВСТУПИТЬ В ПАРИЖ | paris:"
     )
     raise ApplicationHandlerStop
 
@@ -389,8 +447,11 @@ async def channel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             chat_id=user.id,
             text=(
                 "Пришлите Mini App кнопку в формате:\n"
+                "🇫🇷 ВСТУПИТЬ В ПАРИЖ | paris:\n\n"
+                "Также работает:\n"
+                "🇫🇷 ВСТУПИТЬ В ПАРИЖ | https://qwertsyik0.github.io/nyan-wallet/paris.html\n"
                 "🐾 Забрать 109 | promo:nyan109\n\n"
-                "Также можно отправить обычный HTTPS URL Mini App. В канал он будет опубликован как Telegram deep link."
+                "В канал кнопка будет опубликована как Telegram Mini App deep link."
             ),
         )
     elif action == "new_row":
