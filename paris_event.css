@@ -1,0 +1,388 @@
+.paris-event-banner {
+    position: relative;
+    width: 100%;
+    min-height: 118px;
+    display: grid;
+    gap: 6px;
+    margin: 16px 0 18px;
+    padding: 20px 52px 20px 18px;
+    overflow: hidden;
+    text-align: left;
+    border: 1px solid rgba(255, 255, 255, 0.76);
+    border-radius: 26px;
+    background:
+        radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.95) 0 12%, rgba(255, 255, 255, 0) 34%),
+        linear-gradient(90deg,
+            rgba(29, 95, 214, 0.94) 0%,
+            rgba(66, 126, 232, 0.62) 28%,
+            rgba(255, 255, 255, 0.98) 45%,
+            rgba(255, 255, 255, 0.98) 57%,
+            rgba(255, 116, 148, 0.66) 78%,
+            rgba(239, 63, 103, 0.96) 100%);
+    box-shadow:
+        -10px 18px 38px rgba(29, 95, 214, 0.16),
+        10px 18px 38px rgba(239, 63, 103, 0.18);
+    color: #51233a;
+}
+
+.paris-event-banner::before,
+.paris-event-banner::after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+}
+
+.paris-event-banner::before {
+    inset: -35%;
+    background: repeating-conic-gradient(
+        from -22deg at 50% 28%,
+        rgba(255, 255, 255, 0.23) 0 5deg,
+        rgba(255, 255, 255, 0) 5deg 13deg
+    );
+    opacity: 0.62;
+}
+
+.paris-event-banner::after {
+    right: 14px;
+    top: 14px;
+    width: 56px;
+    height: 56px;
+    border: 10px solid rgba(255, 255, 255, 0.32);
+    border-radius: 50%;
+}
+
+.paris-event-kicker,
+.paris-event-title,
+.paris-event-subtitle,
+.paris-event-arrow {
+    position: relative;
+    z-index: 1;
+}
+
+.paris-event-kicker {
+    justify-self: start;
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.72);
+    color: #7f3151;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.paris-event-title {
+    font-size: 24px;
+    font-weight: 950;
+    line-height: 1.02;
+    color: #5b1736;
+    letter-spacing: -0.035em;
+    text-transform: uppercase;
+}
+
+.paris-event-subtitle {
+    max-width: 310px;
+    color: #7f536a;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.35;
+}
+
+.paris-event-arrow {
+    position: absolute;
+    right: 18px;
+    bottom: 18px;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 13px;
+    background: rgba(255, 255, 255, 0.76);
+    color: #9b244a;
+    font-size: 20px;
+    font-weight: 900;
+}
+
+.paris-event-page-card,
+.paris-form-card {
+    position: relative;
+    overflow: hidden;
+    padding: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.74);
+    border-radius: 28px;
+    background:
+        radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.96) 0 15%, rgba(255, 255, 255, 0) 42%),
+        linear-gradient(90deg,
+            rgba(29, 95, 214, 0.18),
+            rgba(255, 255, 255, 0.94) 45%,
+            rgba(239, 63, 103, 0.19));
+    box-shadow:
+        -8px 16px 34px rgba(29, 95, 214, 0.08),
+        8px 16px 34px rgba(239, 63, 103, 0.10);
+}
+
+.paris-event-page-card::before,
+.paris-form-card::before {
+    content: "";
+    position: absolute;
+    inset: -40%;
+    pointer-events: none;
+    background: repeating-conic-gradient(
+        from -18deg at 50% 22%,
+        rgba(255, 255, 255, 0.18) 0 4deg,
+        rgba(255, 255, 255, 0) 4deg 14deg
+    );
+    opacity: 0.45;
+}
+
+.paris-event-page-card > *,
+.paris-form-card > * {
+    position: relative;
+    z-index: 1;
+}
+
+.paris-lore-kicker {
+    display: inline-flex;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.72);
+    color: #8d2c50;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.paris-event-page-card h1 {
+    margin: 16px 0 10px;
+    color: #6c1d40;
+    font-size: 30px;
+    line-height: 1;
+    letter-spacing: -0.045em;
+}
+
+.paris-event-page-card p {
+    margin: 12px 0 0;
+    color: #6f4158;
+    font-size: 14px;
+    line-height: 1.62;
+}
+
+.paris-join-button,
+.paris-submit-button {
+    margin-top: 18px;
+    background:
+        linear-gradient(90deg, #1d5fd6 0%, #ffffff 48%, #ef3f67 100%);
+    color: #5b1736;
+    border: 1px solid rgba(255, 255, 255, 0.78);
+    box-shadow:
+        -8px 13px 28px rgba(29, 95, 214, 0.14),
+        8px 13px 28px rgba(239, 63, 103, 0.14);
+    font-weight: 950;
+    letter-spacing: 0.02em;
+}
+
+.paris-event-status,
+.paris-form-status {
+    min-height: 20px;
+    margin-top: 12px;
+    color: #8b526c;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.paris-application-form {
+    display: grid;
+    gap: 12px;
+}
+
+.paris-application-form label,
+.paris-owner-detail .owner-field {
+    display: grid;
+    gap: 7px;
+}
+
+.paris-application-form label span,
+.paris-owner-detail .owner-field > span {
+    color: #6d2a49;
+    font-size: 12px;
+    font-weight: 850;
+}
+
+.paris-application-form small {
+    color: #98677e;
+    font-weight: 500;
+}
+
+.paris-application-form input,
+.paris-application-form select,
+.paris-application-form textarea,
+.paris-owner-detail textarea,
+.paris-owner-toolbar select {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid rgba(226, 195, 210, 0.92);
+    outline: none;
+    background: rgba(255, 255, 255, 0.88);
+    color: #51233a;
+    border-radius: 16px;
+    padding: 14px;
+    font: inherit;
+    font-size: 14px;
+}
+
+.paris-application-form input:focus,
+.paris-application-form select:focus,
+.paris-application-form textarea:focus,
+.paris-owner-detail textarea:focus,
+.paris-owner-toolbar select:focus {
+    border-color: rgba(29, 95, 214, 0.44);
+    box-shadow: 0 0 0 3px rgba(29, 95, 214, 0.08);
+}
+
+.paris-application-form textarea,
+.paris-owner-detail textarea {
+    resize: vertical;
+}
+
+.paris-owner-toolbar {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.paris-owner-toolbar button {
+    width: auto;
+    padding: 12px 14px;
+    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(226, 195, 210, 0.92);
+    color: #6d2a49;
+}
+
+.paris-owner-counts {
+    margin-top: 10px;
+    color: #8b526c;
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.paris-status-badge {
+    flex: 0 0 auto;
+    padding: 7px 9px;
+    border-radius: 999px;
+    background: #fff0f6;
+    color: #8f2955;
+    font-size: 10px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.paris-status-badge.status-accepted,
+.paris-owner-action.status-accepted {
+    background: #edf8f1;
+    color: #437154;
+}
+
+.paris-status-badge.status-rejected,
+.paris-owner-action.status-rejected {
+    background: #fff0f4;
+    color: #9b345a;
+}
+
+.paris-status-badge.status-needs_changes,
+.paris-owner-action.status-needs_changes {
+    background: #fff5df;
+    color: #8a622a;
+}
+
+.paris-status-badge.status-pending {
+    background: #eef4ff;
+    color: #315da8;
+}
+
+.paris-owner-detail {
+    margin-top: 14px;
+    padding: 16px;
+    border: 1px solid rgba(226, 195, 210, 0.92);
+    border-radius: 22px;
+    background:
+        linear-gradient(90deg, rgba(29, 95, 214, 0.08), rgba(255, 255, 255, 0.93), rgba(239, 63, 103, 0.08));
+}
+
+.paris-owner-detail-title {
+    color: #6c1d40;
+    font-size: 18px;
+    font-weight: 950;
+    line-height: 1.15;
+}
+
+.paris-owner-detail-meta {
+    margin-top: 5px;
+    color: #8b526c;
+    font-size: 11px;
+}
+
+.paris-detail-grid {
+    display: grid;
+    gap: 8px;
+    margin-top: 13px;
+}
+
+.paris-detail-row {
+    display: grid;
+    gap: 4px;
+    padding: 10px 12px;
+    border: 1px solid rgba(226, 195, 210, 0.74);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.78);
+}
+
+.paris-detail-row span {
+    color: #9c7186;
+    font-size: 9px;
+    font-weight: 850;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.paris-detail-row b {
+    color: #5c2a42;
+    font-size: 12px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.paris-owner-actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 13px;
+}
+
+.paris-owner-action {
+    min-height: 44px;
+    padding: 10px 8px;
+    border-radius: 14px;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+@media (max-width: 420px) {
+    .paris-event-title {
+        font-size: 22px;
+    }
+
+    .paris-event-banner {
+        min-height: 112px;
+        padding-right: 46px;
+    }
+
+    .paris-owner-toolbar,
+    .paris-owner-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .paris-owner-toolbar button {
+        width: 100%;
+    }
+}
