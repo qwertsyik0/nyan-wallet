@@ -149,6 +149,30 @@ def patch_bot(source: str) -> str:
     return patched
 
 
+def patch_channel_publish_bot(source: str) -> str:
+    if "disabled_source_buttons = bool(draft.source_markup and draft.keep_source_markup)" in source:
+        return source
+
+    old = """        draft.buttons.append(replace(spec, row=draft.current_row))
+        draft.mode = \"ready\"
+        await message.reply_text(f\"Кнопка «{spec.text}» добавлена.\")"""
+    new = """        draft.buttons.append(replace(spec, row=draft.current_row))
+        disabled_source_buttons = bool(draft.source_markup and draft.keep_source_markup)
+        if disabled_source_buttons:
+            draft.keep_source_markup = False
+        draft.mode = \"ready\"
+        added_text = f\"Кнопка «{spec.text}» добавлена.\"
+        if disabled_source_buttons:
+            added_text += \"\\nКнопки исходника отключены, чтобы старые промо-кнопки не попали вниз публикации.\"
+        await message.reply_text(added_text)"""
+
+    if old not in source:
+        raise InstallError("Не удалось найти участок добавления кнопки в channel_publish_bot.py")
+    patched = source.replace(old, new, 1)
+    parse(patched, "channel_publish_bot.py after source button patch")
+    return patched
+
+
 def download(url: str, name: str) -> bytes:
     request = urllib.request.Request(url, headers={"User-Agent": "Nyan-Wallet-Channel-Publisher-Installer/1.0"})
     try:
@@ -197,6 +221,8 @@ def main() -> int:
     files = [bot_path]
     for filename, url in MODULES.items():
         data = download(url, filename)
+        if filename == "channel_publish_bot.py":
+            data = patch_channel_publish_bot(data.decode("utf-8")).encode("utf-8")
         target = root / filename
         backup(target, stamp)
         atomic_write(target, data, 0o600)
