@@ -1,0 +1,304 @@
+/* French seasonal theme for Nyan Wallet.
+   Pure CSS only: no images, no extra UI markup, and no functional changes. */
+:root {
+    --fr-blue: #1d5fd6;
+    --fr-blue-deep: #123f97;
+    --fr-white: #fffafc;
+    --fr-red: #ef3f67;
+    --fr-red-deep: #a6254d;
+    --fr-ink: #53243b;
+    --fr-muted: #8f6078;
+    --fr-border: rgba(255, 255, 255, 0.72);
+    --fr-shadow-blue: rgba(29, 95, 214, 0.16);
+    --fr-shadow-red: rgba(239, 63, 103, 0.18);
+
+    --ny-bg: #fff8fb;
+    --ny-card: rgba(255, 255, 255, 0.92);
+    --ny-text: var(--fr-ink);
+    --ny-sub: var(--fr-muted);
+    --ny-accent: var(--fr-red);
+    --ny-accent-deep: var(--fr-red-deep);
+    --ny-soft: #ffe1eb;
+    --ny-border: rgba(223, 211, 225, 0.88);
+    --ny-shadow: 0 18px 46px rgba(74, 42, 82, 0.09);
+}
+
+body {
+    background:
+        radial-gradient(circle at 50% 10%, rgba(255, 255, 255, 0.96) 0 13%, rgba(255, 255, 255, 0) 34%),
+        linear-gradient(90deg,
+            rgba(29, 95, 214, 0.68) 0%,
+            rgba(84, 137, 235, 0.38) 24%,
+            rgba(255, 250, 252, 0.95) 43%,
+            rgba(255, 250, 252, 0.98) 56%,
+            rgba(255, 125, 154, 0.42) 76%,
+            rgba(239, 63, 103, 0.72) 100%),
+        #fff8fb;
+    color: var(--fr-ink);
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        radial-gradient(ellipse at center, rgba(255, 255, 255, 0.66) 0 18%, rgba(255, 255, 255, 0) 58%),
+        repeating-conic-gradient(from -22deg at 50% 22%,
+            rgba(255, 255, 255, 0.18) 0 5deg,
+            rgba(255, 255, 255, 0) 5deg 13deg);
+    opacity: 0.62;
+}
+
+.loading-mark,
+.wallet-card-mark,
+.earn-icon,
+.nyan-action-icon,
+#owner-view .nyan-admin-arrow,
+.ny-quick-icon,
+.ny-avatar,
+#ny-achievement-modal .ny-ach-modal-icon {
+    background:
+        linear-gradient(90deg, rgba(29, 95, 214, 0.14), rgba(255, 255, 255, 0.92) 48%, rgba(239, 63, 103, 0.14)),
+        rgba(255, 255, 255, 0.82) !important;
+    border-color: rgba(255, 255, 255, 0.68) !important;
+    color: var(--fr-red-deep) !important;
+}
+
+.loading-title,
+.logo,
+.page-title,
+.owner-title,
+.ny-section-title,
+.ny-profile-name,
+.history h2 {
+    color: var(--fr-red-deep) !important;
+}
+
+.username,
+.loading-text,
+.page-subtitle,
+.owner-subtitle,
+.transaction-meta,
+.currency-name,
+.balance-label,
+.wallet-detail-label,
+.ny-section-link,
+.ny-stat-label,
+.ny-goal-meta,
+.ny-event-desc,
+.ny-profile-handle,
+.owner-status,
+.promo-status,
+.earn-note {
+    color: var(--fr-muted) !important;
+}
+
+.loading-spinner {
+    border-color: rgba(255, 255, 255, 0.76);
+    border-left-color: var(--fr-blue);
+    border-top-color: var(--fr-red);
+}
+
+.balance-card {
+    background:
+        radial-gradient(circle at 50% 12%, rgba(255, 255, 255, 0.98) 0 11%, rgba(255, 255, 255, 0) 31%),
+        linear-gradient(90deg,
+            rgba(29, 95, 214, 0.88) 0%,
+            rgba(29, 95, 214, 0.62) 26%,
+            rgba(255, 255, 255, 0.96) 42%,
+            rgba(255, 255, 255, 0.98) 58%,
+            rgba(239, 63, 103, 0.58) 76%,
+            rgba(239, 63, 103, 0.9) 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.72) !important;
+    box-shadow:
+        -16px 22px 50px var(--fr-shadow-blue),
+        16px 22px 50px var(--fr-shadow-red) !important;
+}
+
+.balance-card::before {
+    right: -82px;
+    top: -78px;
+    border-color: rgba(255, 255, 255, 0.34) !important;
+}
+
+.balance-card::after {
+    background: rgba(255, 255, 255, 0.34) !important;
+}
+
+.wallet-card-name,
+.balance,
+.wallet-number,
+.wallet-holder,
+.transaction-amount,
+.owner-user-row-balance,
+.owner-promo-reward,
+.selected-user-balance,
+.reward-badge,
+.promo-title,
+.earn-topline h3,
+.ny-stat-value,
+.ny-goal-title,
+.ny-event-title,
+.ny-latest-title,
+.ny-profile-stat b,
+.ny-chip,
+.ny-modal-title,
+.ny-modal-price {
+    color: var(--fr-red-deep) !important;
+}
+
+.wallet-card-type,
+.wallet-status,
+.wallet-detail-label,
+.balance-label,
+.currency-name {
+    color: rgba(83, 36, 59, 0.72) !important;
+}
+
+.wallet-card-bottom {
+    border-top-color: rgba(255, 255, 255, 0.48) !important;
+}
+
+.wallet-card-mark,
+.wallet-status {
+    background: rgba(255, 255, 255, 0.74) !important;
+    border-color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.balance-card.is-owner .wallet-status,
+.owner-grant-button,
+.ny-filter.active,
+.ny-event-badge,
+.ny-modal-primary,
+#wallet-view .actions.nyan-actions-grid #owner-button,
+.ach-toast {
+    background: linear-gradient(135deg, var(--fr-blue), var(--fr-red)) !important;
+    border-color: rgba(255, 255, 255, 0.4) !important;
+    color: #fff !important;
+}
+
+button,
+.owner-action,
+.back-button,
+.owner-debit-button,
+.ny-section-link,
+.ny-filter,
+.ny-modal-secondary,
+.ny-goal button,
+#wallet-view .actions.nyan-actions-grid button,
+.ny-quick button,
+#owner-view .nyan-admin-toggle,
+#owner-view .nyan-owner-list-toggle {
+    background:
+        linear-gradient(90deg, rgba(29, 95, 214, 0.08), rgba(255, 255, 255, 0.9) 48%, rgba(239, 63, 103, 0.1)),
+        rgba(255, 255, 255, 0.9) !important;
+    border-color: rgba(232, 217, 228, 0.94) !important;
+    color: var(--fr-red-deep) !important;
+    box-shadow: 0 10px 26px rgba(74, 42, 82, 0.055) !important;
+}
+
+.actions .primary-action,
+#promo-activate,
+#owner-promo-create,
+.promo-row button,
+.admin-search-row button,
+#wallet-view .actions.nyan-actions-grid #earn-button,
+#wallet-view .actions.nyan-actions-grid #spend-button {
+    background: linear-gradient(135deg, var(--fr-blue) 0%, #fff5f8 49%, var(--fr-red) 100%) !important;
+    color: var(--fr-ink) !important;
+    border: 1px solid rgba(255, 255, 255, 0.64) !important;
+    box-shadow: -10px 14px 30px var(--fr-shadow-blue), 10px 14px 30px var(--fr-shadow-red) !important;
+}
+
+.admin-section,
+.earn-card,
+.promo-card,
+.empty,
+.transaction-row,
+.owner-user-row,
+.owner-promo-row,
+.admin-empty,
+.ny-section,
+.ny-profile-hero,
+.ny-profile-stat,
+.ny-goal,
+.ny-event-card,
+.ny-latest-item,
+.ny-modal,
+.ny-modal-meta > div,
+.ny-ach-condition,
+#adv-level-card .adv-level,
+#adv-profile-view .adv-panel,
+#reward-list .feature-card,
+.ny-ach-mini {
+    background:
+        linear-gradient(90deg, rgba(29, 95, 214, 0.045), rgba(255, 255, 255, 0.94) 46%, rgba(239, 63, 103, 0.055)),
+        rgba(255, 255, 255, 0.9) !important;
+    border-color: rgba(235, 220, 230, 0.96) !important;
+    box-shadow: 0 12px 34px rgba(74, 42, 82, 0.06) !important;
+}
+
+.owner-field input,
+.admin-search-row input,
+.promo-row input {
+    background: rgba(255, 255, 255, 0.88) !important;
+    border-color: rgba(226, 214, 226, 0.98) !important;
+    color: var(--fr-ink) !important;
+}
+
+.owner-field input:focus,
+.admin-search-row input:focus,
+.promo-row input:focus {
+    border-color: rgba(29, 95, 214, 0.44) !important;
+    box-shadow: 0 0 0 3px rgba(239, 63, 103, 0.11) !important;
+}
+
+.reward-badge,
+.selected-user-balance,
+.ny-chip,
+.ny-modal-price,
+.ny-reward-tag,
+.ny-ach-rarity {
+    background: linear-gradient(90deg, rgba(29, 95, 214, 0.1), rgba(255, 255, 255, 0.82), rgba(239, 63, 103, 0.12)) !important;
+}
+
+.ny-progress,
+.ny-reward-progress {
+    background: rgba(255, 255, 255, 0.7) !important;
+}
+
+.ny-progress > span,
+.ny-reward-progress span {
+    background: linear-gradient(90deg, var(--fr-blue), #fff, var(--fr-red)) !important;
+}
+
+.ny-modal-backdrop {
+    background: rgba(24, 40, 84, 0.28) !important;
+}
+
+::selection {
+    background: rgba(29, 95, 214, 0.22);
+    color: var(--fr-ink);
+}
+
+@media (max-width: 380px) {
+    body {
+        background:
+            linear-gradient(90deg,
+                rgba(29, 95, 214, 0.56) 0%,
+                rgba(255, 250, 252, 0.96) 48%,
+                rgba(239, 63, 103, 0.58) 100%),
+            #fff8fb;
+    }
+
+    .balance-card {
+        background:
+            radial-gradient(circle at 50% 10%, rgba(255, 255, 255, 0.98) 0 12%, rgba(255, 255, 255, 0) 34%),
+            linear-gradient(90deg,
+                rgba(29, 95, 214, 0.8) 0%,
+                rgba(255, 255, 255, 0.97) 49%,
+                rgba(239, 63, 103, 0.82) 100%) !important;
+    }
+}
