@@ -27,6 +27,7 @@ from .appeals import register_appeals
 from .transfers import register_transfers
 from .broadcast import register_broadcast
 from .maintenance import register_maintenance
+from .paris_event import register_paris_event
 
 register_campaign_promos()
 register_limited_promos(backend_app.app)
@@ -47,3 +48,4 @@ register_appeals(backend_app.app)
 register_transfers(backend_app.app)
 register_broadcast(backend_app.app)
 register_maintenance(backend_app.app)
+register_paris_event(backend_app.app)
