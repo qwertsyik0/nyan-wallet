@@ -389,10 +389,8 @@ async def channel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             chat_id=user.id,
             text=(
                 "Пришлите Mini App кнопку в формате:\n"
-                "Открыть Nyan Wallet | https://qwertsyik0.github.io/nyan-wallet/\n\n"
-                "Для промо можно так:\n"
                 "🐾 Забрать 109 | promo:nyan109\n\n"
-                "В канал кнопка будет опубликована как Telegram Mini App deep link."
+                "Также можно отправить обычный HTTPS URL Mini App. В канал он будет опубликован как Telegram deep link."
             ),
         )
     elif action == "new_row":
