@@ -10,6 +10,7 @@
     const status = document.getElementById("promo-status");
     const bodyData = document.body?.dataset || {};
     const defaultCode = bodyData.defaultPromoCode || "NYANFLASH600";
+    const lockPromoCode = bodyData.promoLockCode === "true";
     const configuredReward = Number.parseInt(bodyData.promoReward || "600", 10);
     const rewardAmount = Number.isInteger(configuredReward) && configuredReward > 0 ? configuredReward : 600;
     const configuredLimit = Number.parseInt(bodyData.promoLimit || "0", 10);
@@ -40,6 +41,7 @@
     }
 
     function promoCode() {
+        if (lockPromoCode) return normalizeCode(defaultCode);
         try {
             const url = new URL(window.location.href);
             const fromQuery = url.searchParams.get("code");
