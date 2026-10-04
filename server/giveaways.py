@@ -7,6 +7,8 @@ import hmac
 import json
 import re
 import secrets
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from collections import defaultdict
@@ -1289,23 +1291,59 @@ def sync_giveaway_buttons(session, giveaway: Giveaway, closed: bool) -> None:
 
 
 def telegram_membership(chat_id: int, telegram_id: int) -> tuple[bool | None, str | None]:
-    try:
-        params = urllib.parse.urlencode({"chat_id": str(chat_id), "user_id": str(telegram_id)})
-        url = f"https://api.telegram.org/bot{core.BOT_TOKEN}/getChatMember?{params}"
+    params = urllib.parse.urlencode({"chat_id": str(chat_id), "user_id": str(telegram_id)})
+    url = f"https://api.telegram.org/bot{core.BOT_TOKEN}/getChatMember?{params}"
+
+    # getChatMember is called hundreds of times during a large draw. Telegram may
+    # transiently answer with 429/5xx or a socket timeout, so retry those cases
+    # instead of aborting the whole giveaway after one failed request.
+    max_attempts = 5
+    for attempt in range(max_attempts):
         request = urllib.request.Request(url, method="GET")
-        with urllib.request.urlopen(request, timeout=5) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-        if not payload.get("ok"):
-            return None, "Telegram не подтвердил проверку подписки"
-        result = payload.get("result") or {}
-        status = result.get("status")
-        if status in {"creator", "administrator", "member"}:
-            return True, None
-        if status == "restricted" and bool(result.get("is_member")):
-            return True, None
-        return False, None
-    except Exception:
-        return None, "Не удалось проверить подписку"
+        try:
+            with urllib.request.urlopen(request, timeout=8) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+
+            if not payload.get("ok"):
+                parameters = payload.get("parameters") or {}
+                retry_after = parameters.get("retry_after")
+                if retry_after is not None and attempt + 1 < max_attempts:
+                    time.sleep(min(5.0, max(0.5, float(retry_after))))
+                    continue
+                return None, payload.get("description") or "Telegram не подтвердил проверку подписки"
+
+            result = payload.get("result") or {}
+            status = result.get("status")
+            if status in {"creator", "administrator", "member"}:
+                return True, None
+            if status == "restricted" and bool(result.get("is_member")):
+                return True, None
+            return False, None
+
+        except urllib.error.HTTPError as exc:
+            retry_after = None
+            if exc.code == 429:
+                try:
+                    body = json.loads(exc.read().decode("utf-8"))
+                    retry_after = (body.get("parameters") or {}).get("retry_after")
+                except Exception:
+                    retry_after = None
+
+            if exc.code == 429 and attempt + 1 < max_attempts:
+                time.sleep(min(5.0, max(0.5, float(retry_after or (attempt + 1)))))
+                continue
+            if 500 <= exc.code < 600 and attempt + 1 < max_attempts:
+                time.sleep(0.4 * (attempt + 1))
+                continue
+            return None, f"Telegram API HTTP {exc.code}"
+
+        except Exception as exc:
+            if attempt + 1 < max_attempts:
+                time.sleep(0.35 * (attempt + 1))
+                continue
+            return None, f"Не удалось проверить подписку: {type(exc).__name__}"
+
+    return None, "Не удалось проверить подписку"
 
 
 def eligibility(session, giveaway: Giveaway, user: core.User, *, check_subscriptions: bool = True) -> tuple[bool, str | None, bool]:
@@ -1810,8 +1848,8 @@ def eligible_participant_ids(
 
     # Telegram membership checks are done in bounded batches. This prevents a
     # large giveaway from allocating one future for every user/channel pair.
-    batch_size = 100
-    workers = min(24, max(1, len(required_channels) * min(batch_size, max(1, len(locally_eligible)))))
+    batch_size = 40
+    workers = min(8, max(1, len(required_channels) * min(batch_size, max(1, len(locally_eligible)))))
     with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="nyg-member") as executor:
         for offset in range(0, len(locally_eligible), batch_size):
             batch = locally_eligible[offset : offset + batch_size]
@@ -1838,7 +1876,11 @@ def eligible_participant_ids(
                     if member is None:
                         raise HTTPException(
                             status_code=503,
-                            detail=f"Не удалось проверить подписку на {label}. Попробуйте позже.",
+                            detail=(
+                                f"Не удалось проверить подписку на {label} после нескольких попыток"
+                                + (f": {error}" if error else "")
+                                + ". Попробуйте ещё раз."
+                            ),
                         )
                     if not member:
                         failed_reason = f"Вы не подписаны на {label}"
