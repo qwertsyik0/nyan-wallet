@@ -95,6 +95,8 @@ if (unsafeUser) {
     if (walletHolderEl) walletHolderEl.textContent = walletHolderName(unsafeUser);
 }
 
+const OWNER_WALLET_NUMBER = "NYAN 7777 7777 7777";
+
 function createWalletNumber(telegramId) {
     const input = `nyan-wallet:${telegramId || "guest"}`;
     let left = 0x811c9dc5;
@@ -621,7 +623,11 @@ for (const input of [ownerPromoCode, ownerPromoReward, ownerPromoLimit, ownerPro
 function applyUserState(user) {
     currentUser = user;
     usernameEl.textContent = user.first_name || user.username || "пользователь";
-    if (walletNumberEl) walletNumberEl.textContent = createWalletNumber(user.telegram_id);
+    if (walletNumberEl) {
+        walletNumberEl.textContent = user.is_owner
+            ? OWNER_WALLET_NUMBER
+            : createWalletNumber(user.telegram_id);
+    }
     if (walletHolderEl) walletHolderEl.textContent = walletHolderName(user);
     if (walletStatusEl) walletStatusEl.textContent = user.is_owner ? "Владелец" : "Участник Нян";
     walletCardEl?.classList.toggle("is-owner", Boolean(user.is_owner));
