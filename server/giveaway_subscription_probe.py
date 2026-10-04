@@ -1,3 +1,5 @@
+import asyncio
+
 from sqlalchemy import select
 
 from . import backend_app as core
@@ -57,3 +59,15 @@ def probe_active_giveaway_subscription() -> None:
                 "[giveaway_subscription_probe_result] "
                 f"telegram_id={participant.telegram_id} member={member} error={error!r}"
             )
+
+
+async def _run_probe_background() -> None:
+    await asyncio.to_thread(probe_active_giveaway_subscription)
+
+
+async def _schedule_probe() -> None:
+    asyncio.create_task(_run_probe_background(), name="nyan-giveaway-subscription-probe")
+
+
+def register_subscription_probe(app) -> None:
+    app.add_event_handler("startup", _schedule_probe)
