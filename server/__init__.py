@@ -29,6 +29,7 @@ from .broadcast import register_broadcast
 from .maintenance import register_maintenance
 from .manual_grants_20261004 import apply_interactive_grants_20261004
 from .manual_grants_20261004_backfill import backfill_interactive_grants_20261004
+from .giveaway_bot_history_bonus import grant_bot_history_ticket_to_active_giveaway
 
 register_campaign_promos()
 apply_interactive_grants_20261004()
@@ -47,6 +48,7 @@ register_daily_tasks(backend_app.app)
 register_daily_tasks_defaults_v2()
 register_daily_task_hooks()
 register_giveaways(backend_app.app)
+grant_bot_history_ticket_to_active_giveaway()
 register_appeals(backend_app.app)
 register_transfers(backend_app.app)
 register_broadcast(backend_app.app)
