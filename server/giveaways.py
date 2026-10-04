@@ -1343,6 +1343,25 @@ def telegram_membership(chat_id: int, telegram_id: int) -> tuple[bool | None, st
                 "[giveaway_membership_error] "
                 f"chat_id={chat_id} telegram_id={telegram_id} http={exc.code} detail={detail!r}"
             )
+
+            # Telegram can return HTTP 400 for an individual account that no
+            # longer exists or cannot be resolved as a chat participant. That
+            # is a participant-level failure, not a channel/API outage, so the
+            # user should simply fail the subscription condition instead of
+            # aborting the entire draw.
+            normalized_detail = detail.lower()
+            participant_missing_markers = (
+                "user not found",
+                "user_id_invalid",
+                "participant_id_invalid",
+                "participant not found",
+                "member not found",
+            )
+            if exc.code == 400 and any(
+                marker in normalized_detail for marker in participant_missing_markers
+            ):
+                return False, detail
+
             return None, detail
 
         except Exception as exc:
