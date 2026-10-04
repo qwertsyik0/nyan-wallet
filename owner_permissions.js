@@ -20,6 +20,12 @@
 
     let ownerKnown = false;
     let isOwner = false;
+
+    function applyOwnerWalletNumber() {
+        if (!isOwner) return;
+        const walletNumber = document.getElementById("wallet-number");
+        if (walletNumber) walletNumber.textContent = "7777 7777 7777";
+    }
     let scheduled = false;
 
     function headers() {
@@ -109,6 +115,7 @@
             window.__nyanIsOwner = isOwner;
             window.__nyanWalletUser = data.user || null;
             document.body.dataset.nyanRole = isOwner ? "owner" : "user";
+            applyOwnerWalletNumber();
             window.dispatchEvent(new CustomEvent("nyan-owner-state", { detail: { is_owner: isOwner, user: data.user || null } }));
         } catch (error) {
             console.warn("Nyan owner permission check failed:", error);
@@ -134,7 +141,8 @@
         placeDailyTasks();
         const observer = new MutationObserver(scheduleEnforce);
         observer.observe(document.body, { childList: true, subtree: true });
-        void resolveOwner();
+        window.addEventListener("nyan-owner-state", applyOwnerWalletNumber);
+    void resolveOwner();
     }
 
     if (document.readyState === "loading") {
