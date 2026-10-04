@@ -1322,12 +1322,14 @@ def telegram_membership(chat_id: int, telegram_id: int) -> tuple[bool | None, st
 
         except urllib.error.HTTPError as exc:
             retry_after = None
-            if exc.code == 429:
-                try:
-                    body = json.loads(exc.read().decode("utf-8"))
-                    retry_after = (body.get("parameters") or {}).get("retry_after")
-                except Exception:
-                    retry_after = None
+            description = None
+            try:
+                raw_error = exc.read().decode("utf-8")
+                body = json.loads(raw_error)
+                description = body.get("description")
+                retry_after = (body.get("parameters") or {}).get("retry_after")
+            except Exception:
+                body = None
 
             if exc.code == 429 and attempt + 1 < max_attempts:
                 time.sleep(min(5.0, max(0.5, float(retry_after or (attempt + 1)))))
@@ -1335,7 +1337,13 @@ def telegram_membership(chat_id: int, telegram_id: int) -> tuple[bool | None, st
             if 500 <= exc.code < 600 and attempt + 1 < max_attempts:
                 time.sleep(0.4 * (attempt + 1))
                 continue
-            return None, f"Telegram API HTTP {exc.code}"
+
+            detail = description or f"Telegram API HTTP {exc.code}"
+            print(
+                "[giveaway_membership_error] "
+                f"chat_id={chat_id} telegram_id={telegram_id} http={exc.code} detail={detail!r}"
+            )
+            return None, detail
 
         except Exception as exc:
             if attempt + 1 < max_attempts:
