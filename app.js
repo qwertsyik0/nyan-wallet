@@ -95,7 +95,7 @@ if (unsafeUser) {
     if (walletHolderEl) walletHolderEl.textContent = walletHolderName(unsafeUser);
 }
 
-const OWNER_WALLET_NUMBER = "NYAN 7777 7777 7777";
+const OWNER_WALLET_NUMBER = "7777 7777 7777";
 
 function createWalletNumber(telegramId) {
     const input = `nyan-wallet:${telegramId || "guest"}`;
