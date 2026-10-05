@@ -153,8 +153,10 @@
   color:#7e4059;
   box-shadow:none;
   font-size:9px;
+  line-height:1.25;
   font-weight:800;
-  white-space:nowrap;
+  white-space:normal;
+  overflow-wrap:anywhere;
 }
 .nyan-home-more-button[hidden]{display:none!important}
 .nyan-home-more-button .nyan-home-badge{
