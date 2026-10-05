@@ -8,6 +8,7 @@ from sqlalchemy import func, or_, select
 
 from . import backend_app as core
 from .transfers import WalletTransfer
+from .advanced_features import Referral
 
 TARGETS = ("zumiexx", "lolitqq_a", "Margarylo")
 
@@ -145,6 +146,25 @@ def audit_target_accounts() -> None:
                     "amount": int(tx.amount),
                     "description": tx.description,
                 }, ensure_ascii=False))
+
+        referrals = session.scalars(
+            select(Referral).where(Referral.invited_id.in_(ids))
+        ).all()
+        referral_ids = sorted({int(r.inviter_id) for r in referrals})
+        referral_users = {
+            int(u.telegram_id): u
+            for u in session.scalars(
+                select(core.User).where(core.User.telegram_id.in_(referral_ids))
+            ).all()
+        } if referral_ids else {}
+        for ref in referrals:
+            print("[fraud_audit_referral] " + json.dumps({
+                "invited": _label(user_by_id.get(int(ref.invited_id)), int(ref.invited_id)),
+                "inviter": _label(referral_users.get(int(ref.inviter_id)), int(ref.inviter_id)),
+                "created_at": ref.created_at.isoformat(),
+                "invited_reward": int(ref.invited_reward),
+                "inviter_reward": int(ref.inviter_reward),
+            }, ensure_ascii=False))
 
         # Same recipient aggregation for the suspect accounts as senders.
         grouped = session.execute(
