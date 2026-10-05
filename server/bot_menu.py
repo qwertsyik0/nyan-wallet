@@ -50,7 +50,7 @@ def sync_bot_menu_buttons() -> None:
                 text="Управлять",
                 url=MINI_APP_URL,
             )
-        logger.info("Telegram bot menu buttons synchronized")
+        print("[bot_menu] public=Nyan Wallet owner=Управлять synchronized")
     except (urllib.error.URLError, TimeoutError, RuntimeError, ValueError) as exc:
         # Bot menu sync must never prevent the Wallet API from starting.
         logger.warning("Telegram bot menu sync failed: %s", exc)
