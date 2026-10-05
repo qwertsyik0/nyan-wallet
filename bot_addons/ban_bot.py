@@ -13,8 +13,9 @@ import urllib.request
 from typing import Any
 from urllib.parse import urlparse
 
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram import BotCommand, BotCommandScopeChat, Update
+from telegram.error import TelegramError
+from telegram.ext import Application, ApplicationHandlerStop, CommandHandler, ContextTypes
 
 logger = logging.getLogger("nyan_wallet.ban_bot")
 
@@ -23,6 +24,7 @@ DEFAULT_OWNER_ID = 6289461565
 MAX_REASON_LENGTH = 300
 MAX_RESPONSE_BYTES = 64 * 1024
 TIMEOUT_SECONDS = 10.0
+_menu_hook_installed = False
 
 
 class BanBotError(RuntimeError):
@@ -129,6 +131,25 @@ async def _require_owner(update: Update) -> bool:
     return True
 
 
+async def _ensure_owner_command_menu(application: Application) -> None:
+    scope = BotCommandScopeChat(chat_id=_owner_id())
+    try:
+        default_commands = await application.bot.get_my_commands()
+        owner_commands = await application.bot.get_my_commands(scope=scope)
+        merged: dict[str, BotCommand] = {
+            command.command: command
+            for command in [*default_commands, *owner_commands]
+        }
+        merged["ban"] = BotCommand(command="ban", description="Заблокировать пользователя")
+        merged["unban"] = BotCommand(command="unban", description="Разблокировать пользователя")
+        await application.bot.set_my_commands(
+            list(merged.values())[:100],
+            scope=scope,
+        )
+    except TelegramError:
+        logger.exception("ban_owner_command_menu_failed")
+
+
 async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = update.effective_message
     if message is None or not await _require_owner(update):
@@ -202,8 +223,26 @@ async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await message.reply_text(f"{display} и так не был заблокирован.")
     else:
         await message.reply_text(f"✅ {display} разблокирован в Nyan Wallet.")
+    raise ApplicationHandlerStop
 
 
 def register_ban_handlers(app: Application) -> None:
-    app.add_handler(CommandHandler("ban", ban_command))
-    app.add_handler(CommandHandler("unban", unban_command))
+    global _menu_hook_installed
+
+    # Negative group makes admin commands run before generic text/catch-all handlers.
+    app.add_handler(CommandHandler("ban", ban_command), group=-100)
+    app.add_handler(CommandHandler("unban", unban_command), group=-100)
+
+    if not _menu_hook_installed:
+        previous_post_init = getattr(app, "post_init", None)
+
+        async def _ban_post_init(application: Application) -> None:
+            if previous_post_init is not None:
+                await previous_post_init(application)
+            await _ensure_owner_command_menu(application)
+
+        try:
+            app.post_init = _ban_post_init
+            _menu_hook_installed = True
+        except Exception:
+            logger.exception("ban_post_init_hook_failed")
