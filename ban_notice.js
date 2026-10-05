@@ -161,6 +161,15 @@
         tg?.SecondaryButton?.hide?.();
     }
 
+    function clearBlocked() {
+        const overlay = document.getElementById("nyan-ban-overlay");
+        if (overlay) overlay.hidden = true;
+        document.documentElement.style.overflow = "";
+        document.body.style.overflow = "";
+        window.__nyanAccountBlocked = false;
+        shown = false;
+    }
+
     async function checkBanStatus() {
         if (!tg?.initData) return false;
 
@@ -180,7 +189,7 @@
                 return true;
             }
 
-            window.__nyanAccountBlocked = false;
+            clearBlocked();
             return false;
         } catch (error) {
             console.warn("Nyan ban status check failed:", error);
@@ -202,6 +211,6 @@
     }
 
     window.addEventListener("pageshow", () => {
-        if (!shown) void checkBanStatus();
+        void checkBanStatus();
     });
 })();
