@@ -150,7 +150,7 @@
     tg?.MainButton?.onClick?.(activate);
 
     walletButton?.addEventListener("click", () => {
-        window.location.href = "./";
+        window.location.href = "https://qwertsyik0.github.io/nyan-wallet/";
     });
 
     void warmUp();
