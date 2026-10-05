@@ -42,6 +42,11 @@ jobs:
           assert hashlib.sha256(source).hexdigest() == "b2c8fc0749bc0066509828c6b2f0fde92542a772ae9d68d2e8350b55e6567c98"
           compile(source.decode("utf-8"), "giveaway_bot.py", "exec")
           print("giveaway_bot payload OK")
+          text = source.decode("utf-8")
+          for no, line in enumerate(text.splitlines(), 1):
+              low = line.lower()
+              if any(key in low for key in ("управлять", "управление", "manage", "webappinfo", "replykeyboardmarkup", "inlinekeyboardbutton")):
+                  print(f"BOTMENU {no}: {line}")
           PY
       - name: Audit giveaway bot feature markers
         run: |
