@@ -42,6 +42,8 @@ const ownerAmount = document.getElementById("owner-amount");
 const ownerReason = document.getElementById("owner-reason");
 const ownerGrant = document.getElementById("owner-grant");
 const ownerDebit = document.getElementById("owner-debit");
+const ownerBanToggle = document.getElementById("owner-ban-toggle");
+const ownerBanStatus = document.getElementById("owner-ban-status");
 const ownerStatus = document.getElementById("owner-status");
 const ownerUserHistory = document.getElementById("owner-user-history");
 
@@ -56,6 +58,7 @@ const ownerPromoList = document.getElementById("owner-promo-list");
 
 let currentUser = null;
 let selectedOwnerUserId = null;
+let selectedOwnerUserBlocked = false;
 let initialLoadFinished = false;
 
 function giveawayDeepLinkId() {
@@ -400,6 +403,7 @@ async function selectOwnerUser(telegramId) {
         selectedUserMeta.textContent = `Telegram ID ${user.telegram_id}${user.last_seen_at ? ` · был в кошельке ${formatDate(user.last_seen_at)}` : ""}`;
         selectedUserBalance.textContent = user.unlimited_balance ? "∞ 🐾" : `${user.balance} 🐾`;
         ownerUserCard.hidden = false;
+        await refreshSelectedBanStatus();
 
         if (!data.transactions.length) {
             const empty = document.createElement("div");
@@ -417,6 +421,98 @@ async function selectOwnerUser(telegramId) {
         ownerStatus.textContent = error.message || "Не удалось открыть пользователя";
     }
 }
+
+async function refreshSelectedBanStatus() {
+    if (!selectedOwnerUserId || !ownerBanToggle) return;
+
+    ownerBanToggle.disabled = true;
+    if (ownerBanStatus) ownerBanStatus.textContent = "Проверяем блокировку…";
+
+    try {
+        const response = await fetch(`${API_BASE}/api/owner/bans/status/${selectedOwnerUserId}`, {
+            headers: authHeaders(),
+            cache: "no-store",
+        });
+        const data = await readJson(response);
+        if (!response.ok) throw new Error(data?.detail || "Не удалось проверить блокировку");
+
+        selectedOwnerUserBlocked = data.blocked === true;
+        ownerBanToggle.textContent = selectedOwnerUserBlocked ? "Разблокировать" : "Заблокировать";
+
+        if (ownerBanStatus) {
+            if (selectedOwnerUserBlocked) {
+                const reason = data?.ban?.reason ? ` · ${data.ban.reason}` : "";
+                ownerBanStatus.textContent = `Пользователь заблокирован${reason}`;
+            } else {
+                ownerBanStatus.textContent = "Пользователь не заблокирован";
+            }
+        }
+    } catch (error) {
+        if (ownerBanStatus) ownerBanStatus.textContent = error.message || "Не удалось проверить блокировку";
+    } finally {
+        ownerBanToggle.disabled = false;
+    }
+}
+
+function confirmOwnerAction(message) {
+    return new Promise((resolve) => {
+        if (typeof tg?.showConfirm === "function") {
+            tg.showConfirm(message, (ok) => resolve(Boolean(ok)));
+            return;
+        }
+        resolve(window.confirm(message));
+    });
+}
+
+async function toggleSelectedUserBan() {
+    if (!selectedOwnerUserId || !ownerBanToggle) {
+        if (ownerBanStatus) ownerBanStatus.textContent = "Сначала выберите пользователя.";
+        return;
+    }
+
+    const action = selectedOwnerUserBlocked ? "unban" : "ban";
+    const reason = ownerReason?.value.trim() || "";
+    const prompt = selectedOwnerUserBlocked
+        ? "Разблокировать этого пользователя?"
+        : "Заблокировать пользователя в Nyan Wallet?";
+
+    if (!(await confirmOwnerAction(prompt))) return;
+
+    ownerBanToggle.disabled = true;
+    if (ownerBanStatus) {
+        ownerBanStatus.textContent = action === "ban" ? "Блокируем…" : "Разблокируем…";
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/api/owner/bans/${action}`, {
+            method: "POST",
+            headers: authHeaders(true),
+            body: JSON.stringify({
+                target: String(selectedOwnerUserId),
+                reason: action === "ban" && reason ? reason : null,
+            }),
+        });
+        const data = await readJson(response);
+        if (!response.ok) throw new Error(data?.detail || "Операция не выполнена");
+
+        selectedOwnerUserBlocked = action === "ban";
+        ownerBanToggle.textContent = selectedOwnerUserBlocked ? "Разблокировать" : "Заблокировать";
+        if (ownerBanStatus) {
+            ownerBanStatus.textContent = selectedOwnerUserBlocked
+                ? `Пользователь заблокирован${reason ? `: ${reason}` : ""}`
+                : "Пользователь разблокирован";
+        }
+        tg?.HapticFeedback?.notificationOccurred?.("success");
+        await loadOwnerUsers();
+    } catch (error) {
+        if (ownerBanStatus) ownerBanStatus.textContent = error.message || "Операция не выполнена";
+        tg?.HapticFeedback?.notificationOccurred?.("error");
+    } finally {
+        ownerBanToggle.disabled = false;
+    }
+}
+
+ownerBanToggle?.addEventListener("click", () => void toggleSelectedUserBan());
 
 ownerUserSearchButton?.addEventListener("click", () => loadOwnerUsers());
 ownerUserSearch?.addEventListener("keydown", (event) => {
