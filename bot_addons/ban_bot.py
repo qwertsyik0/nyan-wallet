@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 
 from telegram import BotCommand, BotCommandScopeChat, Update
 from telegram.error import TelegramError
-from telegram.ext import Application, ApplicationHandlerStop, CommandHandler, ContextTypes
+from telegram.ext import Application, ApplicationHandlerStop, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
 logger = logging.getLogger("nyan_wallet.ban_bot")
 
@@ -120,6 +120,85 @@ def signed_action(action: str, target: str, reason: str | None = None) -> dict[s
     return data
 
 
+def signed_status(telegram_id: int) -> dict[str, Any]:
+    token = _bot_token()
+    payload = {"telegram_id": int(telegram_id)}
+    body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    timestamp = str(int(time.time()))
+    signature = hmac.new(
+        token.encode("utf-8"),
+        timestamp.encode("utf-8") + b"\n" + body,
+        hashlib.sha256,
+    ).hexdigest()
+
+    request = urllib.request.Request(
+        f"{_api_base()}/api/internal/user-ban/status",
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "X-Nyan-Timestamp": timestamp,
+            "X-Nyan-Signature": signature,
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+            raw = response.read(MAX_RESPONSE_BYTES + 1)
+    except urllib.error.HTTPError as exc:
+        raise BanBotError(_http_detail(exc)) from exc
+    except (urllib.error.URLError, TimeoutError, socket.timeout, ConnectionError) as exc:
+        raise BanBotError("Nyan Wallet API сейчас недоступен") from exc
+
+    if len(raw) > MAX_RESPONSE_BYTES:
+        raise BanBotError("API вернул слишком большой ответ")
+
+    try:
+        data = json.loads(raw.decode("utf-8"))
+    except Exception as exc:
+        raise BanBotError("API вернул некорректный ответ") from exc
+
+    if not isinstance(data, dict) or data.get("ok") is not True:
+        raise BanBotError("API не подтвердил проверку блокировки")
+    return data
+
+
+async def blocked_message_guard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    if user is None or user.id == _owner_id():
+        return
+
+    try:
+        status = await asyncio.to_thread(signed_status, user.id)
+    except Exception:
+        logger.exception("blocked_message_guard_status_failed user_id=%s", user.id)
+        return
+
+    if status.get("blocked") is True:
+        raise ApplicationHandlerStop
+
+
+async def blocked_callback_guard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    if user is None or user.id == _owner_id():
+        return
+
+    try:
+        status = await asyncio.to_thread(signed_status, user.id)
+    except Exception:
+        logger.exception("blocked_callback_guard_status_failed user_id=%s", user.id)
+        return
+
+    if status.get("blocked") is True:
+        query = update.callback_query
+        if query is not None:
+            try:
+                await query.answer()
+            except Exception:
+                pass
+        raise ApplicationHandlerStop
+
+
 async def _require_owner(update: Update) -> bool:
     user = update.effective_user
     message = update.effective_message
@@ -190,6 +269,7 @@ async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     if reason:
         text += f"\nПричина: {reason}"
     await message.reply_text(text)
+    raise ApplicationHandlerStop
 
 
 async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -231,7 +311,11 @@ async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 def register_ban_handlers(app: Application) -> None:
     global _menu_hook_installed
 
-    # Negative group makes admin commands run before generic text/catch-all handlers.
+    # Blocked users are silently stopped before /start, commands, text and buttons.
+    app.add_handler(MessageHandler(filters.ALL, blocked_message_guard), group=-200)
+    app.add_handler(CallbackQueryHandler(blocked_callback_guard), group=-200)
+
+    # Owner administration commands run before generic text/catch-all handlers.
     app.add_handler(CommandHandler("ban", ban_command), group=-100)
     app.add_handler(CommandHandler("unban", unban_command), group=-100)
 
