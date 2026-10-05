@@ -306,6 +306,39 @@ jobs:
               assert marker in notice, f"ban notice marker missing: {marker}"
           print("user ban subsystem static audit OK")
           PY
+      - name: Audit delayed-fee promo subsystem
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          backend = Path("server/promo_delayed_fee.py").read_text(encoding="utf-8")
+          compile(backend, "server/promo_delayed_fee.py", "exec")
+          for marker in (
+              'PROMO_CODE = "NYAN300"',
+              'FEE_PERCENT = 10',
+              'FEE_DELAY = timedelta(hours=1)',
+              '@router.post("/api/promo/nyan300/redeem")',
+              'accepted_terms',
+              'promo_delayed_fee',
+              'process_due_fees',
+          ):
+              assert marker in backend, f"delayed promo backend marker missing: {marker}"
+
+          campaign = Path("server/campaign_promos.py").read_text(encoding="utf-8")
+          assert '"code": "NYAN300"' in campaign
+          assert '"reward_amount": 300' in campaign
+          assert '"max_uses": 30' in campaign
+
+          html = Path("promo-300.html").read_text(encoding="utf-8")
+          for marker in (
+              "300 лапкоинов",
+              "30 активаций",
+              "10% от текущего баланса",
+              "Я понимаю и принимаю",
+          ):
+              assert marker in html, f"promo page marker missing: {marker}"
+          print("delayed-fee promo subsystem static audit OK")
+          PY
       - name: Check browser JavaScript syntax
         run: |
           for file in ./*.js; do
