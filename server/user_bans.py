@@ -55,6 +55,12 @@ class OwnerBanPayload(BaseModel):
         return value or None
 
 
+class InternalBanStatusPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    telegram_id: int = Field(gt=0)
+
+
 class InternalBanPayload(OwnerBanPayload):
     action: str
     owner_telegram_id: int = Field(gt=0)
@@ -146,6 +152,30 @@ def unban_target(target: str) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail="Не удалось разблокировать пользователя") from exc
 
 
+@router.get("/api/ban/status")
+async def public_ban_status(
+    x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
+):
+    tg = core.verify_init_data(x_telegram_init_data or "")
+    telegram_id = int(tg["id"])
+
+    if core.is_owner(telegram_id):
+        return {"ok": True, "blocked": False, "reason": None}
+
+    with core.SessionLocal() as session:
+        row = session.get(BlockedUser, telegram_id)
+
+    return {
+        "ok": True,
+        "blocked": row is not None,
+        "reason": (
+            row.reason
+            if row is not None and row.reason != "Без указания причины"
+            else None
+        ),
+    }
+
+
 @router.get("/api/owner/bans/status/{telegram_id}")
 async def owner_ban_status(
     telegram_id: int,
@@ -207,6 +237,34 @@ async def owner_ban_list(
         }
 
 
+@router.post("/api/internal/user-ban/status")
+async def internal_user_ban_status(
+    request: Request,
+    x_nyan_timestamp: str | None = Header(default=None, alias="X-Nyan-Timestamp"),
+    x_nyan_signature: str | None = Header(default=None, alias="X-Nyan-Signature"),
+):
+    raw_body = await request.body()
+    verify_internal_signature(x_nyan_timestamp, x_nyan_signature, raw_body)
+
+    try:
+        payload = InternalBanStatusPayload.model_validate_json(raw_body)
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail="Некорректный Telegram ID") from exc
+
+    with core.SessionLocal() as session:
+        row = session.get(BlockedUser, int(payload.telegram_id))
+
+    return {
+        "ok": True,
+        "blocked": row is not None,
+        "reason": (
+            row.reason
+            if row is not None and row.reason != "Без указания причины"
+            else None
+        ),
+    }
+
+
 @router.post("/api/internal/user-ban")
 async def internal_user_ban(
     request: Request,
@@ -246,8 +304,12 @@ async def blocked_user_guard(request: Request, call_next):
     if not path.startswith("/api/"):
         return await call_next(request)
 
-    # Internal bot calls are authenticated by their own HMAC signature.
-    if path == "/api/internal/user-ban":
+    # These endpoints must stay reachable to learn whether the caller is banned.
+    if path in {
+        "/api/ban/status",
+        "/api/internal/user-ban",
+        "/api/internal/user-ban/status",
+    }:
         return await call_next(request)
 
     init_data = request.headers.get("X-Telegram-Init-Data", "")
