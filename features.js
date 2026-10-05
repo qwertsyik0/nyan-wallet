@@ -1,5 +1,7 @@
 const tgExt = window.Telegram?.WebApp;
 const API_EXT = "https://nyan-wallet-api.onrender.com";
+let activeRewardTab = "all";
+let spendRewardsCache = [];
 
 function extHeaders(json = false) {
     const headers = { "X-Telegram-Init-Data": tgExt?.initData || "" };
@@ -37,6 +39,12 @@ function injectFeatureStyles() {
     style.textContent = `
         .request-banner{margin-top:16px;padding:15px 16px;border:1px solid #efd8e2;border-radius:18px;background:#fff7fa;color:#7e4059;font-size:13px;line-height:1.45}
         .spend-action{background:#fff;border:1px solid #efd8e2}
+        .reward-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:0 0 12px}
+        .reward-tab{min-width:0;width:100%;padding:9px 6px;border:1px solid #efd8e2;border-radius:13px;background:#fff;color:#8b5870;box-shadow:none;font-size:9px;font-weight:800;line-height:1.2;white-space:normal;overflow-wrap:anywhere}
+        .reward-tab.active{border-color:#922954;background:#922954;color:#fff}
+        .reward-tab-count{display:inline-flex;min-width:16px;height:16px;margin-left:3px;padding:0 4px;align-items:center;justify-content:center;border-radius:999px;background:#fff0f6;color:#922954;font-size:8px}
+        .reward-tab.active .reward-tab-count{background:rgba(255,255,255,.18);color:#fff}
+        .reward-tab-empty{grid-column:1/-1;padding:14px;border:1px solid #efd8e2;border-radius:16px;background:#fff8fa;color:#8a6072;font-size:11px;text-align:center}
         .feature-list{display:grid;gap:12px}
         .feature-card{background:#fff;border:1px solid #f0dce5;border-radius:20px;padding:16px;box-shadow:0 8px 24px rgba(137,41,82,.05)}
         .feature-card h3{margin:0;font-size:16px;color:#6d304a}
@@ -55,7 +63,7 @@ function injectFeatureStyles() {
         .owner-extra-row{padding:13px 14px;border-radius:16px;background:#fff;border:1px solid #f0dce5;margin-top:9px}.owner-extra-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.owner-extra-title{font-size:14px;font-weight:700;color:#6d304a}.owner-extra-meta{margin-top:5px;font-size:11px;line-height:1.4;color:#aa8092}.owner-extra-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.owner-extra-actions button{width:auto;padding:9px 11px;border-radius:11px;font-size:11px}.owner-extra-actions .danger{background:#fff;border:1px solid #dfbbc9;color:#7e4059}.owner-extra-actions .primary{background:#922954;color:#fff}
         .feature-inline-list{margin-top:8px;padding:10px 12px;border-radius:13px;background:#fff8fa;font-size:11px;line-height:1.5;color:#8a6072}
         .audit-item{padding:11px 0;border-bottom:1px solid #f3e4ea}.audit-item:last-child{border-bottom:0}.audit-title{font-size:12px;font-weight:700;color:#6d304a}.audit-meta{margin-top:4px;font-size:11px;color:#aa8092}
-        @media(max-width:380px){.stats-grid{grid-template-columns:1fr}.owner-extra-actions{display:grid}.owner-extra-actions button{width:100%}}
+        @media(max-width:380px){.reward-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.stats-grid{grid-template-columns:1fr}.owner-extra-actions{display:grid}.owner-extra-actions button{width:100%}}
     `;
     document.head.appendChild(style);
 }
@@ -97,6 +105,7 @@ function buildFeatureUI() {
             </div>
         </div>
         <div id="spend-status"></div>
+        <div id="reward-tabs" class="reward-tabs" aria-label="Категории наград"></div>
         <section id="reward-list" class="feature-list"></section>
         <section class="feature-section">
             <div class="feature-section-title">Ваши заявки</div>
@@ -205,17 +214,104 @@ function escapeHtml(value) {
         .replaceAll("'", "&#039;");
 }
 
+const REWARD_TABS = [
+    ["all", "Все"],
+    ["stars", "Stars"],
+    ["shop", "Нян Шоп"],
+    ["gifts", "Подарки"],
+    ["giveaways", "Розыгрыши"],
+    ["boosts", "Бонусы"],
+    ["design", "Оформление"],
+    ["limited", "Лимитированные"],
+    ["other", "Другое"],
+];
+
+function rewardPrimaryCategory(reward) {
+    const text = `${reward?.title || ""} ${reward?.description || ""}`.toLowerCase();
+
+    if (/telegram\s*stars|\bstars?\b|зв[её]зд/.test(text)) return "stars";
+    if (/подар|\bgift\b/.test(text)) return "gifts";
+    if (/розыгрыш|giveaway|билет/.test(text)) return "giveaways";
+    if (/кошел|дизайн|оформ|фон|тема|значок|badge/.test(text)) return "design";
+    if (/\bx\d+\b|буст|boost|\bvip\b|кэшбек|cashback|множител|бонус/.test(text)) return "boosts";
+    if (/нян\s*шоп|nyan\s*shop|скид|аккаунт|premium|премиум|гарант|замен/.test(text)) return "shop";
+
+    return "other";
+}
+
+function rewardIsLimited(reward) {
+    return reward?.stock_limit != null || Boolean(reward?.available_until);
+}
+
+function rewardMatchesTab(reward, tab) {
+    if (tab === "all") return true;
+    if (tab === "limited") return rewardIsLimited(reward);
+    return rewardPrimaryCategory(reward) === tab;
+}
+
+function renderRewardTabs(items) {
+    const tabs = document.getElementById("reward-tabs");
+    if (!tabs) return;
+
+    const counts = new Map();
+    for (const [key] of REWARD_TABS) {
+        counts.set(key, items.filter((reward) => rewardMatchesTab(reward, key)).length);
+    }
+
+    if (activeRewardTab !== "all" && !counts.get(activeRewardTab)) {
+        activeRewardTab = "all";
+    }
+
+    tabs.innerHTML = "";
+    for (const [key, label] of REWARD_TABS) {
+        const count = counts.get(key) || 0;
+        if (key !== "all" && count === 0) continue;
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `reward-tab${activeRewardTab === key ? " active" : ""}`;
+        button.dataset.rewardTab = key;
+        button.setAttribute("aria-pressed", activeRewardTab === key ? "true" : "false");
+        button.innerHTML = `${escapeHtml(label)} <span class="reward-tab-count">${count}</span>`;
+        button.addEventListener("click", () => {
+            activeRewardTab = key;
+            renderRewardTabs(spendRewardsCache);
+            renderRewards(spendRewardsCache);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            tgExt?.HapticFeedback?.selectionChanged?.();
+        });
+        tabs.appendChild(button);
+    }
+}
+
 async function loadSpendData() {
     if (!tgExt?.initData) return;
     const status = document.getElementById("spend-status");
     const list = document.getElementById("reward-list");
     if (status) status.innerHTML = "";
     if (list) list.innerHTML = `<div class="feature-inline-list">Загружаем награды…</div>`;
+
     try {
-        const response = await fetch(`${API_EXT}/api/rewards`, { headers: extHeaders() });
-        const data = await extJson(response);
-        if (!response.ok) throw new Error(data?.detail || "Не удалось загрузить награды");
-        renderRewards(data.rewards || []);
+        const [rewardsResponse, catalogResponse] = await Promise.all([
+            fetch(`${API_EXT}/api/rewards`, { headers: extHeaders(), cache: "no-store" }),
+            fetch(`${API_EXT}/api/catalog`, { headers: extHeaders(), cache: "no-store" }),
+        ]);
+
+        const data = await extJson(rewardsResponse);
+        if (!rewardsResponse.ok) throw new Error(data?.detail || "Не удалось загрузить награды");
+
+        const catalogData = catalogResponse.ok ? await extJson(catalogResponse) : {};
+        const catalogById = new Map(
+            (catalogData?.rewards || []).map((reward) => [Number(reward.id), reward])
+        );
+
+        spendRewardsCache = (data.rewards || []).map((reward) => ({
+            ...reward,
+            ...(catalogById.get(Number(reward.id)) || {}),
+        }));
+
+        renderRewardTabs(spendRewardsCache);
+        renderRewards(spendRewardsCache);
         renderMyRequests(data.requests || []);
         updatePendingBanner(data.requests || []);
     } catch (error) {
@@ -226,21 +322,36 @@ async function loadSpendData() {
 function renderRewards(items) {
     const list = document.getElementById("reward-list");
     if (!list) return;
+
     list.innerHTML = "";
-    if (!items.length) {
-        list.innerHTML = `<div class="feature-inline-list">Награды временно недоступны</div>`;
+    const visible = (items || []).filter((reward) => rewardMatchesTab(reward, activeRewardTab));
+
+    if (!visible.length) {
+        list.innerHTML = `<div class="reward-tab-empty">В этой вкладке пока нет товаров</div>`;
         return;
     }
-    for (const reward of items) {
+
+    for (const reward of visible) {
         const card = document.createElement("article");
         card.className = "feature-card";
+        card.dataset.rewardCategory = rewardPrimaryCategory(reward);
+
+        const labels = [];
+        if (rewardIsLimited(reward)) labels.push("лимитированное");
+        if (reward?.stock_remaining != null) labels.push(`осталось ${reward.stock_remaining}`);
+
         card.innerHTML = `
             <div class="feature-card-head">
-                <div><h3>${escapeHtml(reward.title)}</h3><p>${escapeHtml(reward.description || "")}</p></div>
+                <div>
+                    <h3>${escapeHtml(reward.title)}</h3>
+                    <p>${escapeHtml(reward.description || "")}</p>
+                    ${labels.length ? `<div class="feature-inline-list">${escapeHtml(labels.join(" · "))}</div>` : ""}
+                </div>
                 <div class="feature-price">${reward.cost} 🐾</div>
             </div>
             <button type="button">Получить за ${reward.cost} 🐾</button>
         `;
+
         card.querySelector("button")?.addEventListener("click", () => createRewardRequest(reward));
         list.appendChild(card);
     }
