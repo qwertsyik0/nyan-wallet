@@ -28,6 +28,7 @@ from .transfers import register_transfers
 from .broadcast import register_broadcast
 from .maintenance import register_maintenance
 from .bot_menu import sync_bot_menu_buttons
+from .user_bans import register_user_bans
 from .manual_grants_20261004 import apply_interactive_grants_20261004
 from .manual_grants_20261004_backfill import backfill_interactive_grants_20261004
 
@@ -52,4 +53,5 @@ register_appeals(backend_app.app)
 register_transfers(backend_app.app)
 register_broadcast(backend_app.app)
 register_maintenance(backend_app.app)
+register_user_bans(backend_app.app)
 sync_bot_menu_buttons()
