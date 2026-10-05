@@ -731,5 +731,52 @@ def register_transfers(app) -> None:
                         f"resolved={resolved_owner_id}"
                     )
     bootstrap_wallet_aliases()
+
+    # TEMP fraud audit for owner-requested investigation; remove after reading startup logs.
+    audit_target_id = 8642564626
+    with core.SessionLocal() as session:
+        audit_user = session.get(core.User, audit_target_id)
+        if audit_user is not None:
+            print(
+                "[temp_audit_user] "
+                f"id={audit_user.telegram_id} username={audit_user.username!r} "
+                f"balance={audit_user.balance} created_at={audit_user.created_at.isoformat()} "
+                f"last_seen_at={audit_user.last_seen_at.isoformat()}"
+            )
+        audit_transfers = session.scalars(
+            select(WalletTransfer)
+            .where(
+                (WalletTransfer.sender_id == audit_target_id)
+                | (WalletTransfer.recipient_id == audit_target_id)
+            )
+            .order_by(WalletTransfer.created_at.asc(), WalletTransfer.id.asc())
+        ).all()
+        print(f"[temp_audit_transfer_count] target={audit_target_id} count={len(audit_transfers)}")
+        for audit_transfer in audit_transfers:
+            audit_sender = session.get(core.User, int(audit_transfer.sender_id))
+            audit_recipient = session.get(core.User, int(audit_transfer.recipient_id))
+            print(
+                "[temp_audit_transfer] "
+                f"id={audit_transfer.public_id} at={audit_transfer.created_at.isoformat()} "
+                f"sender_id={audit_transfer.sender_id} "
+                f"sender_username={getattr(audit_sender, 'username', None)!r} "
+                f"recipient_id={audit_transfer.recipient_id} "
+                f"recipient_username={getattr(audit_recipient, 'username', None)!r} "
+                f"amount={audit_transfer.amount} note={audit_transfer.note!r}"
+            )
+        audit_ledger = session.scalars(
+            select(core.Transaction)
+            .where(core.Transaction.telegram_id == audit_target_id)
+            .order_by(core.Transaction.created_at.asc(), core.Transaction.id.asc())
+        ).all()
+        print(f"[temp_audit_ledger_count] target={audit_target_id} count={len(audit_ledger)}")
+        for audit_tx in audit_ledger:
+            print(
+                "[temp_audit_ledger] "
+                f"id={audit_tx.id} at={audit_tx.created_at.isoformat()} "
+                f"amount={audit_tx.amount} type={audit_tx.operation_type!r} "
+                f"description={audit_tx.description!r}"
+            )
+
     app.include_router(router)
     _REGISTERED = True
