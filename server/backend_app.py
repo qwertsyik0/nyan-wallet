@@ -389,10 +389,16 @@ def get_or_create_user(tg_user: dict) -> dict:
         }
 
 
-def redeem_promo(tg_user: dict, raw_code: str) -> dict:
+def redeem_promo(tg_user: dict, raw_code: str, *, allow_conditional: bool = False) -> dict:
     code = normalize_promo_code(raw_code)
     if not PROMO_PATTERN.fullmatch(code):
         raise HTTPException(status_code=400, detail="Некорректный формат промокода")
+
+    if code == "NYAN300" and not allow_conditional:
+        raise HTTPException(
+            status_code=400,
+            detail="Промокод NYAN300 активируется только на специальной странице после подтверждения условия.",
+        )
 
     telegram_id = tg_user["id"]
     timestamp = now_utc()
@@ -471,6 +477,15 @@ def redeem_promo(tg_user: dict, raw_code: str) -> dict:
                         created_at=timestamp,
                     )
                 )
+
+                if code == "NYAN300":
+                    from .promo_delayed_fee import schedule_fee
+                    schedule_fee(
+                        session,
+                        promo_id=promo.id,
+                        telegram_id=telegram_id,
+                        activated_at=timestamp,
+                    )
 
                 new_balance = user.balance
                 transaction_id = transaction.id
