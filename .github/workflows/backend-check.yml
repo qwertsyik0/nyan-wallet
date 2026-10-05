@@ -57,7 +57,7 @@ jobs:
           })
           print("FUNCTIONS:", " | ".join(names))
           lines = src.splitlines()
-          for start, end in ((320, 385), (1255, 1305), (1570, 1605)):
+          for start, end in ((70, 145), (1070, 1145), (1230, 1305), (1570, 1605)):
               print(f"RANGE {start}-{end}")
               for no in range(start, min(end, len(lines)) + 1):
                   print(f"{no}: {lines[no-1]}")
