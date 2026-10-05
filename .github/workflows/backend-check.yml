@@ -11,8 +11,10 @@ on:
       - "bot_addons/maintenance_bot.py"
       - "bot_addons/broadcast_bot.py"
       - "bot_addons/channel_publish_bot.py"
+      - "bot_addons/ban_bot.py"
       - "tools/install_broadcast_bot.py"
       - "tools/install_channel_publish_bot.py"
+      - "tools/install_ban_bot.py"
       - ".github/workflows/backend-check.yml"
   workflow_dispatch:
 
@@ -28,7 +30,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Compile backend and installer
-        run: python -m py_compile server/*.py tools/install_giveaway_bot.py tools/install_maintenance_bot.py tools/install_broadcast_bot.py tools/install_channel_publish_bot.py bot_addons/broadcast_bot.py bot_addons/channel_publish_bot.py
+        run: python -m py_compile server/*.py tools/install_giveaway_bot.py tools/install_maintenance_bot.py tools/install_broadcast_bot.py tools/install_channel_publish_bot.py tools/install_ban_bot.py bot_addons/broadcast_bot.py bot_addons/channel_publish_bot.py bot_addons/ban_bot.py
       - name: Validate giveaway bot payload
         run: |
           python - <<'PY'
@@ -260,6 +262,37 @@ jobs:
           channel_installer = Path("tools/install_channel_publish_bot.py").read_text(encoding="utf-8")
           compile(channel_installer, "tools/install_channel_publish_bot.py", "exec")
           print("broadcast and channel publisher static audit OK")
+          PY
+      - name: Audit user ban subsystem
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          backend = Path("server/user_bans.py").read_text(encoding="utf-8")
+          compile(backend, "server/user_bans.py", "exec")
+          for marker in (
+              'class BlockedUser',
+              '@router.post("/api/owner/bans/ban")',
+              '@router.post("/api/owner/bans/unban")',
+              '@router.post("/api/internal/user-ban")',
+              'blocked_user_guard',
+              'Владельца Nyan Wallet нельзя заблокировать',
+          ):
+              assert marker in backend, f"user ban backend marker missing: {marker}"
+
+          bot = Path("bot_addons/ban_bot.py").read_text(encoding="utf-8")
+          compile(bot, "bot_addons/ban_bot.py", "exec")
+          for marker in (
+              'CommandHandler("ban"',
+              'CommandHandler("unban"',
+              '/api/internal/user-ban',
+              'signed_action',
+          ):
+              assert marker in bot, f"user ban bot marker missing: {marker}"
+
+          installer = Path("tools/install_ban_bot.py").read_text(encoding="utf-8")
+          compile(installer, "tools/install_ban_bot.py", "exec")
+          print("user ban subsystem static audit OK")
           PY
       - name: Check browser JavaScript syntax
         run: |
