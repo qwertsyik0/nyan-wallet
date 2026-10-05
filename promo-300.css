@@ -1,0 +1,53 @@
+.promo-condition{
+    margin-top:14px;
+    padding:15px 14px;
+    border:1px solid #e9b9cc;
+    border-radius:18px;
+    background:#fff4f8;
+}
+
+.promo-condition-title{
+    color:#8f2955;
+    font-size:12px;
+    font-weight:900;
+    text-transform:uppercase;
+    letter-spacing:.045em;
+}
+
+.promo-condition-text{
+    margin-top:6px;
+    color:#7b3c57;
+    font-size:13px;
+    line-height:1.48;
+}
+
+.promo-condition-text strong{
+    color:#72233f;
+}
+
+.promo-consent{
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+    margin-top:13px;
+    padding:12px 13px;
+    border:1px solid #efd8e2;
+    border-radius:16px;
+    background:#fff;
+    color:#82536a;
+    font-size:12px;
+    line-height:1.42;
+    cursor:pointer;
+}
+
+.promo-consent input{
+    width:18px;
+    height:18px;
+    margin:0;
+    flex:0 0 auto;
+    accent-color:#c93b78;
+}
+
+.promo-activate:disabled{
+    opacity:.55;
+}
