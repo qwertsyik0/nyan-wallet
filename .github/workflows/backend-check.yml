@@ -286,12 +286,24 @@ jobs:
               'CommandHandler("ban"',
               'CommandHandler("unban"',
               '/api/internal/user-ban',
+              '/api/internal/user-ban/status',
               'signed_action',
+              'signed_status',
+              'blocked_message_guard',
+              'blocked_callback_guard',
           ):
               assert marker in bot, f"user ban bot marker missing: {marker}"
 
           installer = Path("tools/install_ban_bot.py").read_text(encoding="utf-8")
           compile(installer, "tools/install_ban_bot.py", "exec")
+          notice = Path("ban_notice.js").read_text(encoding="utf-8")
+          for marker in (
+              "/api/ban/status",
+              "Аккаунт заблокирован",
+              "Обжаловать решение",
+              "tg://user?id=",
+          ):
+              assert marker in notice, f"ban notice marker missing: {marker}"
           print("user ban subsystem static audit OK")
           PY
       - name: Check browser JavaScript syntax
