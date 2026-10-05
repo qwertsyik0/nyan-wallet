@@ -111,7 +111,7 @@
       });
     }
 
-    if (card.nextElementSibling !== home) {
+    if (home.parentElement !== wallet) {
       card.insertAdjacentElement("afterend", home);
     }
 
