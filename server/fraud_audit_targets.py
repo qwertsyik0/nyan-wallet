@@ -33,6 +33,7 @@ def audit_target_accounts() -> None:
         print("[fraud_audit] targets=" + json.dumps([
             {
                 "username": u.username,
+                "telegram_id": int(u.telegram_id),
                 "balance": int(u.balance),
                 "created_at": u.created_at.isoformat(),
                 "last_seen_at": u.last_seen_at.isoformat(),
