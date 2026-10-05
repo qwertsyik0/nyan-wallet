@@ -18,8 +18,13 @@ def register_daily_task_hooks() -> None:
     _ORIGINAL_REDEEM = core.redeem_promo
     _ORIGINAL_GET_OR_CREATE = core.get_or_create_user
 
-    def redeem_with_task_event(tg_user: dict, raw_code: str) -> dict:
-        result = _ORIGINAL_REDEEM(tg_user, raw_code)
+    def redeem_with_task_event(
+        tg_user: dict,
+        raw_code: str,
+        *args,
+        **kwargs,
+    ) -> dict:
+        result = _ORIGINAL_REDEEM(tg_user, raw_code, *args, **kwargs)
         try:
             event = record_task_event(tg_user["id"], "promo_redeem")
             result["task_event"] = event
