@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Header, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, String, UniqueConstraint, select
 from sqlalchemy.exc import SQLAlchemyError
@@ -14,6 +16,7 @@ from . import backend_app as core
 
 logger = logging.getLogger("nyan_wallet.promo_delayed_fee")
 
+ROOT = Path(__file__).resolve().parent.parent
 PROMO_CODE = "NYAN300"
 FEE_PERCENT = 10
 FEE_DELAY = timedelta(hours=1)
@@ -149,6 +152,36 @@ async def _start_fee_worker() -> None:
     global _worker_task
     if _worker_task is None or _worker_task.done():
         _worker_task = asyncio.create_task(_fee_worker(), name="nyan-promo-delayed-fee")
+
+
+@router.get("/promo-300.html", include_in_schema=False)
+async def promo_300_page():
+    return FileResponse(ROOT / "promo-300.html", media_type="text/html; charset=utf-8")
+
+
+@router.get("/promo-300.css", include_in_schema=False)
+async def promo_300_css():
+    return FileResponse(ROOT / "promo-300.css", media_type="text/css; charset=utf-8")
+
+
+@router.get("/promo.css", include_in_schema=False)
+async def shared_promo_css():
+    return FileResponse(ROOT / "promo.css", media_type="text/css; charset=utf-8")
+
+
+@router.get("/style.css", include_in_schema=False)
+async def shared_style_css():
+    return FileResponse(ROOT / "style.css", media_type="text/css; charset=utf-8")
+
+
+@router.get("/network.js", include_in_schema=False)
+async def promo_network_js():
+    return FileResponse(ROOT / "network.js", media_type="application/javascript; charset=utf-8")
+
+
+@router.get("/promo-300.js", include_in_schema=False)
+async def promo_300_js():
+    return FileResponse(ROOT / "promo-300.js", media_type="application/javascript; charset=utf-8")
 
 
 @router.post("/api/promo/nyan300/redeem")
