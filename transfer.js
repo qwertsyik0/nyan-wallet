@@ -548,6 +548,11 @@
         try {
             const data = await api("/api/wallet/address", { headers: headers() });
             const number = document.getElementById("wallet-number");
+            const owner = window.__nyanIsOwner === true || document.body?.dataset?.nyanRole === "owner";
+            if (number && owner) {
+                number.textContent = "7777 7777 7777";
+                return;
+            }
             if (number && data?.wallet_address) number.textContent = data.wallet_address;
         } catch (error) {
             console.error("Nyan Wallet address load error:", error);
