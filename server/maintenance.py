@@ -36,6 +36,9 @@ EXEMPT_PATHS = {
     "/api/maintenance/status",
     "/api/internal/maintenance/toggle",
     "/api/internal/broadcast/recipients",
+    "/api/internal/user-ban/status",
+    "/api/internal/user-ban",
+    "/api/ban/status",
 }
 
 
