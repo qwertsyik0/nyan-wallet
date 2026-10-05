@@ -720,7 +720,12 @@ def register_transfers(app) -> None:
                     .with_for_update()
                 )
                 if owner_user is not None:
-                    ensure_wallet_alias(session, owner_user, now_utc())
+                    owner_alias = ensure_wallet_alias(session, owner_user, now_utc())
+                    logger.info(
+                        "owner wallet alias bound telegram_id=%s alias=%s",
+                        owner_user.telegram_id,
+                        owner_alias.alias,
+                    )
     bootstrap_wallet_aliases()
     app.include_router(router)
     _REGISTERED = True
