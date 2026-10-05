@@ -321,6 +321,7 @@
         const tasks = document.getElementById("daily-tasks-card");
         const streak = document.getElementById("activity-streak-card");
         const level = document.getElementById("adv-level-card");
+        const homeV2 = document.getElementById("nyan-home-v2");
         const home = document.getElementById("ny-home");
         const history = wallet.querySelector(":scope > .history");
 
@@ -335,11 +336,20 @@
             else if (walletCard) moveAfter(walletCard, actions);
         }
         if (level?.parentNode === wallet && actions.parentNode === wallet) moveAfter(actions, level);
+        if (homeV2?.parentNode === wallet) {
+            if (level?.parentNode === wallet) moveAfter(level, homeV2);
+            else if (actions.parentNode === wallet) moveAfter(actions, homeV2);
+            else if (walletCard) moveAfter(walletCard, homeV2);
+        }
         if (home?.parentNode === wallet) {
-            if (level?.parentNode === wallet) moveAfter(level, home);
+            if (homeV2?.parentNode === wallet) moveAfter(homeV2, home);
+            else if (level?.parentNode === wallet) moveAfter(level, home);
             else if (actions.parentNode === wallet) moveAfter(actions, home);
         }
-        if (history?.parentNode === wallet && home?.parentNode === wallet) moveAfter(home, history);
+        if (history?.parentNode === wallet) {
+            if (home?.parentNode === wallet) moveAfter(home, history);
+            else if (homeV2?.parentNode === wallet) moveAfter(homeV2, history);
+        }
     }
 
     function apply() {
