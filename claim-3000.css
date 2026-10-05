@@ -1,0 +1,240 @@
+:root {
+    color-scheme: dark;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    min-height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: #12070c;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button {
+    font: inherit;
+}
+
+.claim-app {
+    position: relative;
+    width: 100vw;
+    height: 100dvh;
+    min-height: 100vh;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 18% 0%, rgba(255, 223, 237, .94), transparent 35%),
+        linear-gradient(180deg, #fff7fb, #fff);
+}
+
+.rickroll-stage {
+    position: absolute;
+    inset: 0;
+    background: #000;
+    opacity: .20;
+    transform: scale(1.08);
+    transition:
+        opacity .45s ease,
+        transform .65s cubic-bezier(.2,.8,.2,1);
+}
+
+.rickroll-stage.active {
+    opacity: 1;
+    transform: scale(1);
+}
+
+#rickroll-player,
+#rickroll-player iframe {
+    position: absolute;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+    border: 0;
+}
+
+#rickroll-player iframe {
+    object-fit: cover;
+}
+
+.video-shade {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(180deg, rgba(19,3,11,.14), rgba(19,3,11,.42));
+    pointer-events: none;
+    transition: opacity .35s ease;
+}
+
+.rickroll-stage.active .video-shade {
+    opacity: 0;
+}
+
+.claim-card {
+    position: absolute;
+    z-index: 5;
+    left: 50%;
+    bottom: max(22px, env(safe-area-inset-bottom));
+    width: min(calc(100% - 28px), 440px);
+    padding: 20px;
+    border: 1px solid rgba(239, 213, 225, .96);
+    border-radius: 28px;
+    background: rgba(255, 250, 252, .96);
+    color: #6d304a;
+    box-shadow: 0 24px 70px rgba(62, 9, 31, .24);
+    transform: translateX(-50%);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    transition:
+        opacity .35s ease,
+        transform .42s cubic-bezier(.2,.8,.2,1);
+}
+
+.claim-card.revealed {
+    opacity: 0;
+    transform: translate(-50%, 120%);
+    pointer-events: none;
+}
+
+.claim-brand {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+}
+
+.claim-paw {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border: 1px solid #efd8e2;
+    border-radius: 15px;
+    background: #fff;
+    font-size: 20px;
+}
+
+.claim-brand-name {
+    color: #842b50;
+    font-size: 18px;
+    font-weight: 900;
+}
+
+.claim-brand-note {
+    margin-top: 2px;
+    color: #b17d94;
+    font-size: 11px;
+}
+
+.claim-badge {
+    display: inline-flex;
+    margin-top: 18px;
+    padding: 7px 10px;
+    border: 1px solid rgba(231,79,145,.18);
+    border-radius: 999px;
+    background: #fff1f7;
+    color: #9b2d58;
+    font-size: 10px;
+    font-weight: 850;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+h1 {
+    margin: 12px 0 0;
+    color: #842b50;
+    font-size: clamp(30px, 9vw, 42px);
+    line-height: 1;
+    font-weight: 950;
+    letter-spacing: -.045em;
+}
+
+.claim-copy {
+    margin: 9px 0 0;
+    color: #98667b;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.claim-amount {
+    display: flex;
+    align-items: flex-end;
+    gap: 7px;
+    margin-top: 15px;
+    padding: 14px 15px;
+    border: 1px solid #f0d8e3;
+    border-radius: 21px;
+    background: linear-gradient(135deg, #fff4f9, #fff);
+}
+
+.claim-amount strong {
+    color: #8f2955;
+    font-size: 50px;
+    line-height: .86;
+    font-weight: 950;
+    letter-spacing: -.05em;
+}
+
+.claim-amount span {
+    padding-bottom: 4px;
+    font-size: 26px;
+}
+
+.claim-button,
+.sound-button {
+    width: 100%;
+    min-height: 52px;
+    border: 0;
+    border-radius: 17px;
+    font-weight: 900;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.claim-button {
+    margin-top: 13px;
+    background: linear-gradient(135deg, #e74f91, #c93b78);
+    color: #fff;
+    box-shadow: 0 12px 28px rgba(207,58,121,.22);
+}
+
+.claim-button:active,
+.sound-button:active {
+    transform: scale(.985);
+}
+
+.claim-status {
+    min-height: 17px;
+    margin-top: 10px;
+    color: #ae7e93;
+    font-size: 10px;
+    text-align: center;
+}
+
+.sound-button {
+    position: absolute;
+    z-index: 7;
+    left: 50%;
+    bottom: max(20px, env(safe-area-inset-bottom));
+    width: min(calc(100% - 36px), 360px);
+    transform: translateX(-50%);
+    background: rgba(20,20,20,.78);
+    color: #fff;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+
+.sound-button[hidden] {
+    display: none;
+}
+
+@media (max-width: 360px) {
+    .claim-card {
+        padding: 17px;
+    }
+
+    .claim-amount strong {
+        font-size: 44px;
+    }
+}
