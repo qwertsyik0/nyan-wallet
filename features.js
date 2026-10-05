@@ -305,10 +305,13 @@ async function loadSpendData() {
             (catalogData?.rewards || []).map((reward) => [Number(reward.id), reward])
         );
 
-        spendRewardsCache = (data.rewards || []).map((reward) => ({
-            ...reward,
-            ...(catalogById.get(Number(reward.id)) || {}),
-        }));
+        const catalogRewards = catalogData?.rewards || [];
+        spendRewardsCache = catalogRewards.length
+            ? catalogRewards
+            : (data.rewards || []).map((reward) => ({
+                ...reward,
+                ...(catalogById.get(Number(reward.id)) || {}),
+            }));
 
         renderRewardTabs(spendRewardsCache);
         renderRewards(spendRewardsCache);
