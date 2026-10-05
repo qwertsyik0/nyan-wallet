@@ -84,6 +84,7 @@
     function enforce() {
         scheduled = false;
         setOwnerButtonState();
+        applyOwnerWalletNumber();
         restoreWalletIfNeeded();
         removeNonOwnerAdminAddons();
         placeDailyTasks();
