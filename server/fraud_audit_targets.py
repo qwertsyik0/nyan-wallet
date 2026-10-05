@@ -101,6 +101,51 @@ def audit_target_accounts() -> None:
                 "public_id": t.public_id,
             }, ensure_ascii=False))
 
+        # Income source breakdown and timeline for each target.
+        for uid in ids:
+            u = user_by_id[uid]
+            breakdown = session.execute(
+                select(
+                    core.Transaction.operation_type,
+                    func.count(core.Transaction.id),
+                    func.sum(core.Transaction.amount),
+                )
+                .where(
+                    core.Transaction.telegram_id == uid,
+                    core.Transaction.amount > 0,
+                )
+                .group_by(core.Transaction.operation_type)
+                .order_by(func.sum(core.Transaction.amount).desc())
+            ).all()
+            print("[fraud_audit_income] " + json.dumps({
+                "user": _label(u),
+                "items": [
+                    {
+                        "type": op,
+                        "count": int(n),
+                        "total": int(total or 0),
+                    }
+                    for op, n, total in breakdown
+                ],
+            }, ensure_ascii=False))
+
+            positive = session.scalars(
+                select(core.Transaction)
+                .where(
+                    core.Transaction.telegram_id == uid,
+                    core.Transaction.amount > 0,
+                )
+                .order_by(core.Transaction.created_at.asc())
+            ).all()
+            for tx in positive:
+                print("[fraud_audit_income_item] " + json.dumps({
+                    "user": _label(u),
+                    "created_at": tx.created_at.isoformat(),
+                    "type": tx.operation_type,
+                    "amount": int(tx.amount),
+                    "description": tx.description,
+                }, ensure_ascii=False))
+
         # Same recipient aggregation for the suspect accounts as senders.
         grouped = session.execute(
             select(
