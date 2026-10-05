@@ -61,7 +61,8 @@ jobs:
               if any(key in low for key in (
                   "chatmemberhandler", "my_chat_member", "media_group_id", "copy_message",
                   "preview", "предпросмотр", "album", "альбом", "custom_emoji",
-                  "nyg:", "nygo:", "nygw:", "results/publish", "replace-post"
+                  "nyg:", "nygo:", "nygw:", "results/publish", "replace-post",
+                  "мастер создания уже закрыт", "giveaways", "conversationhandler", "filters.text", "filters.command"
               )):
                   print(f"{no}: {line}")
           PY
