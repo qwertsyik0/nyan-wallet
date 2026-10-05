@@ -13,7 +13,7 @@ from pathlib import Path
 
 MODULE_URL = (
     "https://raw.githubusercontent.com/qwertsyik0/nyan-wallet/"
-    "a8ac42e855842693996fecb55a7e1136a5ec9756/"
+    "847b643a4144a21f04f7b4bc48654495bde35caf/"
     "bot_addons/ban_bot.py"
 )
 IMPORT_LINE = "from ban_bot import register_ban_handlers"
