@@ -41,7 +41,7 @@
 }
 .nyan-home-primary{
   display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
+  grid-template-columns:repeat(2,minmax(0,1fr));
   gap:8px;
 }
 .nyan-home-action{
@@ -76,7 +76,8 @@
   font-size:10px;
   line-height:1.2;
   font-weight:800;
-  white-space:nowrap;
+  white-space:normal;
+  overflow-wrap:anywhere;
 }
 .nyan-home-panel{
   padding:16px;
@@ -104,7 +105,7 @@
 }
 .nyan-home-today{
   display:grid;
-  grid-template-columns:1fr 1fr;
+  grid-template-columns:1fr;
   gap:8px;
 }
 .nyan-home-today-card{
@@ -135,17 +136,17 @@
   color:#aa748c;
 }
 .nyan-home-more{
-  display:flex;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
   gap:7px;
-  overflow-x:auto;
-  padding:1px 1px 3px;
-  scrollbar-width:none;
+  width:100%;
+  overflow:visible;
+  padding:1px 0 3px;
 }
-.nyan-home-more::-webkit-scrollbar{display:none}
 .nyan-home-more-button{
-  flex:0 0 auto;
-  width:auto;
-  padding:9px 11px;
+  min-width:0;
+  width:100%;
+  padding:10px 9px;
   border:1px solid #efd8e2;
   border-radius:999px;
   background:#fff;
@@ -222,6 +223,47 @@
 }
 .nyan-home-owner[hidden]{display:none!important}
 @media(max-width:390px){
-  .nyan-home-primary{grid-template-columns:repeat(2,1fr)}
   .nyan-home-action{min-height:82px}
+  .nyan-home-more{grid-template-columns:1fr}
+}
+
+/* Strict mobile layout: the home screen never scrolls sideways. */
+html,body{
+  max-width:100%;
+  overflow-x:hidden;
+}
+.app,
+#wallet-view,
+#wallet-view>*,
+.nyan-home-v2,
+.nyan-home-v2>*{
+  max-width:100%;
+  min-width:0;
+}
+#wallet-view,
+.nyan-home-v2,
+.nyan-home-panel,
+.nyan-home-action,
+.nyan-home-today-card,
+.nyan-home-more-button,
+#wallet-view>.history{
+  width:100%;
+  box-sizing:border-box;
+}
+.nyan-home-today-card{
+  text-align:left;
+}
+.nyan-home-today-meta{
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  line-height:1.35;
+}
+#wallet-view .wallet-card-top,
+#wallet-view .wallet-card-bottom{
+  min-width:0;
+}
+#wallet-view .wallet-number,
+#wallet-view .wallet-holder{
+  max-width:100%;
 }
