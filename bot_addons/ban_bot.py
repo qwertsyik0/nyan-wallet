@@ -152,8 +152,10 @@ async def _ensure_owner_command_menu(application: Application) -> None:
 
 async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = update.effective_message
-    if message is None or not await _require_owner(update):
-        return
+    if message is None:
+        raise ApplicationHandlerStop
+    if not await _require_owner(update):
+        raise ApplicationHandlerStop
 
     args = list(context.args or [])
     if not args:
@@ -163,23 +165,23 @@ async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             "/ban Telegram_ID [причина]\n\n"
             "Причину можно не указывать."
         )
-        return
+        raise ApplicationHandlerStop
 
     target = args[0].strip()
     reason = " ".join(args[1:]).strip() or None
     if reason and len(reason) > MAX_REASON_LENGTH:
         await message.reply_text(f"Причина не должна превышать {MAX_REASON_LENGTH} символов.")
-        return
+        raise ApplicationHandlerStop
 
     try:
         data = await asyncio.to_thread(signed_action, "ban", target, reason)
     except BanBotError as exc:
         await message.reply_text(f"Не удалось заблокировать: {exc}")
-        return
+        raise ApplicationHandlerStop
     except Exception:
         logger.exception("ban_command_failed target=%s", target)
         await message.reply_text("Не удалось заблокировать пользователя: внутренняя ошибка.")
-        return
+        raise ApplicationHandlerStop
 
     result = data.get("ban") or {}
     username = result.get("username")
@@ -202,7 +204,7 @@ async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             "/unban @username\n"
             "/unban Telegram_ID"
         )
-        return
+        raise ApplicationHandlerStop
 
     target = args[0].strip()
 
@@ -210,11 +212,11 @@ async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         data = await asyncio.to_thread(signed_action, "unban", target, None)
     except BanBotError as exc:
         await message.reply_text(f"Не удалось разблокировать: {exc}")
-        return
+        raise ApplicationHandlerStop
     except Exception:
         logger.exception("unban_command_failed target=%s", target)
         await message.reply_text("Не удалось разблокировать пользователя: внутренняя ошибка.")
-        return
+        raise ApplicationHandlerStop
 
     result = data.get("unban") or {}
     username = result.get("username")
