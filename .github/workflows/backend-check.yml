@@ -56,18 +56,12 @@ jobs:
               and any(key in node.name.lower() for key in ("give", "channel", "media", "result", "winner", "preview", "wizard", "cancel"))
           })
           print("FUNCTIONS:", " | ".join(names))
-          lines = src.splitlines()
-          for start, end in ((145, 180), (400, 430), (1070, 1145), (1230, 1305), (1570, 1605)):
-              print(f"RANGE {start}-{end}")
-              for no in range(start, min(end, len(lines)) + 1):
-                  print(f"{no}: {lines[no-1]}")
           for no, line in enumerate(src.splitlines(), 1):
               low = line.lower()
               if any(key in low for key in (
                   "chatmemberhandler", "my_chat_member", "media_group_id", "copy_message",
                   "preview", "предпросмотр", "album", "альбом", "custom_emoji",
-                  "nyg:", "nygo:", "nygw:", "results/publish", "replace-post",
-                  "мастер создания уже закрыт", "giveaways", "conversationhandler", "filters.text", "filters.command", "_begin_create", "def _wizard", "def _set_wizard"
+                  "nyg:", "nygo:", "nygw:", "results/publish", "replace-post"
               )):
                   print(f"{no}: {line}")
           PY
