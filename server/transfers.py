@@ -164,6 +164,12 @@ def format_wallet_alias(alias: str) -> str:
     return f"NYAN {digits[:4]} {digits[4:8]} {digits[8:12]}"
 
 
+def display_wallet_alias(user: core.User, alias: WalletAlias) -> str:
+    if core.is_owner(int(user.telegram_id)) and alias.alias == OWNER_WALLET_ALIAS:
+        return "7777 7777 7777"
+    return format_wallet_alias(alias.alias)
+
+
 def _fallback_wallet_alias(telegram_id: int, attempt: int) -> str:
     digest = hmac.new(
         core.BOT_TOKEN.encode("utf-8"),
@@ -176,6 +182,26 @@ def _fallback_wallet_alias(telegram_id: int, attempt: int) -> str:
 
 def ensure_wallet_alias(session: Session, user: core.User, timestamp: datetime) -> WalletAlias:
     existing = session.get(WalletAlias, user.telegram_id)
+
+    if core.is_owner(int(user.telegram_id)):
+        alias_owner = session.scalar(
+            select(WalletAlias.telegram_id).where(WalletAlias.alias == OWNER_WALLET_ALIAS)
+        )
+        if alias_owner is not None and int(alias_owner) != int(user.telegram_id):
+            raise RuntimeError("Зарезервированный номер владельца уже занят другим пользователем")
+
+        if existing is None:
+            existing = WalletAlias(
+                telegram_id=int(user.telegram_id),
+                alias=OWNER_WALLET_ALIAS,
+                created_at=timestamp,
+            )
+            session.add(existing)
+        else:
+            existing.alias = OWNER_WALLET_ALIAS
+        session.flush()
+        return existing
+
     if existing is not None:
         return existing
 
@@ -257,7 +283,7 @@ def serialize_recipient(
     alias: WalletAlias,
 ) -> dict[str, Any]:
     return {
-        "wallet_address": format_wallet_alias(alias.alias),
+        "wallet_address": display_wallet_alias(user, alias),
         "wallet_address_compact": alias.alias,
         "technical_address": address.public_id,
         "username": user.username,
@@ -304,6 +330,8 @@ def resolve_recipient_id(session: Session, raw_target: str) -> int:
     target = normalize_target(raw_target)
     canonical = target.upper()
     compact = re.sub(r"[\s-]+", "", canonical)
+    if re.fullmatch(r"\d{12}", compact):
+        compact = "NYAN" + compact
 
     if WALLET_ALIAS_RE.fullmatch(compact):
         telegram_id = session.scalar(
@@ -580,7 +608,7 @@ async def my_wallet_address(
                 alias = ensure_wallet_alias(session, user, timestamp)
                 return {
                     "ok": True,
-                    "wallet_address": format_wallet_alias(alias.alias),
+                    "wallet_address": display_wallet_alias(user, alias),
                     "wallet_address_compact": alias.alias,
                     "technical_address": address.public_id,
                     "deep_link": wallet_deep_link(alias.alias),
@@ -682,6 +710,16 @@ def register_transfers(app) -> None:
     if _REGISTERED:
         return
     core.Base.metadata.create_all(core.engine)
+    if core.OWNER_TELEGRAM_ID is not None:
+        with core.SessionLocal() as session:
+            with session.begin():
+                owner_user = session.scalar(
+                    select(core.User)
+                    .where(core.User.telegram_id == int(core.OWNER_TELEGRAM_ID))
+                    .with_for_update()
+                )
+                if owner_user is not None:
+                    ensure_wallet_alias(session, owner_user, now_utc())
     bootstrap_wallet_aliases()
     app.include_router(router)
     _REGISTERED = True
