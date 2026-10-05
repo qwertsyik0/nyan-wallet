@@ -67,7 +67,7 @@ jobs:
                   "chatmemberhandler", "my_chat_member", "media_group_id", "copy_message",
                   "preview", "предпросмотр", "album", "альбом", "custom_emoji",
                   "nyg:", "nygo:", "nygw:", "results/publish", "replace-post",
-                  "мастер создания уже закрыт", "giveaways", "conversationhandler", "filters.text", "filters.command"
+                  "мастер создания уже закрыт", "giveaways", "conversationhandler", "filters.text", "filters.command", "_begin_create", "def _wizard", "def _set_wizard"
               )):
                   print(f"{no}: {line}")
           PY
