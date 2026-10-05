@@ -114,6 +114,7 @@ function buildFeatureUI() {
         </section>
     `;
     app?.appendChild(spendView);
+    renderRewardTabs([]);
 
     const ownerView = document.getElementById("owner-view");
     if (ownerView) {
@@ -265,7 +266,6 @@ function renderRewardTabs(items) {
     tabs.innerHTML = "";
     for (const [key, label] of REWARD_TABS) {
         const count = counts.get(key) || 0;
-        if (key !== "all" && count === 0) continue;
 
         const button = document.createElement("button");
         button.type = "button";
@@ -285,8 +285,13 @@ function renderRewardTabs(items) {
 }
 
 async function loadSpendData() {
-    if (!tgExt?.initData) return;
+    renderRewardTabs(spendRewardsCache);
     const status = document.getElementById("spend-status");
+    if (!tgExt?.initData) {
+        if (status) status.innerHTML = `<div class="feature-status">Откройте Nyan Wallet внутри Telegram, чтобы загрузить товары.</div>`;
+        renderRewards(spendRewardsCache);
+        return;
+    }
     const list = document.getElementById("reward-list");
     if (status) status.innerHTML = "";
     if (list) list.innerHTML = `<div class="feature-inline-list">Загружаем награды…</div>`;
