@@ -721,10 +721,14 @@ def register_transfers(app) -> None:
                 )
                 if owner_user is not None:
                     owner_alias = ensure_wallet_alias(session, owner_user, now_utc())
-                    logger.info(
-                        "owner wallet alias bound telegram_id=%s alias=%s",
-                        owner_user.telegram_id,
-                        owner_alias.alias,
+                    resolved_owner_id = resolve_recipient_id(session, "7777 7777 7777")
+                    if int(resolved_owner_id) != int(owner_user.telegram_id):
+                        raise RuntimeError("Номер владельца 7777 7777 7777 привязан некорректно")
+                    print(
+                        "[wallet_alias] "
+                        f"owner_id={owner_user.telegram_id} "
+                        f"alias={owner_alias.alias} "
+                        f"resolved={resolved_owner_id}"
                     )
     bootstrap_wallet_aliases()
     app.include_router(router)
