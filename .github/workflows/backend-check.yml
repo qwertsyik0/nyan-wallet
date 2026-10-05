@@ -56,6 +56,11 @@ jobs:
               and any(key in node.name.lower() for key in ("give", "channel", "media", "result", "winner", "preview", "wizard", "cancel"))
           })
           print("FUNCTIONS:", " | ".join(names))
+          lines = src.splitlines()
+          for start, end in ((320, 385), (1255, 1305), (1570, 1605)):
+              print(f"RANGE {start}-{end}")
+              for no in range(start, min(end, len(lines)) + 1):
+                  print(f"{no}: {lines[no-1]}")
           for no, line in enumerate(src.splitlines(), 1):
               low = line.lower()
               if any(key in low for key in (
