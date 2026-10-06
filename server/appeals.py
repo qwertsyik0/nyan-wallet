@@ -1534,8 +1534,8 @@ def _apply_request_33_wallet_skin_once() -> None:
                 "Спасибо, что пользуетесь Nyan Wallet.",
             )
 
-        logger.info(
-            "request_33_skin: applied successfully telegram_id=%s title=%s",
+        logger.warning(
+            "request_33_skin: verified active telegram_id=%s title=%s",
             telegram_id,
             title,
         )
