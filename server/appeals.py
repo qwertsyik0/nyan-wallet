@@ -1494,7 +1494,7 @@ def _apply_request_33_wallet_skin_once() -> None:
                     )
                 )
                 was_active = bool(current_assignment and current_assignment.is_active)
-                assign_skin_to_user(session, telegram_id, skin, timestamp)
+                assigned_skin = assign_skin_to_user(session, telegram_id, skin, timestamp)
 
                 request_completed_now = False
                 if request is not None and request.status == "pending":
@@ -1534,10 +1534,13 @@ def _apply_request_33_wallet_skin_once() -> None:
                 "Спасибо, что пользуетесь Nyan Wallet.",
             )
 
-        logger.warning(
-            "request_33_skin: verified active telegram_id=%s title=%s",
-            telegram_id,
-            title,
+        print(
+            "REQUEST_33_SKIN_VERIFIED "
+            f"telegram_id={telegram_id} "
+            f"skin_id={skin.id} "
+            f"active={assigned_skin.is_active} "
+            f"request_status={request.status if request is not None else 'missing'}",
+            flush=True,
         )
     except Exception:
         logger.exception("request_33_skin: failed")
