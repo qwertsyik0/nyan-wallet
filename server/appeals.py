@@ -1497,7 +1497,7 @@ def _apply_request_33_wallet_skin_once() -> None:
                 assigned_skin = assign_skin_to_user(session, telegram_id, skin, timestamp)
 
                 request_completed_now = False
-                if request is not None and request.status == "pending":
+                if request is not None and request.status in {"pending", "processing"}:
                     request.status = "fulfilled"
                     request.processed_at = timestamp
                     request_completed_now = True
