@@ -48,6 +48,7 @@ function achIcon(name, extraClass = "") {
         calendar: `<rect x="2" y="3" width="12" height="11" rx="1"/><rect x="4" y="1" width="2" height="4"/><rect x="10" y="1" width="2" height="4"/><rect x="4" y="7" width="2" height="2" fill="#fff" opacity=".9"/><rect x="7" y="7" width="2" height="2" fill="#fff" opacity=".9"/><rect x="10" y="7" width="2" height="2" fill="#fff" opacity=".9"/><rect x="4" y="10" width="2" height="2" fill="#fff" opacity=".9"/><rect x="7" y="10" width="2" height="2" fill="#fff" opacity=".9"/>`,
         medal: `<path d="M4 1h3l1 4-3 2-1-6Zm5 0h3l-1 6-3-2 1-4Z"/><circle cx="8" cy="10" r="4.5"/><path d="M8 7.2 8.8 9l2 .2-1.5 1.3.5 1.9L8 11.4l-1.8 1 .5-1.9-1.5-1.3 2-.2L8 7.2Z" fill="#fff" opacity=".9"/>`,
         legend: `<path d="M8 1v2M2.5 3.5 4 5M13.5 3.5 12 5M1 9h2M13 9h2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="5" cy="7" r="1.5"/><circle cx="11" cy="7" r="1.5"/><circle cx="3.5" cy="10" r="1.2"/><circle cx="12.5" cy="10" r="1.2"/><path d="M5 13c0-2 1.4-3.2 3-3.2s3 1.2 3 3.2c0 1-.9 1.5-1.7 1.1L8 13.5l-1.3.6C5.9 14.5 5 14 5 13Z"/>`,
+        mystery: `<path d="M6.2 5.6C6.3 3.8 7.5 2.7 9.3 2.7c2 0 3.5 1.2 3.5 3 0 1.6-.9 2.4-2.1 3.2-.9.6-1.3 1.1-1.3 2H7.2c0-1.8.7-2.7 1.9-3.5.9-.6 1.4-1 1.4-1.7 0-.7-.5-1.2-1.3-1.2-.9 0-1.4.5-1.5 1.4L6.2 5.6Z"/><circle cx="8.3" cy="13.2" r="1.2"/>`,
     };
     return start + (icons[name] || icons.paw) + end;
 }
@@ -60,7 +61,7 @@ function addAchStyles() {
       .ach-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.ach-count{font-size:12px;font-weight:800;color:#922954;background:#fff0f6;border:1px solid #efd8e2;padding:7px 10px;border-radius:999px;white-space:nowrap}
       .ach-selected{display:flex;align-items:center;gap:10px;margin-top:12px;padding:11px 12px;border:1px solid #efd8e2;border-radius:14px;background:#fff}.ach-selected-icon{width:34px;height:34px;display:grid;place-items:center;border-radius:11px;background:#fff2f7;color:#922954}.ach-selected-text{min-width:0}.ach-selected-title{font-size:12px;font-weight:800;color:#6d304a}.ach-selected-sub{font-size:10px;color:#a67589;margin-top:2px}
       .ach-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}.ach-card{appearance:none;text-align:left;width:100%;min-width:0;padding:13px;border-radius:17px;border:1px solid #efd8e2;background:#fff;color:inherit;position:relative;overflow:hidden}.ach-card.unlocked{cursor:pointer}.ach-card.locked{opacity:.57;filter:saturate(.7)}.ach-card.selected{border-color:#922954;box-shadow:0 0 0 1px #922954 inset}.ach-card:active.unlocked{transform:scale(.985)}
-      .ach-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.ach-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:13px;background:#fff3f7;color:#a33a64;border:1px solid #f0dce5}.ach-svg{width:25px;height:25px;fill:currentColor}.ach-lock{font-size:9px;font-weight:800;color:#b18a9a;background:#faf4f7;border-radius:999px;padding:5px 7px}.ach-rarity{font-size:8px;text-transform:uppercase;letter-spacing:.06em;font-weight:800;margin-top:8px;color:#b47a91}.ach-card[data-rarity="rare"] .ach-icon{background:#fff0f7;color:#b12266}.ach-card[data-rarity="epic"] .ach-icon{background:#fbf0ff;color:#8b3d9e}.ach-card[data-rarity="legendary"] .ach-icon{background:linear-gradient(135deg,#fff1f7,#fff8dc);color:#a06227;box-shadow:0 0 16px rgba(160,98,39,.12)}
+      .ach-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.ach-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:13px;background:#fff3f7;color:#a33a64;border:1px solid #f0dce5}.ach-svg{width:25px;height:25px;fill:currentColor}.ach-lock{font-size:9px;font-weight:800;color:#b18a9a;background:#faf4f7;border-radius:999px;padding:5px 7px}.ach-rarity{font-size:8px;text-transform:uppercase;letter-spacing:.06em;font-weight:800;margin-top:8px;color:#b47a91}.ach-card[data-rarity="rare"] .ach-icon{background:#fff0f7;color:#b12266}.ach-card[data-rarity="epic"] .ach-icon{background:#fbf0ff;color:#8b3d9e}.ach-card[data-rarity="legendary"] .ach-icon{background:linear-gradient(135deg,#fff1f7,#fff8dc);color:#a06227;box-shadow:0 0 16px rgba(160,98,39,.12)}.ach-card[data-rarity="mythic"]{border-color:#c995b4;background:linear-gradient(145deg,#fff,#fff4fa)}.ach-card[data-rarity="mythic"] .ach-icon{background:linear-gradient(135deg,#fbeaff,#ffe9f2,#fff7dc);color:#82315b;box-shadow:0 0 18px rgba(130,49,91,.16)}.ach-card.secret.locked .ach-icon{background:#f7f2f5;color:#a58a97}.ach-card.secret.locked .ach-title{letter-spacing:.08em}
       .ach-title{margin-top:5px;font-size:13px;font-weight:850;color:#6d304a;line-height:1.2}.ach-desc{margin-top:5px;font-size:10px;color:#a67589;line-height:1.35;min-height:27px}.ach-reward{margin-top:8px;display:inline-flex;align-items:center;padding:5px 7px;border-radius:999px;background:#fff4f8;color:#922954;font-size:9px;font-weight:800}.ach-reward.badge-only{color:#8d7080;background:#faf5f7}.ach-progress{height:5px;background:#f3e4ea;border-radius:999px;overflow:hidden;margin-top:9px}.ach-progress>span{display:block;height:100%;border-radius:999px;background:#a73a66}.ach-progress-meta{font-size:9px;color:#ae8696;margin-top:4px}.ach-date{font-size:9px;color:#ae8696;margin-top:7px}.ach-selected-mark{position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:#922954;color:#fff;font-size:10px;font-weight:900}
       .ach-wallet-badge{display:inline-flex;align-items:center;gap:5px;margin-top:4px;padding:4px 7px;border-radius:999px;background:#fff0f6;border:1px solid #efd8e2;color:#8b3156;font-size:9px;font-weight:800;vertical-align:middle}.ach-wallet-badge .ach-svg{width:12px;height:12px}.ach-hint{margin-top:10px;font-size:10px;line-height:1.4;color:#a67589}.ach-toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9999;width:min(88vw,340px);padding:12px 14px;border-radius:16px;background:#6f2747;color:#fff;box-shadow:0 12px 35px rgba(67,24,43,.22);font-size:12px;font-weight:700;text-align:center;animation:achIn .2s ease-out}@keyframes achIn{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
       @media(max-width:360px){.ach-grid{grid-template-columns:1fr}}
@@ -69,7 +70,7 @@ function addAchStyles() {
 }
 
 function rarityLabel(value) {
-    return ({ common: "Обычное", rare: "Редкое", epic: "Эпическое", legendary: "Легендарное" })[value] || "Достижение";
+    return ({ common: "Обычное", rare: "Редкое", epic: "Эпическое", legendary: "Легендарное", mythic: "Мифическое" })[value] || "Достижение";
 }
 
 function buildAchievementsUI() {
@@ -83,7 +84,7 @@ function buildAchievementsUI() {
     panel.innerHTML = `
       <div class="ach-head">
         <div><div class="adv-title">Достижения</div><div class="adv-sub">Собирайте значки за активность в Nyan Wallet</div></div>
-        <div id="ach-count" class="ach-count">0 / 16</div>
+        <div id="ach-count" class="ach-count">0 / —</div>
       </div>
       <div id="ach-selected"></div>
       <div id="ach-grid" class="ach-grid"><div class="adv-sub">Загружаем достижения…</div></div>
@@ -129,12 +130,15 @@ function renderAchievements(data) {
     const grid = document.getElementById("ach-grid");
     if (!grid) return;
     grid.innerHTML = data.items.map(item => {
-        const reward = item.reward > 0 ? `+${item.reward} 🐾` : "значок";
+        const secretLocked = Boolean(item.secret && !item.unlocked);
+        const reward = secretLocked ? "???" : (item.reward > 0 ? `+${item.reward} 🐾` : "значок");
         const progressText = item.unlocked
             ? "Выполнено"
-            : `${Math.min(item.current, item.target)} / ${item.target}`;
+            : secretLocked
+                ? "условие скрыто"
+                : `${Math.min(item.current, item.target)} / ${item.target}`;
         return `
-          <button type="button" class="ach-card ${item.unlocked ? "unlocked" : "locked"} ${item.selected ? "selected" : ""}" data-ach-key="${achEsc(item.key)}" data-rarity="${achEsc(item.rarity)}" ${item.unlocked ? "" : "disabled"}>
+          <button type="button" class="ach-card ${item.unlocked ? "unlocked" : "locked"} ${item.selected ? "selected" : ""} ${secretLocked ? "secret" : ""}" data-ach-key="${achEsc(item.key)}" data-rarity="${achEsc(item.rarity)}" ${item.unlocked ? "" : "disabled"}>
             ${item.selected ? `<span class="ach-selected-mark">✓</span>` : ""}
             <div class="ach-card-top"><div class="ach-icon">${achIcon(item.icon)}</div>${item.unlocked ? "" : `<span class="ach-lock">закрыто</span>`}</div>
             <div class="ach-rarity">${rarityLabel(item.rarity)}</div>
