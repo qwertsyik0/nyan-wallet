@@ -74,16 +74,34 @@ ACHIEVEMENTS = [
     {"key": "piggybank", "title": "Копилка", "description": "Заработать суммарно 500 🐾", "icon": "piggy", "rarity": "rare", "reward": 20, "metric": "earned", "target": 500},
     {"key": "thousand", "title": "Тысяча", "description": "Заработать суммарно 1 000 🐾", "icon": "star", "rarity": "rare", "reward": 30, "metric": "earned", "target": 1000},
     {"key": "collector", "title": "Коллекционер", "description": "Заработать суммарно 5 000 🐾", "icon": "gem", "rarity": "epic", "reward": 0, "metric": "earned", "target": 5000},
+    {"key": "ten_thousand", "title": "Лапочный магнат", "description": "Заработать суммарно 10 000 🐾", "icon": "crown", "rarity": "legendary", "reward": 150, "metric": "earned", "target": 10000},
+
     {"key": "first_reward", "title": "Первая награда", "description": "Впервые заказать приз", "icon": "gift", "rarity": "common", "reward": 10, "metric": "requests", "target": 1},
     {"key": "reward_hunter", "title": "Охотник за наградами", "description": "Получить 5 выданных наград", "icon": "gift_star", "rarity": "rare", "reward": 25, "metric": "fulfilled", "target": 5},
+    {"key": "reward_collector", "title": "Постоянный клиент", "description": "Получить 10 выданных наград", "icon": "gift_star", "rarity": "epic", "reward": 60, "metric": "fulfilled", "target": 10},
+
     {"key": "promocoder", "title": "Промокодер", "description": "Активировать первый промокод", "icon": "ticket", "rarity": "common", "reward": 0, "metric": "promos", "target": 1},
     {"key": "lucky", "title": "Удачливый", "description": "Активировать 5 разных промокодов", "icon": "clover", "rarity": "rare", "reward": 15, "metric": "promos", "target": 5},
+    {"key": "promo_hunter", "title": "Охотник за кодами", "description": "Активировать 10 разных промокодов", "icon": "ticket", "rarity": "rare", "reward": 40, "metric": "promos", "target": 10},
+    {"key": "promo_master", "title": "Мастер промокодов", "description": "Активировать 20 разных промокодов", "icon": "clover", "rarity": "epic", "reward": 80, "metric": "promos", "target": 20},
+
     {"key": "first_friend", "title": "Первый друг", "description": "Пригласить 1 пользователя", "icon": "friend", "rarity": "common", "reward": 10, "metric": "invited", "target": 1},
     {"key": "company", "title": "Компания", "description": "Пригласить 5 пользователей", "icon": "group", "rarity": "rare", "reward": 25, "metric": "invited", "target": 5},
     {"key": "own_pack", "title": "Своя стая", "description": "Пригласить 10 пользователей", "icon": "crown", "rarity": "epic", "reward": 0, "metric": "invited", "target": 10},
+
     {"key": "regular", "title": "Постоянный", "description": "Пользоваться Wallet 7 разных дней", "icon": "calendar", "rarity": "rare", "reward": 15, "metric": "active_days", "target": 7},
     {"key": "long_time", "title": "С нами давно", "description": "Пользоваться Wallet 30 разных дней", "icon": "medal", "rarity": "epic", "reward": 30, "metric": "active_days", "target": 30},
+    {"key": "veteran", "title": "Ветеран Nyan", "description": "Пользоваться Wallet 90 разных дней", "icon": "medal", "rarity": "legendary", "reward": 150, "metric": "active_days", "target": 90},
     {"key": "nyan_legend", "title": "Нян Легенда", "description": "Достичь уровня «Легенда»", "icon": "legend", "rarity": "legendary", "reward": 0, "metric": "legend", "target": 1},
+
+    {"key": "achievement_hunter", "title": "Охотник за ачивками", "description": "Открыть 10 достижений", "icon": "star", "rarity": "epic", "reward": 50, "metric": "achievements", "target": 10},
+    {"key": "achievement_master", "title": "Коллекционер достижений", "description": "Открыть 20 достижений", "icon": "gem", "rarity": "legendary", "reward": 125, "metric": "achievements", "target": 20},
+
+    {"key": "secret_zero", "title": "По нулям", "description": "Оставить на балансе ровно 0 🐾", "icon": "mystery", "rarity": "rare", "reward": 10, "metric": "balance", "target": 0, "comparison": "eq", "secret": True},
+    {"key": "secret_777", "title": "Счастливые лапки", "description": "Оставить на балансе ровно 777 🐾", "icon": "mystery", "rarity": "epic", "reward": 25, "metric": "balance", "target": 777, "comparison": "eq", "secret": True},
+    {"key": "secret_1000", "title": "Ровный счёт", "description": "Оставить на балансе ровно 1 000 🐾", "icon": "mystery", "rarity": "epic", "reward": 20, "metric": "balance", "target": 1000, "comparison": "eq", "secret": True},
+
+    {"key": "completionist", "title": "100% Nyan", "description": "Открыть все несекретные достижения", "icon": "legend", "rarity": "mythic", "reward": 300, "metric": "public_achievements", "target": 1},
 ]
 ACHIEVEMENT_BY_KEY = {item["key"]: item for item in ACHIEVEMENTS}
 
@@ -115,7 +133,12 @@ def _stats(session: Session, telegram_id: int) -> dict[str, int]:
             core.Transaction.telegram_id == telegram_id,
             core.Transaction.amount > 0,
             core.Transaction.operation_type != "achievement",
-            ~core.Transaction.operation_type.in_(("reward_refund", "giveaway_refund", "giveaway_manual_refund")),
+            ~core.Transaction.operation_type.in_((
+                "reward_refund",
+                "giveaway_refund",
+                "giveaway_manual_refund",
+                "transfer_in",
+            )),
         )
     ) or 0
     positive_tx = session.scalar(
@@ -148,6 +171,9 @@ def _stats(session: Session, telegram_id: int) -> dict[str, int]:
             WalletActivityDay.telegram_id == telegram_id
         )
     ) or 0
+    current_balance = session.scalar(
+        select(core.User.balance).where(core.User.telegram_id == telegram_id)
+    )
     cfg = settings(session)
     return {
         "first_step": 1,
@@ -158,8 +184,40 @@ def _stats(session: Session, telegram_id: int) -> dict[str, int]:
         "promos": int(promos),
         "invited": int(invited),
         "active_days": int(active_days),
+        "balance": int(current_balance or 0),
         "legend": 1 if int(earned) >= int(cfg.get("level_legend", 5000)) else 0,
     }
+
+
+def _achievement_target(item: dict) -> int:
+    if item["metric"] == "public_achievements":
+        return sum(
+            1
+            for candidate in ACHIEVEMENTS
+            if candidate["key"] != item["key"] and not candidate.get("secret", False)
+        )
+    return int(item["target"])
+
+
+def _achievement_current(item: dict, stats: dict[str, int], existing: set[str]) -> int:
+    metric = item["metric"]
+    if metric == "achievements":
+        return len(existing)
+    if metric == "public_achievements":
+        return sum(
+            1
+            for key in existing
+            if key in ACHIEVEMENT_BY_KEY
+            and key != item["key"]
+            and not ACHIEVEMENT_BY_KEY[key].get("secret", False)
+        )
+    return int(stats.get(metric, 0))
+
+
+def _achievement_met(item: dict, current: int, target: int) -> bool:
+    if item.get("comparison") == "eq":
+        return current == target
+    return current >= target
 
 
 def _unlock_new(session: Session, user: core.User, stats: dict[str, int], timestamp: datetime) -> list[dict]:
@@ -173,8 +231,9 @@ def _unlock_new(session: Session, user: core.User, stats: dict[str, int], timest
 
     for item in ACHIEVEMENTS:
         key = item["key"]
-        current = int(stats.get(item["metric"], 0))
-        if key in existing or current < int(item["target"]):
+        target = _achievement_target(item)
+        current = _achievement_current(item, stats, existing)
+        if key in existing or not _achievement_met(item, current, target):
             continue
 
         reward = int(item["reward"])
@@ -223,21 +282,44 @@ def _serialize(session: Session, telegram_id: int, stats: dict[str, int]) -> dic
     unlock_map = {row.achievement_key: row for row in unlock_rows}
     badge = session.get(AchievementBadge, telegram_id)
     items = []
+    existing = set(unlock_map)
     for item in ACHIEVEMENTS:
         row = unlock_map.get(item["key"])
-        current = int(stats.get(item["metric"], 0))
-        target = int(item["target"])
-        items.append(
-            {
-                **item,
-                "unlocked": row is not None,
-                "unlocked_at": row.unlocked_at.isoformat() if row else None,
-                "current": min(current, target),
-                "target": target,
-                "progress": min(100, round(current * 100 / max(1, target))),
-                "selected": badge is not None and badge.achievement_key == item["key"],
-            }
-        )
+        unlocked = row is not None
+        current = _achievement_current(item, stats, existing)
+        target = _achievement_target(item)
+        secret_locked = bool(item.get("secret", False) and not unlocked)
+
+        payload = {
+            **item,
+            "unlocked": unlocked,
+            "unlocked_at": row.unlocked_at.isoformat() if row else None,
+            "current": min(current, target) if item.get("comparison") != "eq" else current,
+            "target": target,
+            "progress": (
+                100
+                if unlocked
+                else min(100, round(current * 100 / max(1, target)))
+                if item.get("comparison") != "eq"
+                else 0
+            ),
+            "selected": badge is not None and badge.achievement_key == item["key"],
+        }
+
+        if secret_locked:
+            payload.update(
+                {
+                    "title": "???",
+                    "description": "Секретное достижение",
+                    "icon": "mystery",
+                    "reward": 0,
+                    "current": 0,
+                    "target": 1,
+                    "progress": 0,
+                }
+            )
+
+        items.append(payload)
 
     selected = None
     if badge and badge.achievement_key in ACHIEVEMENT_BY_KEY:
