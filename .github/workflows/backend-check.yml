@@ -339,6 +339,50 @@ jobs:
               assert marker in html, f"promo page marker missing: {marker}"
           print("delayed-fee promo subsystem static audit OK")
           PY
+      - name: Audit achievements subsystem
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          backend = Path("server/achievements.py").read_text(encoding="utf-8")
+          compile(backend, "server/achievements.py", "exec")
+          for marker in (
+              '"key": "ten_thousand"',
+              '"key": "promo_hunter"',
+              '"key": "promo_master"',
+              '"key": "reward_collector"',
+              '"key": "veteran"',
+              '"key": "achievement_hunter"',
+              '"key": "achievement_master"',
+              '"key": "secret_zero"',
+              '"key": "secret_777"',
+              '"key": "secret_1000"',
+              '"key": "completionist"',
+              '"rarity": "mythic"',
+              '"comparison": "eq"',
+              '"transfer_in"',
+              'def _achievement_target',
+              'def _achievement_current',
+              'def _achievement_met',
+              '"title": "???"',
+              '"description": "Секретное достижение"',
+          ):
+              assert marker in backend, f"achievement backend marker missing: {marker}"
+
+          client = Path("achievements.js").read_text(encoding="utf-8")
+          for marker in (
+              "mystery:",
+              'mythic: "Мифическое"',
+              "secretLocked",
+              "условие скрыто",
+              'data-rarity="',
+          ):
+              assert marker in client, f"achievement client marker missing: {marker}"
+
+          html = Path("index.html").read_text(encoding="utf-8")
+          assert "achievements.js?v=20261006-1" in html
+          print("achievements subsystem static audit OK")
+          PY
       - name: Check browser JavaScript syntax
         run: |
           for file in ./*.js; do
