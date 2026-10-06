@@ -3,8 +3,6 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import struct
-import zlib
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -18,7 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from server import backend_app as core
-from server.extended_features import SpendRequest, audit, send_telegram_message
+from server.extended_features import audit
 from server.advanced_features import WalletNotification, level_data, settings
 
 logger = logging.getLogger("nyan_wallet.appeals")
@@ -1361,197 +1359,11 @@ async def wallet_skin_image(
         )
 
 
-def _png_chunk(kind: bytes, payload: bytes) -> bytes:
-    checksum = zlib.crc32(kind + payload) & 0xFFFFFFFF
-    return struct.pack(">I", len(payload)) + kind + payload + struct.pack(">I", checksum)
-
-
-def _render_request_33_orange_skin(width: int = 1200, height: int = 675) -> bytes:
-    """Generate a clean orange card background with a quiet center for Wallet UI."""
-    raw = bytearray()
-    circles = (
-        (110, 575, 185, (255, 205, 122)),
-        (1120, 110, 170, (255, 218, 146)),
-        (1030, 610, 130, (246, 119, 44)),
-    )
-
-    for y in range(height):
-        raw.append(0)  # PNG filter: None
-        fy = y / max(1, height - 1)
-        for x in range(width):
-            fx = x / max(1, width - 1)
-
-            # Warm orange gradient. The middle stays calmer so the real Wallet
-            # labels and balance remain readable over background-size: cover.
-            r = int(255 - 24 * fy)
-            g = int(181 - 82 * fy + 10 * (1 - abs(fx - 0.5) * 2))
-            b = int(91 - 39 * fy)
-
-            # Soft cream glow in the center.
-            dx = abs(fx - 0.50) / 0.44
-            dy = abs(fy - 0.44) / 0.46
-            glow = max(0.0, 1.0 - max(dx, dy))
-            r = min(255, int(r + 10 * glow))
-            g = min(255, int(g + 22 * glow))
-            b = min(255, int(b + 16 * glow))
-
-            # Subtle citrus-like discs kept near the edges.
-            for cx, cy, radius, tone in circles:
-                ddx = x - cx
-                ddy = y - cy
-                d2 = ddx * ddx + ddy * ddy
-                if d2 < radius * radius:
-                    edge = 1.0 - (d2 / (radius * radius))
-                    alpha = 0.24 * edge
-                    r = int(r * (1 - alpha) + tone[0] * alpha)
-                    g = int(g * (1 - alpha) + tone[1] * alpha)
-                    b = int(b * (1 - alpha) + tone[2] * alpha)
-
-            raw.extend((max(0, min(255, r)), max(0, min(255, g)), max(0, min(255, b))))
-
-    header = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
-    compressed = zlib.compress(bytes(raw), level=9)
-    return (
-        b"\x89PNG\r\n\x1a\n"
-        + _png_chunk(b"IHDR", header)
-        + _png_chunk(b"IDAT", compressed)
-        + _png_chunk(b"IEND", b"")
-    )
-
-
-def _apply_request_33_wallet_skin_once() -> None:
-    """One-time fulfillment for reward request #33."""
-    request_id = 33
-    telegram_id = 7378872915
-    title = "Orange Bloom"
-    description = "Индивидуальный оранжевый дизайн по заявке #33"
-    timestamp = now_utc()
-    notify_user = False
-
-    try:
-        image_data = _render_request_33_orange_skin()
-        digest = hashlib.sha256(image_data).hexdigest()
-
-        with core.SessionLocal() as session:
-            with session.begin():
-                user = session.scalar(
-                    select(core.User)
-                    .where(core.User.telegram_id == telegram_id)
-                    .with_for_update()
-                )
-                if user is None:
-                    logger.warning("request_33_skin: user %s not found", telegram_id)
-                    return
-
-                request = session.scalar(
-                    select(SpendRequest)
-                    .where(SpendRequest.id == request_id)
-                    .with_for_update()
-                )
-                if request is not None and request.telegram_id != telegram_id:
-                    logger.error(
-                        "request_33_skin: request #%s belongs to %s, expected %s",
-                        request_id,
-                        request.telegram_id,
-                        telegram_id,
-                    )
-                    return
-
-                skin = session.scalar(
-                    select(WalletSkin).where(
-                        WalletSkin.image_sha256 == digest,
-                        WalletSkin.title == title,
-                    )
-                )
-                if skin is None:
-                    skin = WalletSkin(
-                        title=title,
-                        description=description,
-                        text_theme="dark",
-                        image_mime="image/png",
-                        image_data=image_data,
-                        image_sha256=digest,
-                        image_width=1200,
-                        image_height=675,
-                        is_template=False,
-                        is_active=True,
-                        created_by_appeal_id=None,
-                        created_at=timestamp,
-                    )
-                    session.add(skin)
-                    session.flush()
-                    audit(
-                        session,
-                        "wallet_skin_created",
-                        telegram_id,
-                        f"{title} · reward request #{request_id} · {digest[:12]}",
-                    )
-
-                current_assignment = session.scalar(
-                    select(UserWalletSkin).where(
-                        UserWalletSkin.telegram_id == telegram_id,
-                        UserWalletSkin.skin_id == skin.id,
-                    )
-                )
-                was_active = bool(current_assignment and current_assignment.is_active)
-                assigned_skin = assign_skin_to_user(session, telegram_id, skin, timestamp)
-
-                request_completed_now = False
-                if request is not None and request.status in {"pending", "processing"}:
-                    request.status = "fulfilled"
-                    request.processed_at = timestamp
-                    request_completed_now = True
-                    audit(
-                        session,
-                        "reward_fulfilled",
-                        telegram_id,
-                        f"Заявка #{request_id}: {request.reward_title}, {request.cost} 🐾",
-                    )
-
-                if not was_active:
-                    add_wallet_notification(
-                        session,
-                        telegram_id,
-                        "Новый дизайн Nyan Wallet",
-                        f"По заявке #{request_id} установлен индивидуальный дизайн «{title}».",
-                    )
-                    audit(
-                        session,
-                        "wallet_skin_assigned",
-                        telegram_id,
-                        f"skin #{skin.id} · reward request #{request_id}",
-                    )
-
-                notify_user = (not was_active) or request_completed_now
-
-        if notify_user:
-            send_telegram_message(
-                telegram_id,
-                "Заявка #33 выполнена.\n"
-                "Для вашего Nyan Wallet установлен индивидуальный дизайн «Orange Bloom» "
-                "в оранжевой гамме.\n"
-                "Стоимость заявки: 300 🐾.\n"
-                "Спасибо, что пользуетесь Nyan Wallet.",
-            )
-
-        print(
-            "REQUEST_33_SKIN_VERIFIED "
-            f"telegram_id={telegram_id} "
-            f"skin_id={skin.id} "
-            f"active={assigned_skin.is_active} "
-            f"request_status={request.status if request is not None else 'missing'}",
-            flush=True,
-        )
-    except Exception:
-        logger.exception("request_33_skin: failed")
-
-
 def register_appeals(app) -> None:
     global _REGISTERED
     if _REGISTERED:
         return
     core.Base.metadata.create_all(core.engine)
     ensure_default_topic()
-    _apply_request_33_wallet_skin_once()
     app.include_router(router)
     _REGISTERED = True
