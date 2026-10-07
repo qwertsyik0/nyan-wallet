@@ -35,7 +35,9 @@ button {
     position: absolute;
     inset: 0;
     background: #000;
-    opacity: .20;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
     transform: scale(1.08);
     transition:
         opacity .45s ease,
@@ -44,6 +46,8 @@ button {
 
 .rickroll-stage.active {
     opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
     transform: scale(1);
 }
 
