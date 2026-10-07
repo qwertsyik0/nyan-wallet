@@ -32,7 +32,6 @@ from .user_bans import register_user_bans
 from .promo_delayed_fee import register_promo_delayed_fee
 from .manual_grants_20261004 import apply_interactive_grants_20261004
 from .manual_grants_20261004_backfill import backfill_interactive_grants_20261004
-from .multiaccount_probe_20261007 import run_multiaccount_probe_20261007
 
 register_campaign_promos()
 apply_interactive_grants_20261004()
@@ -59,4 +58,3 @@ register_user_bans(backend_app.app)
 register_promo_delayed_fee(backend_app.app)
 sync_bot_menu_buttons()
 
-run_multiaccount_probe_20261007()
