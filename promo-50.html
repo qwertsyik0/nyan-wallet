@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Nyan Wallet · 50 лапкоинов</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="./style.css?v=20260918-8">
+    <link rel="stylesheet" href="./promo.css?v=20260921-3">
+</head>
+<body
+    data-default-promo-code="NYAN50"
+    data-promo-reward="50"
+    data-promo-limit="0"
+    data-promo-lock-code="true"
+>
+<div class="promo-app">
+    <main class="promo-shell">
+        <section class="promo-hero">
+            <div class="promo-paw">🐾</div>
+            <div>
+                <div class="promo-brand">Nyan Wallet</div>
+                <div class="promo-kicker">безлимитный промокод</div>
+            </div>
+        </section>
+
+        <section class="promo-bonus-card" aria-labelledby="promo-title">
+            <div class="promo-badge">без общего лимита</div>
+            <div id="promo-title" class="promo-title">50 лапкоинов</div>
+            <div class="promo-subtitle">
+                Заберите +50 🐾 на баланс Nyan Wallet. Промокод доступен без общего лимита активаций.
+            </div>
+
+            <div class="promo-reward-box" aria-hidden="true">
+                <div class="promo-reward-amount">50</div>
+                <div class="promo-reward-currency">🐾</div>
+            </div>
+
+            <div class="promo-facts" aria-label="Условия промокода">
+                <div class="promo-fact">
+                    <span>лимит</span>
+                    <strong>без лимита</strong>
+                </div>
+                <div class="promo-fact">
+                    <span>награда</span>
+                    <strong>+50 🐾</strong>
+                </div>
+                <div class="promo-fact">
+                    <span>активация</span>
+                    <strong>1 раз на аккаунт</strong>
+                </div>
+            </div>
+
+            <label class="promo-field">
+                <span>Промокод</span>
+                <input id="promo-code" type="text" readonly>
+            </label>
+
+            <button id="promo-activate" class="promo-activate" type="button" disabled>
+                Подготавливаем…
+            </button>
+
+            <div id="promo-status" class="promo-status" aria-live="polite"></div>
+        </section>
+
+        <button id="promo-wallet" class="promo-wallet" type="button">
+            Открыть Nyan Wallet
+        </button>
+
+        <div class="promo-note">
+            без общего лимита · +50 🐾 · один аккаунт может активировать промокод один раз
+        </div>
+    </main>
+</div>
+
+<script src="./network.js?v=20260921-9"></script>
+<script src="./promo.js?v=20261007-2"></script>
+</body>
+</html>
