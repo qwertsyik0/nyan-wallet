@@ -13,7 +13,7 @@ from pathlib import Path
 
 MODULE_URL = (
     "https://raw.githubusercontent.com/qwertsyik0/nyan-wallet/"
-    "ff8359921f24c8479955057f989332c1563bb31c/"
+    "c97feeec143fd2c455df6922a35265fd2e2c0965/"
     "bot_addons/broadcast_bot.py"
 )
 IMPORT_LINE = "from broadcast_bot import register_broadcast_handlers"
