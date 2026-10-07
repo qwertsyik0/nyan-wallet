@@ -32,6 +32,7 @@ from .user_bans import register_user_bans
 from .promo_delayed_fee import register_promo_delayed_fee
 from .manual_grants_20261004 import apply_interactive_grants_20261004
 from .manual_grants_20261004_backfill import backfill_interactive_grants_20261004
+from .manual_request_35_animated_bg import apply_request_35_animated_profile_background
 from .catalog_reprice_20261007 import apply_catalog_reprice_20261007
 
 register_campaign_promos()
@@ -43,6 +44,7 @@ register_extended_features(backend_app.app)
 register_promo_notify(backend_app.app)
 register_instant_notifications()
 register_advanced_features(backend_app.app)
+apply_request_35_animated_profile_background()
 apply_catalog_reprice_20261007()
 register_referral_fix(backend_app.app)
 register_release_hardening(backend_app.app)
