@@ -44,7 +44,8 @@ DEFAULT_OWNER_ID = 6289461565
 PAGE_SIZE = 500
 HTTP_TIMEOUT_SECONDS = 12.0
 MAX_HTTP_RESPONSE_BYTES = 256 * 1024
-SEND_DELAY_SECONDS = 0.055
+BROADCAST_RATE_PER_SECOND = 28.0
+BROADCAST_WORKERS = 16
 NETWORK_RETRIES = 3
 MOSCOW_TZ = timezone(timedelta(hours=3), name="MSK")
 STATE_VERSION = 1
@@ -73,6 +74,34 @@ AUDIENCE_CYCLE: dict[Audience, Audience] = {
 
 class BroadcastBotError(RuntimeError):
     pass
+
+
+class BroadcastRateLimiter:
+    """Shared limiter for a broadcast so concurrent workers stay below Telegram's global rate."""
+
+    def __init__(self, rate_per_second: float) -> None:
+        self._interval = 1.0 / max(1.0, rate_per_second)
+        self._next_allowed = 0.0
+        self._blocked_until = 0.0
+        self._lock = asyncio.Lock()
+
+    async def wait(self, units: int = 1) -> None:
+        units = max(1, int(units))
+        while True:
+            async with self._lock:
+                now = time.monotonic()
+                target = max(self._next_allowed, self._blocked_until)
+                if now >= target:
+                    self._next_allowed = now + (self._interval * units)
+                    return
+                delay = target - now
+            await asyncio.sleep(delay)
+
+    async def defer(self, seconds: float) -> None:
+        async with self._lock:
+            blocked_until = time.monotonic() + max(0.0, seconds)
+            self._blocked_until = max(self._blocked_until, blocked_until)
+            self._next_allowed = max(self._next_allowed, self._blocked_until)
 
 
 @dataclass(slots=True)
@@ -878,13 +907,20 @@ def _retry_seconds(exc: RetryAfter) -> float:
         return 1.0
 
 
-async def _deliver_one(bot, recipient: int, snapshot: BroadcastSnapshot) -> str:
+async def _deliver_one(
+    bot,
+    recipient: int,
+    snapshot: BroadcastSnapshot,
+    limiter: BroadcastRateLimiter,
+) -> str:
+    message_units = max(1, len(snapshot.source_message_ids))
     for attempt in range(1, NETWORK_RETRIES + 1):
+        await limiter.wait(message_units)
         try:
             await _copy_source(bot=bot, chat_id=recipient, snapshot=snapshot)
             return "sent"
         except RetryAfter as exc:
-            await asyncio.sleep(_retry_seconds(exc) + 0.25)
+            await limiter.defer(_retry_seconds(exc) + 0.25)
         except Forbidden:
             return "blocked"
         except BadRequest as exc:
@@ -962,25 +998,58 @@ async def _run_broadcast(
         recipients = await _all_recipients(job.owner_id, job.audience)
         job.total = len(recipients)
         await _update_progress(application, job)
+
+        if not recipients:
+            await _update_progress(application, job, finished=True)
+            return "completed"
+
+        queue: asyncio.Queue[int] = asyncio.Queue()
+        for recipient in recipients:
+            queue.put_nowait(recipient)
+
+        limiter = BroadcastRateLimiter(BROADCAST_RATE_PER_SECOND)
+        progress_lock = asyncio.Lock()
         last_progress = time.monotonic()
 
-        for recipient in recipients:
-            if job.cancel_event.is_set():
-                break
-            result = await _deliver_one(application.bot, recipient, snapshot)
-            job.processed += 1
-            if result == "sent":
-                job.sent += 1
-            elif result == "blocked":
-                job.blocked += 1
-            else:
-                job.failed += 1
+        async def worker() -> None:
+            nonlocal last_progress
+            while not job.cancel_event.is_set():
+                try:
+                    recipient = queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    return
 
-            now = time.monotonic()
-            if job.processed % 20 == 0 or now - last_progress >= 3.0:
-                await _update_progress(application, job)
-                last_progress = now
-            await asyncio.sleep(SEND_DELAY_SECONDS)
+                try:
+                    result = await _deliver_one(
+                        application.bot,
+                        recipient,
+                        snapshot,
+                        limiter,
+                    )
+                    job.processed += 1
+                    if result == "sent":
+                        job.sent += 1
+                    elif result == "blocked":
+                        job.blocked += 1
+                    else:
+                        job.failed += 1
+
+                    now = time.monotonic()
+                    if job.processed % 20 == 0 or now - last_progress >= 3.0:
+                        async with progress_lock:
+                            now = time.monotonic()
+                            if job.processed % 20 == 0 or now - last_progress >= 3.0:
+                                await _update_progress(application, job)
+                                last_progress = now
+                finally:
+                    queue.task_done()
+
+        worker_count = min(BROADCAST_WORKERS, len(recipients))
+        workers = [
+            asyncio.create_task(worker(), name=f"nyan-broadcast-worker-{job.job_id}-{index}")
+            for index in range(worker_count)
+        ]
+        await asyncio.gather(*workers)
 
         await _update_progress(application, job, finished=True)
         return "cancelled" if job.cancel_event.is_set() else "completed"
