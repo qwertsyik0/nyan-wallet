@@ -15,6 +15,6 @@ def verify_request35_background() -> None:
                   ON sr.id = 35 AND sr.telegram_id = uc.telegram_id
                 WHERE uc.telegram_id = 6665456961
             """)).mappings().first()
-            logger.warning("REQUEST35_VERIFY %s", dict(row) if row else None)
+            print("REQUEST35_VERIFY", dict(row) if row else None, flush=True)
     except Exception:
-        logger.exception("REQUEST35_VERIFY_FAILED")
+        import traceback; traceback.print_exc(); print("REQUEST35_VERIFY_FAILED", flush=True)
