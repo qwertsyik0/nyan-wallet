@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Nyan Wallet · 700 лапкоинов</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="./promo-rofl700.css?v=20261007-1">
+</head>
+<body>
+    <main class="rofl-app">
+        <div id="rickroll-stage" class="rickroll-stage" aria-hidden="true">
+            <div id="rickroll-player"></div>
+        </div>
+
+        <section id="promo-cover" class="promo-cover" aria-labelledby="promo-title">
+            <div class="promo-shell">
+                <div class="promo-brand">
+                    <div class="promo-paw">🐾</div>
+                    <div>
+                        <div class="promo-brand-name">Nyan Wallet</div>
+                        <div class="promo-brand-note">секретный промокод</div>
+                    </div>
+                </div>
+
+                <div class="promo-card">
+                    <div class="promo-badge">лимитированная активация</div>
+                    <h1 id="promo-title">700 лапкоинов</h1>
+                    <p class="promo-copy">
+                        активируйте промокод ниже, чтобы получить бонус на баланс Nyan Wallet.
+                    </p>
+
+                    <div class="promo-amount" aria-hidden="true">
+                        <strong>700</strong>
+                        <span>🐾</span>
+                    </div>
+
+                    <label class="promo-field">
+                        <span>Промокод</span>
+                        <input value="NYANROFL700" readonly>
+                    </label>
+
+                    <button id="promo-activate" class="promo-activate" type="button">
+                        Активировать промокод
+                    </button>
+
+                    <div id="promo-status" class="promo-status" aria-live="polite">
+                        промокод готов к активации
+                    </div>
+                </div>
+
+                <div class="promo-note">
+                    один аккаунт может использовать промокод только один раз
+                </div>
+            </div>
+        </section>
+
+        <button id="sound-button" class="sound-button" type="button" hidden>
+            🔊 Включить звук
+        </button>
+    </main>
+
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="./promo-rofl700.js?v=20261007-1"></script>
+</body>
+</html>
