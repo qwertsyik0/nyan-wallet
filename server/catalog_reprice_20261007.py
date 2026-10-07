@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone
 
 from sqlalchemy import text
@@ -8,6 +9,7 @@ from sqlalchemy import text
 from server import backend_app as core
 
 ACTION = "catalog_reprice_20261007_v1"
+logger = logging.getLogger("nyan_wallet.catalog_reprice")
 
 NEW_PRICES = {
     5: 2250,   # Физический аккаунт США
@@ -40,6 +42,7 @@ def apply_catalog_reprice_20261007() -> None:
                 {"action": ACTION},
             ).first()
             if already_done:
+                logger.warning("CATALOG_REPRICE_20261007 already_applied")
                 return
 
             changed = []
@@ -73,3 +76,5 @@ def apply_catalog_reprice_20261007() -> None:
                     "created_at": datetime.now(timezone.utc),
                 },
             )
+
+    logger.warning("CATALOG_REPRICE_20261007 applied %s", json.dumps(NEW_PRICES, ensure_ascii=False))
