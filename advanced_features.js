@@ -44,6 +44,12 @@ function addAdvStyles() {
       .adv-level{margin-top:14px;padding:16px;border-radius:20px;background:#fff7fa;border:1px solid #efd8e2}.adv-level-top{display:flex;align-items:center;justify-content:space-between;gap:12px}.adv-level-name{font-weight:800;color:#7e284c}.adv-level-progress{height:8px;border-radius:999px;background:#f2dfe8;overflow:hidden;margin-top:10px}.adv-level-progress>span{display:block;height:100%;background:#922954;border-radius:inherit}.adv-level-meta{margin-top:7px;font-size:11px;color:#9f7486}
       .adv-notification{padding:14px 0;border-bottom:1px solid #f2e2e9}.adv-notification:last-child{border-bottom:0}.adv-notification.unread .adv-row-title:before{content:'• ';color:#922954}.adv-event{padding:14px;border-radius:16px;background:#fff;border:1px solid #efd8e2}.adv-event.adv-event-target{border:2px solid #922954;box-shadow:0 0 0 4px rgba(146,41,84,.08)}.adv-event-badge{display:inline-block;margin-bottom:6px;padding:5px 8px;border-radius:999px;background:#fff0f6;color:#922954;font-size:10px;font-weight:700}
       .adv-reward{overflow:hidden}.adv-reward-img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:14px;margin-bottom:10px}.adv-stock{font-size:10px;color:#a67589;margin-top:5px}.adv-status{margin-top:9px;font-size:12px;color:#7e4059}.adv-ok{color:#4c7a5a}.adv-warn{color:#9a5c2f}
+      #adv-profile-view.adv-bg-aurora-pink{position:relative;isolation:isolate;overflow:hidden;min-height:100vh}
+      #adv-profile-view.adv-bg-aurora-pink:before{content:"";position:absolute;inset:-25%;z-index:-2;background:radial-gradient(circle at 18% 22%,rgba(255,185,214,.95),transparent 28%),radial-gradient(circle at 82% 28%,rgba(208,90,151,.68),transparent 30%),radial-gradient(circle at 44% 82%,rgba(255,225,237,.9),transparent 34%),linear-gradient(135deg,#fff5f9,#efb5d0 52%,#fff8fb);background-size:160% 160%;animation:advAuroraPink 10s ease-in-out infinite alternate}
+      #adv-profile-view.adv-bg-aurora-pink:after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(110deg,transparent 15%,rgba(255,255,255,.34) 42%,transparent 65%);transform:translateX(-120%);animation:advAuroraShine 6s ease-in-out infinite}
+      #adv-profile-view.adv-bg-aurora-pink .adv-panel{background:rgba(255,255,255,.76);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 12px 34px rgba(126,40,76,.10)}
+      @keyframes advAuroraPink{0%{background-position:0% 35%}50%{background-position:65% 15%}100%{background-position:100% 75%}}
+      @keyframes advAuroraShine{0%,35%{transform:translateX(-120%)}70%,100%{transform:translateX(120%)}}
       @media(max-width:390px){.adv-two{grid-template-columns:1fr}.adv-actions{display:grid}.adv-actions button{width:100%}}
     `;
     document.head.appendChild(s);
@@ -143,6 +149,8 @@ async function loadAdvProfile() {
         const d = await advJson(r);
         if (!r.ok) throw new Error(d.detail || "Ошибка профиля");
         renderLevel(d.level);
+        const profileView = document.getElementById("adv-profile-view");
+        profileView?.classList.toggle("adv-bg-aurora-pink", d.cosmetics?.profile_background === "aurora_pink");
         const box = document.getElementById("adv-referral-box");
         if (box) {
             box.innerHTML = `<div class="adv-row"><div class="adv-row-title">Ваш код: ${advEsc(d.referral.code)}</div><div class="adv-row-meta">Приглашено: ${d.referral.invited_count}</div><div class="adv-actions"><button id="adv-copy-ref" type="button">Скопировать код</button></div></div>${d.referral.already_used_code ? `<div class="adv-row-meta">Вы уже использовали реферальный код.</div>` : `<div class="adv-form"><input id="adv-ref-input" placeholder="Введите код друга"><button id="adv-ref-apply" type="button">Применить код</button><div id="adv-ref-status" class="adv-status"></div></div>`}`;
