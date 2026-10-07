@@ -70,6 +70,17 @@ class RequestMeta(core.Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class UserCosmetic(core.Base):
+    __tablename__ = "user_cosmetics"
+    telegram_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("users.telegram_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    profile_background: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class WalletNotification(core.Base):
     __tablename__ = "wallet_notifications"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -596,6 +607,13 @@ async def profile(x_telegram_init_data: str | None = Header(default=None, alias=
                 "fulfilled_rewards": int(fulfilled),
                 "promo_uses": int(promo_uses),
                 "invited_count": int(invited),
+            },
+            "cosmetics": {
+                "profile_background": (
+                    session.get(UserCosmetic, tg["id"]).profile_background
+                    if session.get(UserCosmetic, tg["id"])
+                    else None
+                ),
             },
         }
 
