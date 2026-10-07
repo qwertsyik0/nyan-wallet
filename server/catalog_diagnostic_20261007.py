@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 
 from sqlalchemy import text
 
@@ -11,6 +12,8 @@ logger = logging.getLogger("nyan_wallet.catalog_diagnostic")
 
 
 def log_catalog_diagnostic_20261007() -> None:
+    if os.getenv("NYAN_CATALOG_DIAGNOSTIC_VERSION") != "1":
+        return
     try:
         with core.SessionLocal() as session:
             stats = session.execute(text("""
