@@ -241,7 +241,10 @@ function rewardPrimaryCategory(reward) {
 }
 
 function rewardIsLimited(reward) {
-    return reward?.stock_limit != null || Boolean(reward?.available_until);
+    const text = `${reward?.title || ""} ${reward?.description || ""}`.toLowerCase();
+    return reward?.stock_limit != null
+        || Boolean(reward?.available_until)
+        || /лимит|limited/.test(text);
 }
 
 function rewardMatchesTab(reward, tab) {
