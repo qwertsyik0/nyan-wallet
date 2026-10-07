@@ -20,6 +20,13 @@ LIMITED_PROMOS: dict[str, dict[str, Any]] = {
         "reward_amount": 109,
         "max_uses": 10,
     },
+    "nyan200": {
+        "code": "NYAN200",
+        "title": "Лимитированный бонус 200 🐾",
+        "description": "Разовый бонус Nyan Wallet для первых 10 успешных активаций.",
+        "reward_amount": 200,
+        "max_uses": 10,
+    },
 }
 
 
@@ -27,6 +34,8 @@ def _normalize_slug(value: str) -> str:
     slug = str(value or "").strip().lower().replace("_", "-")
     if slug == "promo-nyan109":
         return "nyan109"
+    if slug in {"promo-nyan200", "promo-200"}:
+        return "nyan200"
     return slug
 
 
