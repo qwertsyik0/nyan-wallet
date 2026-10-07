@@ -11,48 +11,13 @@
     let player = null;
     let playerReady = false;
     let revealRequested = false;
+    let playerRequested = false;
 
     tg?.ready?.();
     tg?.expand?.();
 
     function setStatus(text) {
         if (status) status.textContent = text || "";
-    }
-
-    function preloadMuted() {
-        if (!player || !playerReady || revealRequested) return;
-        try {
-            player.mute();
-            player.setVolume(100);
-            player.playVideo();
-        } catch (_) {}
-    }
-
-    function revealRickroll() {
-        if (revealRequested) return;
-        revealRequested = true;
-
-        setStatus("активируем промокод…");
-        tg?.HapticFeedback?.impactOccurred?.("medium");
-
-        stage?.classList.add("active");
-        stage?.setAttribute("aria-hidden", "false");
-        cover?.classList.add("revealed");
-
-        try {
-            if (player && playerReady) {
-                player.setVolume(100);
-                player.unMute();
-                player.playVideo();
-                soundButton.hidden = true;
-            } else {
-                soundButton.hidden = false;
-            }
-        } catch (_) {
-            soundButton.hidden = false;
-        }
-
-        tg?.MainButton?.hide?.();
     }
 
     function enableSound() {
@@ -62,15 +27,25 @@
             player.unMute();
             player.playVideo();
             soundButton.hidden = true;
-        } catch (_) {}
+        } catch (_) {
+            soundButton.hidden = false;
+        }
     }
 
-    window.onYouTubeIframeAPIReady = () => {
+    function createRickrollPlayer() {
+        if (playerRequested) return;
+        playerRequested = true;
+
+        if (!window.YT?.Player) {
+            soundButton.hidden = false;
+            return;
+        }
+
         player = new YT.Player("rickroll-player", {
             videoId: "dQw4w9WgXcQ",
             playerVars: {
                 autoplay: 1,
-                mute: 1,
+                mute: 0,
                 controls: 0,
                 disablekb: 1,
                 fs: 0,
@@ -84,20 +59,40 @@
                 onReady(event) {
                     playerReady = true;
                     try {
-                        event.target.mute();
                         event.target.setVolume(100);
+                        event.target.unMute();
                         event.target.playVideo();
-                    } catch (_) {}
-
-                    if (revealRequested) enableSound();
-                },
-                onStateChange(event) {
-                    if (!revealRequested && event.data === YT.PlayerState.PAUSED) {
-                        preloadMuted();
+                        soundButton.hidden = true;
+                    } catch (_) {
+                        soundButton.hidden = false;
                     }
+                },
+                onError() {
+                    soundButton.hidden = false;
                 },
             },
         });
+    }
+
+    function revealRickroll() {
+        if (revealRequested) return;
+        revealRequested = true;
+
+        setStatus("активируем промокод…");
+        tg?.HapticFeedback?.impactOccurred?.("medium");
+
+        // First remove the promo screen, only then create/show the YouTube player.
+        cover?.classList.add("revealed");
+        cover?.setAttribute("aria-hidden", "true");
+        stage?.classList.add("active");
+        stage?.setAttribute("aria-hidden", "false");
+
+        createRickrollPlayer();
+        tg?.MainButton?.hide?.();
+    }
+
+    window.onYouTubeIframeAPIReady = () => {
+        if (revealRequested) createRickrollPlayer();
     };
 
     activateButton?.addEventListener("click", revealRickroll);
@@ -111,8 +106,8 @@
     }
 
     document.addEventListener("visibilitychange", () => {
-        if (document.hidden || !playerReady) return;
-        if (revealRequested) enableSound();
-        else preloadMuted();
+        if (!document.hidden && revealRequested && playerReady) {
+            enableSound();
+        }
     });
 })();
