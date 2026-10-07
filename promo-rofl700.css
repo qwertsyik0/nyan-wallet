@@ -1,0 +1,290 @@
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: #000;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+input {
+    font: inherit;
+}
+
+.rofl-app {
+    position: relative;
+    width: 100vw;
+    height: 100dvh;
+    min-height: 100vh;
+    overflow: hidden;
+    background: #000;
+}
+
+.rickroll-stage {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity .18s ease;
+}
+
+.rickroll-stage.active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+#rickroll-player,
+#rickroll-player iframe {
+    position: absolute;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+    border: 0;
+}
+
+.promo-cover {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    width: 100%;
+    height: 100dvh;
+    min-height: 100vh;
+    overflow-y: auto;
+    overscroll-behavior: none;
+    background:
+        radial-gradient(circle at 16% 0%, rgba(255, 226, 239, 1), transparent 36%),
+        radial-gradient(circle at 92% 10%, rgba(255, 195, 221, .72), transparent 32%),
+        linear-gradient(180deg, #fff8fb 0%, #ffffff 72%);
+    opacity: 1;
+    visibility: visible;
+    transition: opacity .22s ease, visibility 0s linear .22s;
+}
+
+.promo-cover.revealed {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.promo-shell {
+    width: min(100% - 28px, 460px);
+    min-height: 100%;
+    margin: 0 auto;
+    padding:
+        max(24px, env(safe-area-inset-top))
+        0
+        max(28px, env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.promo-brand {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    margin-bottom: 16px;
+}
+
+.promo-paw {
+    display: grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    border: 1px solid #efd8e2;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 10px 26px rgba(137,41,82,.08);
+    font-size: 21px;
+}
+
+.promo-brand-name {
+    color: #842b50;
+    font-size: 19px;
+    font-weight: 900;
+}
+
+.promo-brand-note {
+    margin-top: 2px;
+    color: #b17d94;
+    font-size: 11px;
+}
+
+.promo-card {
+    position: relative;
+    overflow: hidden;
+    padding: 22px 19px 20px;
+    border: 1px solid #efd5e1;
+    border-radius: 28px;
+    background: #fff;
+    box-shadow: 0 20px 60px rgba(137,41,82,.12);
+}
+
+.promo-card::before {
+    content: "";
+    position: absolute;
+    right: -65px;
+    top: -72px;
+    width: 170px;
+    height: 170px;
+    border: 22px solid rgba(201,59,120,.05);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.promo-badge {
+    display: inline-flex;
+    padding: 7px 10px;
+    border: 1px solid rgba(231,79,145,.18);
+    border-radius: 999px;
+    background: #fff1f7;
+    color: #9b2d58;
+    font-size: 10px;
+    font-weight: 850;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+h1 {
+    margin: 13px 0 0;
+    color: #842b50;
+    font-size: clamp(32px, 9vw, 43px);
+    line-height: .98;
+    font-weight: 950;
+    letter-spacing: -.045em;
+}
+
+.promo-copy {
+    margin: 10px 0 0;
+    max-width: 350px;
+    color: #98667b;
+    font-size: 13px;
+    line-height: 1.48;
+}
+
+.promo-amount {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    margin-top: 17px;
+    padding: 15px;
+    border: 1px solid #f0d8e3;
+    border-radius: 21px;
+    background: linear-gradient(135deg, #fff4f9, #fff);
+}
+
+.promo-amount strong {
+    color: #8f2955;
+    font-size: 56px;
+    line-height: .84;
+    font-weight: 950;
+    letter-spacing: -.055em;
+}
+
+.promo-amount span {
+    padding-bottom: 4px;
+    font-size: 29px;
+}
+
+.promo-field {
+    display: grid;
+    gap: 7px;
+    margin-top: 17px;
+}
+
+.promo-field span {
+    color: #aa758d;
+    font-size: 11px;
+    font-weight: 750;
+}
+
+.promo-field input {
+    width: 100%;
+    min-height: 52px;
+    padding: 0 15px;
+    border: 1px solid #edd3df;
+    border-radius: 17px;
+    outline: none;
+    background: #fff8fb;
+    color: #7d2c50;
+    font-size: 16px;
+    font-weight: 850;
+    letter-spacing: .04em;
+}
+
+.promo-activate,
+.sound-button {
+    width: 100%;
+    min-height: 53px;
+    border: 0;
+    border-radius: 17px;
+    font-weight: 900;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.promo-activate {
+    margin-top: 14px;
+    background: linear-gradient(135deg, #e74f91, #c93b78);
+    color: #fff;
+    box-shadow: 0 12px 28px rgba(207,58,121,.20);
+}
+
+.promo-activate:active,
+.sound-button:active {
+    transform: scale(.985);
+}
+
+.promo-status {
+    min-height: 17px;
+    margin-top: 11px;
+    color: #ae7e93;
+    font-size: 10px;
+    text-align: center;
+}
+
+.promo-note {
+    margin: 13px 6px 0;
+    color: #b18a9b;
+    font-size: 11px;
+    line-height: 1.4;
+    text-align: center;
+}
+
+.sound-button {
+    position: fixed;
+    z-index: 30;
+    left: 50%;
+    bottom: max(20px, env(safe-area-inset-bottom));
+    width: min(calc(100% - 36px), 360px);
+    transform: translateX(-50%);
+    background: rgba(20,20,20,.82);
+    color: #fff;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+
+.sound-button[hidden] {
+    display: none;
+}
+
+@media (max-width: 360px) {
+    .promo-card {
+        padding: 18px 16px;
+    }
+
+    .promo-amount strong {
+        font-size: 49px;
+    }
+}
