@@ -125,10 +125,10 @@ def user_label(user: core.User) -> str:
 
 def seed_rewards() -> None:
     star_rewards = [
-        ("50 Telegram Stars", "Заявка на выдачу 50 Stars", 1400, 10),
-        ("100 Telegram Stars", "Заявка на выдачу 100 Stars", 2800, 20),
-        ("250 Telegram Stars", "Заявка на выдачу 250 Stars", 7000, 30),
-        ("500 Telegram Stars", "Заявка на выдачу 500 Stars", 14000, 40),
+        ("50 Telegram Stars", "Заявка на выдачу 50 Stars", 1750, 10),
+        ("100 Telegram Stars", "Заявка на выдачу 100 Stars", 3500, 20),
+        ("250 Telegram Stars", "Заявка на выдачу 250 Stars", 8750, 30),
+        ("500 Telegram Stars", "Заявка на выдачу 500 Stars", 17500, 40),
     ]
     with core.SessionLocal() as session:
         timestamp = now_utc()
