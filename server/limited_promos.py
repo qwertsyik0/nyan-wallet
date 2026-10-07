@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException
+from fastapi.responses import HTMLResponse
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
@@ -187,6 +188,67 @@ async def limited_promo_activate(slug: str, x_telegram_init_data: str | None = H
         return {"ok": True, **result}
     except IntegrityError as exc:
         raise HTTPException(status_code=409, detail="Вы уже активировали это промо") from exc
+
+
+
+@router.get("/promo-50.html", response_class=HTMLResponse)
+async def promo_50_page():
+    return HTMLResponse(
+        """<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Nyan Wallet · 50 лапкоинов</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="https://qwertsyik0.github.io/nyan-wallet/style.css?v=20260918-8">
+    <link rel="stylesheet" href="https://qwertsyik0.github.io/nyan-wallet/promo.css?v=20260921-3">
+</head>
+<body
+    data-default-promo-code="NYAN50"
+    data-promo-reward="50"
+    data-promo-limit="0"
+    data-promo-lock-code="true"
+>
+<div class="promo-app">
+    <main class="promo-shell">
+        <section class="promo-hero">
+            <div class="promo-paw">🐾</div>
+            <div>
+                <div class="promo-brand">Nyan Wallet</div>
+                <div class="promo-kicker">безлимитный промокод</div>
+            </div>
+        </section>
+        <section class="promo-bonus-card" aria-labelledby="promo-title">
+            <div class="promo-badge">без общего лимита</div>
+            <div id="promo-title" class="promo-title">50 лапкоинов</div>
+            <div class="promo-subtitle">
+                Заберите +50 🐾 на баланс Nyan Wallet. Промокод доступен без общего лимита активаций.
+            </div>
+            <div class="promo-reward-box" aria-hidden="true">
+                <div class="promo-reward-amount">50</div>
+                <div class="promo-reward-currency">🐾</div>
+            </div>
+            <div class="promo-facts" aria-label="Условия промокода">
+                <div class="promo-fact"><span>лимит</span><strong>без лимита</strong></div>
+                <div class="promo-fact"><span>награда</span><strong>+50 🐾</strong></div>
+                <div class="promo-fact"><span>активация</span><strong>1 раз на аккаунт</strong></div>
+            </div>
+            <label class="promo-field">
+                <span>Промокод</span>
+                <input id="promo-code" type="text" readonly>
+            </label>
+            <button id="promo-activate" class="promo-activate" type="button" disabled>Подготавливаем…</button>
+            <div id="promo-status" class="promo-status" aria-live="polite"></div>
+        </section>
+        <button id="promo-wallet" class="promo-wallet" type="button">Открыть Nyan Wallet</button>
+        <div class="promo-note">без общего лимита · +50 🐾 · один аккаунт может активировать промокод один раз</div>
+    </main>
+</div>
+<script src="https://qwertsyik0.github.io/nyan-wallet/promo.js?v=20261007-2"></script>
+</body>
+</html>"""
+    )
 
 
 def register_limited_promos(app) -> None:
