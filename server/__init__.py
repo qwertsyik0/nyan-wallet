@@ -27,6 +27,7 @@ from .appeals import register_appeals
 from .transfers import register_transfers
 from .broadcast import register_broadcast
 from .maintenance import register_maintenance
+from .season_777 import register_season_777
 from .bot_menu import sync_bot_menu_buttons
 from .user_bans import register_user_bans
 from .promo_delayed_fee import register_promo_delayed_fee
@@ -62,6 +63,7 @@ register_appeals(backend_app.app)
 register_transfers(backend_app.app)
 register_broadcast(backend_app.app)
 register_maintenance(backend_app.app)
+register_season_777(backend_app.app)
 register_user_bans(backend_app.app)
 register_promo_delayed_fee(backend_app.app)
 sync_bot_menu_buttons()
