@@ -272,6 +272,10 @@ html,body{
 
 
 .season-777-card {
+    position: relative;
+    z-index: 6;
+    pointer-events: auto;
+    touch-action: manipulation;
     width: 100%;
     margin: 14px 0 2px;
     padding: 18px;
