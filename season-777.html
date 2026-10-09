@@ -43,10 +43,10 @@ h1{margin:10px 0 0;font-size:clamp(30px,8vw,44px);line-height:1.02;letter-spacin
 <script>
 (()=>{
 "use strict";
-const tg=window.Telegram?.WebApp,API="https://nyan-wallet-api.onrender.com",app=document.getElementById("app"),progress=document.getElementById("progress");
+const tg=window.Telegram?.WebApp,API="https://nyan-wallet-api.onrender.com",app=document.getElementById("app"),progress=document.getElementById("progress");\nlet savedInitData="";try{savedInitData=sessionStorage.getItem("nyan_tg_init_data")||""}catch(_){}\nconst effectiveInitData=()=>tg?.initData||savedInitData||"";
 tg?.ready?.();tg?.expand?.();tg?.BackButton?.show?.();tg?.BackButton?.onClick?.(()=>{location.href="./"+location.search+location.hash});
 
-function headers(json=false){const h={"X-Telegram-Init-Data":tg?.initData||""};if(json)h["Content-Type"]="application/json";return h}
+function headers(json=false){const h={"X-Telegram-Init-Data":effectiveInitData()};if(json)h["Content-Type"]="application/json";return h}
 async function read(r){try{return await r.json()}catch(_){return {}}}
 function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
 function dots(s){const vals=[s.chapter1_choice,s.chapter2_choice,s.chapter3_choice,s.final_choice];progress.innerHTML=vals.map((v,i)=>'<span class="dot '+(v?'on':'')+'"></span>').join("")}
@@ -88,7 +88,7 @@ else if(s.current_step==="final")finale(Boolean(s.can_secret));
 else waiting(s);
 }
 async function load(){
-if(!tg?.initData){app.innerHTML='<div class="error">открой сезон через Telegram Mini App.</div>';return}
+if(!effectiveInitData()){app.innerHTML='<div class="error">открой сезон через Telegram Mini App.</div>';return}
 try{const r=await fetch(API+"/api/season-777/status",{headers:headers(),cache:"no-store"});const d=await read(r);if(!r.ok)throw new Error(d?.detail||"не удалось открыть архив");render(d)}
 catch(e){app.innerHTML='<div class="error">'+esc(e?.message||"ошибка загрузки")+'</div>'}
 }
