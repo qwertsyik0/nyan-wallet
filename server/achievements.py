@@ -101,6 +101,12 @@ ACHIEVEMENTS = [
     {"key": "secret_777", "title": "Счастливые лапки", "description": "Оставить на балансе ровно 777 🐾", "icon": "mystery", "rarity": "epic", "reward": 25, "metric": "balance", "target": 777, "comparison": "eq", "secret": True},
     {"key": "secret_1000", "title": "Ровный счёт", "description": "Оставить на балансе ровно 1 000 🐾", "icon": "mystery", "rarity": "epic", "reward": 20, "metric": "balance", "target": 1000, "comparison": "eq", "secret": True},
 
+    {"key": "season777_owner", "title": "Новый владелец", "description": "Завершить сезон 777 и забрать архив себе", "icon": "ticket", "rarity": "rare", "reward": 0, "metric": "season777_manual", "target": 1, "secret": True},
+    {"key": "season777_archivist", "title": "Архивариус", "description": "Вернуть архивные лапкоины системе", "icon": "medal", "rarity": "rare", "reward": 0, "metric": "season777_manual", "target": 1, "secret": True},
+    {"key": "season777_collective", "title": "На всех", "description": "Передать архивные лапкоины в общий фонд", "icon": "group", "rarity": "epic", "reward": 0, "metric": "season777_manual", "target": 1, "secret": True},
+    {"key": "season777_greed", "title": "А вдруг прокатит?", "description": "Дважды выбрать архивные лапкоины для себя", "icon": "mystery", "rarity": "rare", "reward": 0, "metric": "season777_manual", "target": 1, "secret": True},
+    {"key": "season777_truth", "title": "Ошибка №777", "description": "Раскрыть настоящий смысл архива NYAN-0", "icon": "mystery", "rarity": "legendary", "reward": 0, "metric": "season777_manual", "target": 1, "secret": True},
+
     {"key": "completionist", "title": "100% Nyan", "description": "Открыть все несекретные достижения", "icon": "legend", "rarity": "mythic", "reward": 300, "metric": "public_achievements", "target": 1},
 ]
 ACHIEVEMENT_BY_KEY = {item["key"]: item for item in ACHIEVEMENTS}
