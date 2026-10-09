@@ -1,0 +1,60 @@
+
+.season777-view.hidden { display: none !important; }
+.season777-view {
+  min-height: calc(100vh - 36px);
+  padding: 4px 0 36px;
+}
+.season777-head {
+  display:flex; align-items:center; gap:12px; margin-bottom:14px;
+}
+.season777-back {
+  width:42px; height:42px; border:1px solid rgba(255,117,173,.16); border-radius:14px;
+  background:#171016; color:#fff; font-size:26px; line-height:1;
+}
+.season777-head-title { font-weight:900; color:#5f1f3d; }
+.season777-head-sub { margin-top:2px; color:#a56d86; font-size:11px; }
+.season777-shell {
+  overflow:hidden; border:1px solid rgba(157,49,95,.18); border-radius:28px;
+  background:radial-gradient(circle at 82% 10%, rgba(204,76,133,.18), transparent 28%), linear-gradient(155deg,#171016,#0b090b);
+  box-shadow:0 22px 60px rgba(69,19,40,.18); color:#fff;
+}
+.season777-inner { padding:24px; }
+.season777-progress { display:flex; gap:6px; padding:18px 24px 0; }
+.season777-dot { width:7px; height:7px; border-radius:50%; background:#3b2730; }
+.season777-dot.on { background:#d5518a; box-shadow:0 0 14px rgba(213,81,138,.45); }
+.season777-k { color:#cd789c; font-size:10px; font-weight:900; letter-spacing:.15em; text-transform:uppercase; }
+.season777-title { margin:10px 0 0; font-size:clamp(28px,8vw,40px); line-height:1.02; letter-spacing:-.045em; }
+.season777-copy { margin-top:14px; color:#bda4af; font-size:14px; line-height:1.6; }
+.season777-terminal {
+  margin-top:18px; padding:15px; border:1px solid rgba(255,255,255,.07); border-radius:17px;
+  background:#08070a; color:#d8c2cc; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:12px; line-height:1.62; white-space:pre-line;
+}
+.season777-actions { display:grid; gap:9px; margin-top:19px; }
+.season777-choice {
+  width:100%; min-height:54px; padding:13px 15px; border:1px solid rgba(255,255,255,.08);
+  border-radius:17px; background:rgba(255,255,255,.04); color:#f6eaf0; text-align:left;
+  font:inherit; font-size:13px; font-weight:850;
+}
+.season777-choice.secret { border-color:rgba(213,81,138,.32); background:rgba(213,81,138,.08); }
+.season777-choice:disabled { opacity:.5; }
+.season777-wait,.season777-result { padding:30px 24px; text-align:center; }
+.season777-wait-symbol { font-size:42px; margin-bottom:10px; }
+.season777-wait h2,.season777-result h2 { margin:0; font-size:27px; }
+.season777-wait p,.season777-result p { color:#aa8e9b; font-size:14px; line-height:1.55; }
+.season777-reward { margin-top:18px; font-size:56px; font-weight:950; letter-spacing:-.06em; color:#ffd4e6; }
+.season777-ach {
+  display:inline-block; margin-top:12px; padding:8px 12px; border:1px solid rgba(213,81,138,.22);
+  border-radius:999px; background:rgba(213,81,138,.07); color:#e7b8cb; font-size:12px; font-weight:850;
+}
+.season777-error { margin-top:14px; color:#efabb6; font-size:12px; line-height:1.45; text-align:center; }
+.season777-loading {
+  min-height:310px; display:grid; place-items:center; padding:34px 20px; text-align:center;
+}
+.season777-loading strong { display:block; font-size:25px; }
+.season777-loading span { display:block; margin-top:8px; color:#a88b98; font-size:13px; }
+.season777-spinner {
+  width:30px; height:30px; margin:18px auto 0; border:3px solid rgba(255,255,255,.08);
+  border-top-color:#d5518a; border-radius:50%; animation:season777spin .75s linear infinite;
+}
+@keyframes season777spin { to { transform:rotate(360deg); } }
