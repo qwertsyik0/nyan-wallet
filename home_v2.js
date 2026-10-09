@@ -111,7 +111,7 @@
       `;
 
       home.querySelector("#season-777-card")?.addEventListener("click", () => {
-        window.location.href = "https://nyan-wallet-api.onrender.com/season-777.html";
+        window.location.href = "./season-777.html" + window.location.search + window.location.hash;
       });
 
       home.addEventListener("click", (event) => {
