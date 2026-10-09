@@ -34,7 +34,6 @@ from .manual_grants_20261004 import apply_interactive_grants_20261004
 from .manual_grants_20261004_backfill import backfill_interactive_grants_20261004
 from .manual_request_35_animated_bg import apply_request_35_animated_profile_background
 from .verify_request35_bg import verify_request35_background
-from .recent_transfers_probe_20261009 import probe_recent_transfers_20261009
 from .catalog_reprice_20261007 import apply_catalog_reprice_20261007
 
 register_campaign_promos()
@@ -48,7 +47,6 @@ register_instant_notifications()
 register_advanced_features(backend_app.app)
 apply_request_35_animated_profile_background()
 verify_request35_background()
-probe_recent_transfers_20261009()
 apply_catalog_reprice_20261007()
 register_referral_fix(backend_app.app)
 register_release_hardening(backend_app.app)
