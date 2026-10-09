@@ -111,11 +111,11 @@
       `;
 
       home.querySelector("#season-777-card")?.addEventListener("click", () => {
-        try {
-          const initData = window.Telegram?.WebApp?.initData || "";
-          if (initData) sessionStorage.setItem("nyan_tg_init_data", initData);
-        } catch (_) {}
-        window.location.href = "./season-777.html?v=20261009-3";
+        if (typeof window.__nyanOpenSeason777 === "function") {
+          window.__nyanOpenSeason777();
+          return;
+        }
+        window.setTimeout(() => window.__nyanOpenSeason777?.(), 150);
       });
 
       home.addEventListener("click", (event) => {
