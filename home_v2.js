@@ -67,7 +67,7 @@
           `).join("")}
         </div>
 
-        <button id="season-777-card" class="season-777-card" type="button">
+        <button id="season-777-card" class="season-777-card" type="button" onclick="window.__nyanOpenSeason777 && window.__nyanOpenSeason777()">
           <span class="season-777-kicker">новый сезон · до субботы</span>
           <strong>Кошелёк, которого не существует</strong>
           <span class="season-777-copy">777 🐾. неизвестный владелец. повреждённый архив.</span>
@@ -255,6 +255,16 @@
     attributes: true,
     attributeFilter: ["hidden", "disabled", "class"],
   });
+
+  document.addEventListener("click", (event) => {
+    const seasonCard = event.target.closest?.("#season-777-card");
+    if (!seasonCard) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof window.__nyanOpenSeason777 === "function") {
+      window.__nyanOpenSeason777();
+    }
+  }, true);
 
   window.addEventListener("focus", schedule);
   document.addEventListener("visibilitychange", () => {
