@@ -173,10 +173,10 @@
     body().innerHTML = '<div class="season777-loading"><div><strong>открываем архив</strong><span>проверяем сохранённые решения</span><div class="season777-spinner"></div></div></div>';
   }
 
-  async function load() {
+  async function load(silent = false) {
     if (loading) return;
     loading = true;
-    loadingView();
+    if (!silent) loadingView();
 
     if (!auth()) {
       body().innerHTML = '<div class="season777-wait"><h2>Telegram не передал данные Mini App</h2><p>закрой Nyan Wallet полностью и открой его заново кнопкой бота.</p></div>';
@@ -190,10 +190,17 @@
       if (!r.ok) throw new Error(d?.detail || "не удалось открыть архив");
       render(d);
     } catch (e) {
-      body().innerHTML =
-        '<div class="season777-wait"><h2>архив не ответил</h2><p>' + esc(e?.name === "AbortError" ? "сервер отвечает слишком долго." : (e?.message || "ошибка загрузки")) +
-        '</p><button type="button" id="season777-retry" class="season777-choice">попробовать ещё раз</button></div>';
-      document.getElementById("season777-retry")?.addEventListener("click", load);
+      const msg = esc(e?.name === "AbortError" ? "сервер отвечает слишком долго." : (e?.message || "ошибка загрузки"));
+      if (silent) {
+        body().insertAdjacentHTML("beforeend",
+          '<div class="season777-error">не удалось синхронизировать архив: ' + msg +
+          ' <button type="button" id="season777-retry" class="season777-choice" style="margin-top:10px">повторить</button></div>');
+      } else {
+        body().innerHTML =
+          '<div class="season777-wait"><h2>архив не ответил</h2><p>' + msg +
+          '</p><button type="button" id="season777-retry" class="season777-choice">попробовать ещё раз</button></div>';
+      }
+      document.getElementById("season777-retry")?.addEventListener("click", () => load(false));
     } finally {
       loading = false;
     }
@@ -219,7 +226,8 @@
 
   window.__nyanOpenSeason777 = () => {
     showOnlySeason();
-    void load();
+    renderChapter1();
+    window.setTimeout(() => void load(true), 30);
   };
   window.__nyanCloseSeason777 = closeSeason;
 
