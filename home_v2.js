@@ -67,6 +67,13 @@
           `).join("")}
         </div>
 
+        <button id="season-777-card" class="season-777-card" type="button">
+          <span class="season-777-kicker">новый сезон · до субботы</span>
+          <strong>Кошелёк, которого не существует</strong>
+          <span class="season-777-copy">777 🐾. неизвестный владелец. повреждённый архив.</span>
+          <span class="season-777-cta">открыть архив →</span>
+        </button>
+
         <section class="nyan-home-panel">
           <div class="nyan-home-panel-head">
             <div class="nyan-home-panel-title">Сегодня</div>
@@ -102,6 +109,10 @@
           Управление Nyan Wallet
         </button>
       `;
+
+      home.querySelector("#season-777-card")?.addEventListener("click", () => {
+        window.location.href = "https://nyan-wallet-api.onrender.com/season-777.html";
+      });
 
       home.addEventListener("click", (event) => {
         const button = event.target.closest("[data-home-target]");
