@@ -269,3 +269,48 @@ html,body{
 #wallet-view .wallet-holder{
   max-width:100%;
 }
+
+
+.season-777-card {
+    width: 100%;
+    margin: 14px 0 2px;
+    padding: 18px;
+    border: 1px solid rgba(157,49,95,.22);
+    border-radius: 24px;
+    background:
+        radial-gradient(circle at 86% 18%, rgba(213,77,135,.17), transparent 28%),
+        linear-gradient(145deg, #171016, #0d0a0d);
+    color: #fff;
+    text-align: left;
+    box-shadow: 0 16px 34px rgba(74, 20, 43, .12);
+    cursor: pointer;
+}
+.season-777-kicker {
+    display: block;
+    color: #c47a99;
+    font-size: 10px;
+    font-weight: 850;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+.season-777-card strong {
+    display: block;
+    margin-top: 7px;
+    font-size: 19px;
+    line-height: 1.14;
+    letter-spacing: -.02em;
+}
+.season-777-copy {
+    display: block;
+    margin-top: 7px;
+    color: #b89aa8;
+    font-size: 12px;
+    line-height: 1.45;
+}
+.season-777-cta {
+    display: block;
+    margin-top: 13px;
+    color: #f0b8cf;
+    font-size: 12px;
+    font-weight: 850;
+}
