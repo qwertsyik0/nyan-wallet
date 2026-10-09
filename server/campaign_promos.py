@@ -11,6 +11,12 @@ CAMPAIGN_PROMOS = [
         "description": "Рассылка Nyan Wallet: безлимитный бонус 50 ЛК, один раз на аккаунт",
     },
     {
+        "code": "NYAN400",
+        "reward_amount": 50,
+        "max_uses": None,
+        "description": "Секретный тизер Nyan Wallet: страница обещает тайну вокруг 400, фактическая награда 50 ЛК, один раз на аккаунт",
+    },
+    {
         "code": "NYAN300",
         "reward_amount": 300,
         "max_uses": 30,
