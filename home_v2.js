@@ -111,7 +111,11 @@
       `;
 
       home.querySelector("#season-777-card")?.addEventListener("click", () => {
-        window.location.href = "./season-777.html" + window.location.search + window.location.hash;
+        try {
+          const initData = window.Telegram?.WebApp?.initData || "";
+          if (initData) sessionStorage.setItem("nyan_tg_init_data", initData);
+        } catch (_) {}
+        window.location.href = "./season-777.html?v=20261009-3";
       });
 
       home.addEventListener("click", (event) => {
