@@ -68,6 +68,9 @@ let currentUser = null;
 let selectedOwnerUserId = null;
 let selectedOwnerUserBlocked = false;
 let initialLoadFinished = false;
+let walletLoadAttempt = 0;
+let walletLoadController = null;
+const WALLET_BOOT_TIMEOUT_MS = 9000;
 
 function giveawayDeepLinkId() {
     const candidates = [];
@@ -144,6 +147,46 @@ async function readJson(response) {
     } catch (_) {
         return {};
     }
+}
+
+function ensureWalletLoadNotice() {
+    let notice = document.getElementById("wallet-load-notice");
+    if (notice) return notice;
+
+    notice = document.createElement("section");
+    notice.id = "wallet-load-notice";
+    notice.className = "admin-section";
+    notice.hidden = true;
+    notice.innerHTML = `
+        <div class="owner-title">Не удалось загрузить данные</div>
+        <div id="wallet-load-notice-text" class="owner-subtitle">
+            Сервер отвечает слишком долго. Сам кошелёк можно открыть, а данные попробовать загрузить ещё раз.
+        </div>
+        <button id="wallet-load-retry" class="owner-grant-button" type="button" style="width:100%;margin-top:12px">
+            Попробовать снова
+        </button>
+    `;
+
+    const history = walletView?.querySelector(".history");
+    if (history?.parentNode) history.parentNode.insertBefore(notice, history);
+    else walletView?.appendChild(notice);
+
+    notice.querySelector("#wallet-load-retry")?.addEventListener("click", () => {
+        void loadWallet();
+    });
+    return notice;
+}
+
+function showWalletLoadNotice(message) {
+    const notice = ensureWalletLoadNotice();
+    const text = notice?.querySelector("#wallet-load-notice-text");
+    if (text && message) text.textContent = message;
+    if (notice) notice.hidden = false;
+}
+
+function clearWalletLoadNotice() {
+    const notice = document.getElementById("wallet-load-notice");
+    if (notice) notice.hidden = true;
 }
 
 function finishInitialLoad() {
@@ -773,13 +816,22 @@ async function loadWallet() {
         return;
     }
 
+    const attempt = ++walletLoadAttempt;
+    walletLoadController?.abort();
+    const controller = new AbortController();
+    walletLoadController = controller;
+    const timeout = window.setTimeout(() => controller.abort(), WALLET_BOOT_TIMEOUT_MS);
     let blockedByMaintenance = false;
 
     try {
         const response = await fetch(`${API_BASE}/api/me`, {
             headers: authHeaders(),
+            cache: "no-store",
+            signal: controller.signal,
         });
         const data = await readJson(response);
+
+        if (attempt !== walletLoadAttempt) return;
 
         if (response.status === 503 && data?.detail === "maintenance") {
             blockedByMaintenance = true;
@@ -793,12 +845,28 @@ async function loadWallet() {
 
         applyUserState(data.user);
         renderTransactions(data.transactions || []);
+        clearWalletLoadNotice();
+
+        window.__nyanWalletReady = true;
+        window.dispatchEvent(new CustomEvent("nyan-wallet-ready", {
+            detail: { user: data.user },
+        }));
     } catch (error) {
+        if (attempt !== walletLoadAttempt) return;
+
         console.error("Nyan Wallet API error:", error);
         balanceEl.textContent = "—";
         currencyNameEl.textContent = "данные временно недоступны";
+        const timedOut = error?.name === "AbortError";
+        showWalletLoadNotice(
+            timedOut
+                ? "Сервер отвечает слишком долго. Кошелёк открыт без данных — нажмите «Попробовать снова»."
+                : "Не удалось получить данные кошелька. Проверьте соединение и попробуйте снова."
+        );
     } finally {
-        if (!blockedByMaintenance) {
+        window.clearTimeout(timeout);
+        if (walletLoadController === controller) walletLoadController = null;
+        if (!blockedByMaintenance && attempt === walletLoadAttempt) {
             finishInitialLoad();
         }
     }
