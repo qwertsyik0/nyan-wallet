@@ -175,7 +175,14 @@
             renderTasks(data);
         } catch (error) {
             const list = document.getElementById("daily-task-list");
-            if (list) list.innerHTML = `<div class="daily-empty">${esc(error.message || "Ошибка загрузки заданий")}</div>`;
+            const message = error.message || "Ошибка загрузки заданий";
+            if (list) {
+                if (typeof window.NyanInlineError === "function") {
+                    window.NyanInlineError(list, message, loadTasks);
+                } else {
+                    list.innerHTML = `<div class="daily-empty">${esc(message)}</div>`;
+                }
+            }
         }
     }
 
