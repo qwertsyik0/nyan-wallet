@@ -67,6 +67,33 @@
     }));
   }
 
+  function ensureQuickToggle() {
+    if (document.getElementById("nyan-theme-quick-toggle")) return;
+
+    const button = document.createElement("button");
+    button.id = "nyan-theme-quick-toggle";
+    button.type = "button";
+    button.className = "nyan-theme-quick-toggle";
+    button.setAttribute("aria-label", "Переключить тему");
+    document.body.appendChild(button);
+
+    const render = () => {
+      const dark = effectiveTheme(storedMode()) === "dark";
+      button.textContent = dark ? "☀️" : "🌙";
+      button.title = dark ? "Включить светлую тему" : "Включить тёмную тему";
+    };
+
+    button.addEventListener("click", () => {
+      const next = effectiveTheme(storedMode()) === "dark" ? "light" : "dark";
+      apply(next, true);
+      render();
+      try { tg?.HapticFeedback?.selectionChanged?.(); } catch (_) {}
+    });
+
+    window.addEventListener("nyan-theme-changed", render);
+    render();
+  }
+
   function ensureThemePanel() {
     const view = document.getElementById("adv-profile-view");
     if (!view || document.getElementById("nyan-theme-panel")) return;
@@ -102,13 +129,18 @@
 
   apply(storedMode(), false);
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", ensureThemePanel, { once: true });
-  } else {
+  function ensureThemeUi() {
+    ensureQuickToggle();
     ensureThemePanel();
   }
 
-  const observer = new MutationObserver(() => ensureThemePanel());
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", ensureThemeUi, { once: true });
+  } else {
+    ensureThemeUi();
+  }
+
+  const observer = new MutationObserver(() => ensureThemeUi());
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
   const media = window.matchMedia?.("(prefers-color-scheme: dark)");
