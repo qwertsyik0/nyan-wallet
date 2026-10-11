@@ -204,6 +204,31 @@ function finishInitialLoad() {
     }
 }
 
+// wallet-ready startup guard: if data loaded successfully but another startup
+// module left only the loading screen visible, never trap the user there.
+window.addEventListener("nyan-wallet-ready", () => {
+    window.setTimeout(() => {
+        if (window.__nyanMaintenanceBlocked) return;
+
+        const loadingVisible = loadingView && !loadingView.classList.contains("hidden");
+        if (!loadingVisible) return;
+
+        const anotherViewVisible = Array.from(document.querySelectorAll(".app > main"))
+            .some((node) => node !== loadingView && !node.classList.contains("hidden"));
+        if (anotherViewVisible) {
+            loadingView.classList.add("hidden");
+            return;
+        }
+
+        console.warn("Nyan Wallet startup guard: forcing wallet view after successful /api/me");
+        window.__nyanGiveawayDeepLinkActive = false;
+        window.__nyanPaymentDeepLinkActive = false;
+        window.__nyanPromoDeepLinkActive = false;
+        loadingView.classList.add("hidden");
+        walletView?.classList.remove("hidden");
+    }, 1200);
+});
+
 function showWalletView() {
     loadingView?.classList.add("hidden");
     earnView.classList.add("hidden");
