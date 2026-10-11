@@ -781,3 +781,73 @@ html[data-theme="dark"] .app,
 html[data-theme="dark"] main {
   color: var(--ny-dark-text);
 }
+
+
+/* === REAL HOME ACTION GRID DARK FIX ===
+   interface_shell.css has higher-specificity !important light rules.
+   Override the actual buttons visible on narrow Telegram screens. */
+html[data-theme="dark"] #wallet-view .username {
+  background: rgba(40,30,39,.92) !important;
+  border-color: var(--ny-dark-border-strong) !important;
+  color: #d9b9c7 !important;
+}
+
+html[data-theme="dark"] #wallet-view .actions.nyan-actions-grid {
+  background: transparent !important;
+}
+
+html[data-theme="dark"] #wallet-view .actions.nyan-actions-grid button {
+  border-color: var(--ny-dark-border-strong) !important;
+  background: linear-gradient(145deg,#291f28,#211920) !important;
+  color: var(--ny-dark-text) !important;
+  box-shadow: 0 10px 24px rgba(0,0,0,.20) !important;
+}
+
+html[data-theme="dark"] #wallet-view .actions.nyan-actions-grid #earn-button,
+html[data-theme="dark"] #wallet-view .actions.nyan-actions-grid #spend-button {
+  background:
+    radial-gradient(circle at 20% 0%, rgba(238,106,163,.10), transparent 42%),
+    linear-gradient(145deg,#2c2029,#221920) !important;
+  border-color: rgba(238,106,163,.20) !important;
+}
+
+html[data-theme="dark"] #wallet-view .actions.nyan-actions-grid #transfer-button,
+html[data-theme="dark"] #wallet-view .actions.nyan-actions-grid #wallet-qr-button {
+  background:
+    linear-gradient(145deg,#261d25,#1e171d) !important;
+}
+
+html[data-theme="dark"] #wallet-view .actions.nyan-actions-grid .nyan-action-icon {
+  background: rgba(238,106,163,.12) !important;
+  color: #f1a4c4 !important;
+}
+
+html[data-theme="dark"] #wallet-view .actions.nyan-actions-grid #owner-button {
+  background: linear-gradient(135deg,#ad3869,#7f244e) !important;
+  border-color: rgba(238,106,163,.26) !important;
+  color:#fff !important;
+}
+
+html[data-theme="dark"] #wallet-view .actions.nyan-actions-grid #owner-button .nyan-action-icon {
+  background: rgba(255,255,255,.12) !important;
+  color:#fff !important;
+}
+
+/* Owner shell controls also had hard-coded white !important surfaces. */
+html[data-theme="dark"] #owner-view .nyan-admin-toggle,
+html[data-theme="dark"] #owner-view .nyan-owner-list-toggle {
+  background: var(--ny-dark-surface-2) !important;
+  border-color: var(--ny-dark-border) !important;
+  color: var(--ny-dark-text) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"] #owner-view .nyan-admin-meta,
+html[data-theme="dark"] #owner-view .nyan-owner-list-state {
+  color: var(--ny-dark-text-soft) !important;
+}
+
+html[data-theme="dark"] #owner-view .nyan-admin-arrow {
+  background: var(--ny-dark-accent-soft) !important;
+  color: #f1a4c4 !important;
+}
