@@ -111,8 +111,17 @@ def _start_param_for_url(url: str) -> str:
 def _mini_app_deep_link(url: str, bot_username: str | None) -> str:
     if not bot_username:
         return url
+
+    raw_start_param = _start_param_for_url(url)
+    start_param = urllib.parse.quote(raw_start_param, safe="_-")
+
+    # IMPORTANT: the configured named Mini App currently points at the legacy
+    # promo screen. Survey links must launch the bot's Main Mini App instead,
+    # where index.html routes startapp=survey to wallet-survey.html.
+    if raw_start_param == "survey":
+        return f"https://t.me/{bot_username}?startapp=survey"
+
     short_name = (os.getenv("NYAN_MINI_APP_SHORT_NAME") or os.getenv("TELEGRAM_WEBAPP_SHORT_NAME") or "").strip()
-    start_param = urllib.parse.quote(_start_param_for_url(url), safe="_-")
     if short_name:
         if not re.fullmatch(r"[A-Za-z0-9_]{3,64}", short_name):
             raise BroadcastBotError("NYAN_MINI_APP_SHORT_NAME содержит некорректное имя Mini App")
