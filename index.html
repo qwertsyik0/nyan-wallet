@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="./transfer.css?v=20260920-2">
     <link rel="stylesheet" href="./maintenance.css?v=20260921-5">
     <link rel="stylesheet" href="./daily_tasks.css?v=20260921-2">
-    <link rel="stylesheet" href="./home_v2.css?v=20261011-1">
+    <link rel="stylesheet" href="./home_v2.css?v=20261011-2">
     <link rel="stylesheet" href="./interface_shell.css?v=20260921-7">
 </head>
 <body>
@@ -97,6 +97,10 @@
             </div>
         </div>
 
+        <button id="owner-survey-open" class="owner-grant-button" type="button" style="width:100%;margin:0 0 14px">
+            Результаты опроса
+        </button>
+
         <section class="admin-section">
             <div class="owner-title">Пользователи</div>
             <div class="owner-subtitle">Поиск по @username, имени или Telegram ID</div>
@@ -141,15 +145,6 @@
             <div id="owner-user-history" class="owner-user-history"></div>
         </section>
 
-        <section id="owner-survey-section" class="admin-section">
-            <div class="owner-title">Опрос Nyan Wallet</div>
-            <div class="owner-subtitle">результаты текущего опроса и ответы участников</div>
-            <div id="owner-survey-status" class="owner-status" aria-live="polite">Загружаем…</div>
-            <div id="owner-survey-summary"></div>
-            <div id="owner-survey-comments"></div>
-            <div id="owner-survey-participants"></div>
-        </section>
-
         <section class="admin-section">
             <div class="owner-title">Промокоды</div>
             <div class="owner-subtitle">Создать новый код на лапкоины</div>
@@ -184,6 +179,26 @@
             <button id="owner-promo-create" class="owner-grant-button" type="button">Создать промокод</button>
             <div id="owner-promo-status" class="owner-status" aria-live="polite"></div>
             <div id="owner-promo-list" class="owner-promo-list"></div>
+        </section>
+    </main>
+
+
+    <main id="owner-survey-view" class="view hidden">
+        <div class="subpage-header">
+            <button id="owner-survey-back" class="back-button" type="button" aria-label="Назад">‹</button>
+            <div>
+                <div class="page-title">Опрос Nyan Wallet</div>
+                <div class="page-subtitle">статистика и ответы участников</div>
+            </div>
+        </div>
+
+        <section id="owner-survey-section" class="admin-section">
+            <div class="owner-title">Результаты опроса</div>
+            <div class="owner-subtitle">актуальные ответы участников</div>
+            <div id="owner-survey-status" class="owner-status" aria-live="polite">Загружаем…</div>
+            <div id="owner-survey-summary"></div>
+            <div id="owner-survey-comments"></div>
+            <div id="owner-survey-participants"></div>
         </section>
     </main>
 
@@ -264,8 +279,8 @@
 <script src="./network.js?v=20260921-9"></script>
 <script src="./ban_notice.js?v=20261005-1"></script>
 <script src="./maintenance.js?v=20260921-9"></script>
-<script src="./app.js?v=20261011-1"></script>
-<script src="./owner_permissions.js?v=20261011-1"></script>
+<script src="./app.js?v=20261011-2"></script>
+<script src="./owner_permissions.js?v=20261011-2"></script>
 <script src="./daily_tasks.js?v=20260921-2"></script>
 <script src="./daily_tasks_hardening.js?v=20260921-2"></script>
 <script id="activity-streak-script" src="./activity_streak.js?v=20260921-3"></script>
