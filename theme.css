@@ -98,14 +98,14 @@ html[data-theme="dark"] .loading-spinner {
 }
 
 /* Wallet card */
-html[data-theme="dark"] .balance-card {
+html[data-theme="dark"] .balance-card:not(.has-custom-skin) {
   background:
     radial-gradient(circle at 88% 12%, rgba(255,255,255,.08) 0 7%, transparent 32%),
     linear-gradient(145deg, #2c2029 0%, #251a23 52%, #1e171d 100%);
   border-color: var(--ny-dark-border-strong);
   box-shadow: 0 22px 55px rgba(0,0,0,.32);
 }
-html[data-theme="dark"] .balance-card.is-owner {
+html[data-theme="dark"] .balance-card.is-owner:not(.has-custom-skin) {
   background:
     radial-gradient(circle at 88% 12%, rgba(255,255,255,.08) 0 7%, transparent 32%),
     linear-gradient(145deg, #34232d 0%, #291b25 50%, #20171d 100%);
@@ -417,4 +417,367 @@ html[data-theme="dark"] .nyan-theme-quick-toggle {
   background: rgba(40,30,39,.92);
   color: #f4c2d5;
   box-shadow: 0 12px 30px rgba(0,0,0,.32);
+}
+
+
+/* === DARK THEME COMPLETENESS PASS 2026-10-11 === */
+/* Home V2 */
+html[data-theme="dark"] .nyan-home-summary,
+html[data-theme="dark"] .nyan-home-widget,
+html[data-theme="dark"] .nyan-home-section,
+html[data-theme="dark"] .nyan-home-more,
+html[data-theme="dark"] .nyan-home-row,
+html[data-theme="dark"] .nyan-home-action,
+html[data-theme="dark"] .nyan-home-more-button,
+html[data-theme="dark"] .nyan-history-toggle {
+  border-color: var(--ny-dark-border) !important;
+  background: var(--ny-dark-surface) !important;
+  color: var(--ny-dark-text) !important;
+  box-shadow: 0 10px 28px rgba(0,0,0,.18) !important;
+}
+html[data-theme="dark"] .nyan-home-icon,
+html[data-theme="dark"] .nyan-home-badge {
+  background: var(--ny-dark-accent-soft) !important;
+  color: #f2a8c6 !important;
+}
+html[data-theme="dark"] .nyan-home-title,
+html[data-theme="dark"] .nyan-home-value {
+  color: var(--ny-dark-text) !important;
+}
+html[data-theme="dark"] .nyan-home-sub,
+html[data-theme="dark"] .nyan-home-meta {
+  color: var(--ny-dark-text-soft) !important;
+}
+
+/* Home redesigned components */
+html[data-theme="dark"] .ny-stat,
+html[data-theme="dark"] .ny-event-card,
+html[data-theme="dark"] .ny-profile-hero,
+html[data-theme="dark"] .ny-avatar {
+  background: linear-gradient(145deg,#241b22,#1d171c) !important;
+}
+html[data-theme="dark"] .ny-latest-item,
+html[data-theme="dark"] .ny-profile-stat,
+html[data-theme="dark"] .ny-ach-mini,
+html[data-theme="dark"] .ny-modal-meta > div,
+html[data-theme="dark"] .ny-ach-condition {
+  background: var(--ny-dark-surface-2) !important;
+  border-color: var(--ny-dark-border) !important;
+}
+html[data-theme="dark"] .ny-reward-tag {
+  background: rgba(238,106,163,.12) !important;
+  color: #f1a5c3 !important;
+}
+html[data-theme="dark"] .ny-reward-tag.limited {
+  background: rgba(224,150,81,.13) !important;
+  color: #eab77e !important;
+}
+html[data-theme="dark"] .ny-reward-tag.ready {
+  background: rgba(87,175,123,.13) !important;
+  color: #97d8b0 !important;
+}
+html[data-theme="dark"] .ny-reward-tag.short {
+  background: rgba(224,91,122,.13) !important;
+  color: #efa0b3 !important;
+}
+html[data-theme="dark"] .ny-modal {
+  background: #1d171c !important;
+  border-color: var(--ny-dark-border-strong) !important;
+  box-shadow: 0 24px 70px rgba(0,0,0,.52) !important;
+}
+html[data-theme="dark"] .ny-modal-backdrop {
+  background: rgba(5,3,5,.62) !important;
+}
+html[data-theme="dark"] .ny-modal-price,
+html[data-theme="dark"] #ny-achievement-modal .ny-ach-modal-icon,
+html[data-theme="dark"] .ny-ach-rarity {
+  background: var(--ny-dark-accent-soft) !important;
+  color: #f2a6c5 !important;
+}
+html[data-theme="dark"] .ny-modal-secondary {
+  background: var(--ny-dark-surface-2) !important;
+  border-color: var(--ny-dark-border) !important;
+  color: var(--ny-dark-text-soft) !important;
+}
+html[data-theme="dark"] .ny-modal-primary:disabled {
+  background: #3a2c35 !important;
+  color: #927483 !important;
+}
+
+/* Giveaways */
+html[data-theme="dark"] .nyg-card,
+html[data-theme="dark"] .nyg-empty,
+html[data-theme="dark"] .nyg-stat,
+html[data-theme="dark"] .nyg-result,
+html[data-theme="dark"] .nyg-ticket-chip,
+html[data-theme="dark"] .nyg-form input,
+html[data-theme="dark"] .nyg-form textarea,
+html[data-theme="dark"] .nyg-search input,
+html[data-theme="dark"] .nyg-secondary {
+  background: var(--ny-dark-surface-2) !important;
+  border-color: var(--ny-dark-border) !important;
+  color: var(--ny-dark-text) !important;
+}
+html[data-theme="dark"] .nyg-detail,
+html[data-theme="dark"] .nyg-panel,
+html[data-theme="dark"] .nyg-section {
+  background: var(--ny-dark-surface) !important;
+  border-color: var(--ny-dark-border) !important;
+}
+html[data-theme="dark"] .nyg-title,
+html[data-theme="dark"] .nyg-section-title,
+html[data-theme="dark"] .nyg-stat b,
+html[data-theme="dark"] .nyg-result b,
+html[data-theme="dark"] .nyg-person-name,
+html[data-theme="dark"] .nyg-purchase-name {
+  color: var(--ny-dark-text) !important;
+}
+html[data-theme="dark"] .nyg-id,
+html[data-theme="dark"] .nyg-stat span,
+html[data-theme="dark"] .nyg-person-meta,
+html[data-theme="dark"] .nyg-result-meta,
+html[data-theme="dark"] .nyg-import-help,
+html[data-theme="dark"] .nyg-purchase-meta {
+  color: var(--ny-dark-text-soft) !important;
+}
+html[data-theme="dark"] .nyg-status,
+html[data-theme="dark"] .nyg-pill {
+  border-color: var(--ny-dark-border) !important;
+}
+html[data-theme="dark"] .nyg-status.active,
+html[data-theme="dark"] .nyg-success {
+  background: rgba(74,159,108,.16) !important;
+  color: #9bd5b1 !important;
+  border-color: rgba(74,159,108,.20) !important;
+}
+html[data-theme="dark"] .nyg-status.paused,
+html[data-theme="dark"] .nyg-status.awaiting_results {
+  background: rgba(190,130,67,.15) !important;
+  color: #e2b780 !important;
+}
+html[data-theme="dark"] .nyg-status.completed {
+  background: rgba(132,95,174,.15) !important;
+  color: #c5a7e3 !important;
+}
+html[data-theme="dark"] .nyg-status.cancelled,
+html[data-theme="dark"] .nyg-danger {
+  background: rgba(177,75,101,.14) !important;
+  color: #e8a0b3 !important;
+  border-color: rgba(177,75,101,.19) !important;
+}
+
+/* Appeals */
+html[data-theme="dark"] .appeal-section,
+html[data-theme="dark"] .appeal-card,
+html[data-theme="dark"] .appeal-row,
+html[data-theme="dark"] .appeal-skin,
+html[data-theme="dark"] .appeal-message,
+html[data-theme="dark"] .appeal-form input,
+html[data-theme="dark"] .appeal-form textarea,
+html[data-theme="dark"] .appeal-button.secondary {
+  background: var(--ny-dark-surface-2) !important;
+  border-color: var(--ny-dark-border) !important;
+  color: var(--ny-dark-text) !important;
+}
+html[data-theme="dark"] .appeal-title,
+html[data-theme="dark"] .appeal-section-title,
+html[data-theme="dark"] .appeal-skin-title {
+  color: var(--ny-dark-text) !important;
+}
+html[data-theme="dark"] .appeal-meta,
+html[data-theme="dark"] .appeal-section-sub,
+html[data-theme="dark"] .appeal-skin-meta,
+html[data-theme="dark"] .appeal-empty {
+  color: var(--ny-dark-text-soft) !important;
+}
+html[data-theme="dark"] .appeal-message.owner {
+  background: #7e284c !important;
+  color: #fff !important;
+}
+html[data-theme="dark"] .appeal-status {
+  background: var(--ny-dark-accent-soft) !important;
+  color: #ef9cbe !important;
+}
+html[data-theme="dark"] .appeal-status.done {
+  background: rgba(74,159,108,.16) !important;
+  color: #9bd5b1 !important;
+}
+html[data-theme="dark"] .appeal-status.reject,
+html[data-theme="dark"] .appeal-button.danger {
+  background: rgba(177,75,101,.14) !important;
+  color: #e8a0b3 !important;
+  border-color: rgba(177,75,101,.19) !important;
+}
+html[data-theme="dark"] .appeal-divider {
+  background: var(--ny-dark-border) !important;
+}
+
+/* Transfers */
+html[data-theme="dark"] .transfer-card,
+html[data-theme="dark"] .transfer-panel,
+html[data-theme="dark"] .transfer-recipient,
+html[data-theme="dark"] .transfer-confirm-card,
+html[data-theme="dark"] .transfer-sheet,
+html[data-theme="dark"] .transfer-modal,
+html[data-theme="dark"] .transfer-form input,
+html[data-theme="dark"] .transfer-form textarea,
+html[data-theme="dark"] .transfer-secondary {
+  background: var(--ny-dark-surface-2) !important;
+  border-color: var(--ny-dark-border) !important;
+  color: var(--ny-dark-text) !important;
+}
+html[data-theme="dark"] .transfer-title,
+html[data-theme="dark"] .transfer-recipient-name {
+  color: var(--ny-dark-text) !important;
+}
+html[data-theme="dark"] .transfer-subtitle,
+html[data-theme="dark"] .transfer-recipient-meta,
+html[data-theme="dark"] .transfer-status {
+  color: var(--ny-dark-text-soft) !important;
+}
+html[data-theme="dark"] .transfer-overlay {
+  background: rgba(5,3,5,.65) !important;
+}
+
+/* Daily tasks */
+html[data-theme="dark"] .daily-tasks-card,
+html[data-theme="dark"] .owner-task-panel {
+  background:
+    radial-gradient(circle at 92% 8%, rgba(255,255,255,.035) 0 9%, transparent 34%),
+    linear-gradient(145deg,#241b22,#1b151a) !important;
+  border-color: var(--ny-dark-border-strong) !important;
+}
+html[data-theme="dark"] .daily-task-row,
+html[data-theme="dark"] .owner-task-row,
+html[data-theme="dark"] .task-review-row,
+html[data-theme="dark"] .daily-empty,
+html[data-theme="dark"] .task-review-note,
+html[data-theme="dark"] .owner-task-form input,
+html[data-theme="dark"] .owner-task-form textarea,
+html[data-theme="dark"] .owner-task-form select,
+html[data-theme="dark"] .daily-task-row button.secondary,
+html[data-theme="dark"] .owner-task-panel button.secondary,
+html[data-theme="dark"] .owner-task-actions .danger {
+  background: var(--ny-dark-surface-2) !important;
+  border-color: var(--ny-dark-border) !important;
+  color: var(--ny-dark-text-soft) !important;
+}
+html[data-theme="dark"] .daily-task-title,
+html[data-theme="dark"] .owner-task-title,
+html[data-theme="dark"] .owner-task-row-title {
+  color: var(--ny-dark-text) !important;
+}
+html[data-theme="dark"] .daily-task-desc,
+html[data-theme="dark"] .owner-task-row-meta,
+html[data-theme="dark"] .owner-task-status,
+html[data-theme="dark"] .task-review-note {
+  color: var(--ny-dark-text-soft) !important;
+}
+html[data-theme="dark"] .daily-task-reward,
+html[data-theme="dark"] .owner-task-pill {
+  background: var(--ny-dark-accent-soft) !important;
+  color: #f1a5c3 !important;
+}
+
+/* Activity streak */
+html[data-theme="dark"] .activity-streak-card {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255,255,255,.035) 0 16%, transparent 38%),
+    linear-gradient(145deg,#241b22,#1c161b) !important;
+}
+html[data-theme="dark"] .activity-streak-stat,
+html[data-theme="dark"] .activity-streak-status {
+  background: rgba(255,255,255,.035) !important;
+  border-color: var(--ny-dark-border) !important;
+}
+html[data-theme="dark"] .activity-streak-number {
+  color: #f2a0c1 !important;
+}
+html[data-theme="dark"] .activity-streak-label {
+  color: var(--ny-dark-muted) !important;
+}
+
+/* Owner / admin */
+html[data-theme="dark"] .owner-survey-option,
+html[data-theme="dark"] .owner-survey-comment,
+html[data-theme="dark"] .owner-survey-participant,
+html[data-theme="dark"] .selected-user-balance {
+  background: var(--ny-dark-surface-2) !important;
+  border-color: var(--ny-dark-border) !important;
+  color: var(--ny-dark-text) !important;
+}
+html[data-theme="dark"] .owner-survey-track {
+  background: #382934 !important;
+}
+
+/* Advanced features */
+html[data-theme="dark"] .adv-level,
+html[data-theme="dark"] .adv-grid,
+html[data-theme="dark"] .adv-form input,
+html[data-theme="dark"] .adv-form textarea,
+html[data-theme="dark"] .adv-form select {
+  background: transparent !important;
+  color: var(--ny-dark-text) !important;
+}
+html[data-theme="dark"] .adv-level {
+  background: var(--ny-dark-surface-2) !important;
+  border-color: var(--ny-dark-border) !important;
+}
+html[data-theme="dark"] .adv-actions .secondary {
+  background: var(--ny-dark-surface-3) !important;
+  border-color: var(--ny-dark-border) !important;
+  color: var(--ny-dark-text-soft) !important;
+}
+
+/* Interface shell - these rules must beat old !important light styles */
+html[data-theme="dark"] .nyan-shell-action,
+html[data-theme="dark"] .nyan-shell-row,
+html[data-theme="dark"] .nyan-shell-nav-button,
+html[data-theme="dark"] .nyan-home-more-button,
+html[data-theme="dark"] .nyan-bottom-nav button {
+  background: var(--ny-dark-surface-2) !important;
+  border-color: var(--ny-dark-border) !important;
+  color: var(--ny-dark-text-soft) !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] .nyan-shell-action.active,
+html[data-theme="dark"] .nyan-shell-nav-button.active,
+html[data-theme="dark"] .nyan-bottom-nav button.active {
+  background: linear-gradient(135deg,#c84a80,#922954) !important;
+  color: #fff !important;
+}
+
+/* Maintenance */
+html[data-theme="dark"] .maintenance-icon,
+html[data-theme="dark"] .maintenance-note {
+  background: rgba(255,255,255,.04) !important;
+  border-color: var(--ny-dark-border) !important;
+  color: var(--ny-dark-text-soft) !important;
+}
+html[data-theme="dark"] .maintenance-title {
+  color: var(--ny-dark-text) !important;
+}
+html[data-theme="dark"] .maintenance-message {
+  color: var(--ny-dark-text-soft) !important;
+}
+
+/* Owner holographic card: dark-native rather than white glass */
+html[data-theme="dark"] .balance-card.is-owner:not(.has-custom-skin) {
+  border-color: rgba(213,118,169,.28) !important;
+  box-shadow: 0 24px 60px rgba(0,0,0,.38), inset 0 1px rgba(255,255,255,.035) !important;
+}
+html[data-theme="dark"] .balance-card.is-owner:not(.has-custom-skin) .wallet-card-mark {
+  background: rgba(255,255,255,.055) !important;
+}
+
+/* Native-looking scrollbars */
+html[data-theme="dark"] {
+  scrollbar-color: #5a3447 #171217;
+}
+
+/* Last-resort white surface cleanup for known app containers */
+html[data-theme="dark"] .view,
+html[data-theme="dark"] .app,
+html[data-theme="dark"] main {
+  color: var(--ny-dark-text);
 }
