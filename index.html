@@ -6,6 +6,33 @@
     <title>Nyan Wallet</title>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+      (() => {
+        const tg = window.Telegram?.WebApp;
+        const values = [];
+        try {
+          const u = new URL(window.location.href);
+          values.push(u.searchParams.get("startapp"));
+          values.push(u.searchParams.get("tgWebAppStartParam"));
+          const hash = u.hash.startsWith("#") ? u.hash.slice(1) : u.hash;
+          const hp = new URLSearchParams(hash);
+          values.push(hp.get("startapp"));
+          values.push(hp.get("tgWebAppStartParam"));
+        } catch (_) {}
+        values.push(tg?.initDataUnsafe?.start_param || "");
+
+        const startParam = values.map(v => String(v || "").trim().toLowerCase()).find(Boolean) || "";
+        if (startParam === "survey" || startParam === "wallet_survey" || startParam === "wallet-survey") {
+          const target = new URL("./wallet-survey.html", window.location.href);
+          const current = new URL(window.location.href);
+          for (const [key, value] of current.searchParams.entries()) {
+            if (!["startapp", "tgWebAppStartParam"].includes(key)) target.searchParams.set(key, value);
+          }
+          if (current.hash) target.hash = current.hash;
+          window.location.replace(target.toString());
+        }
+      })();
+    </script>
     <link rel="stylesheet" href="./style.css?v=20260918-8">
     <link rel="stylesheet" href="./redesign.css?v=20260918-1">
     <link rel="stylesheet" href="./owner_holo.css?v=20260918-1">
