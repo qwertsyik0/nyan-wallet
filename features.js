@@ -326,7 +326,15 @@ async function loadSpendData() {
         renderMyRequests(data.requests || []);
         updatePendingBanner(data.requests || []);
     } catch (error) {
-        if (status) status.innerHTML = `<div class="feature-status">${escapeHtml(error.message || "Ошибка загрузки")}</div>`;
+        const message = error.message || "Ошибка загрузки";
+        if (status) {
+            if (typeof window.NyanInlineError === "function") {
+                window.NyanInlineError(status, message, loadSpendData);
+            } else {
+                status.innerHTML = `<div class="feature-status">${escapeHtml(message)}</div>`;
+            }
+        }
+        if (list) list.innerHTML = "";
     }
 }
 
