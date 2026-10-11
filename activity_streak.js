@@ -280,8 +280,17 @@
     }
 
     function start() {
-        ensureCard();
-        window.setTimeout(() => void load(false), 450);
+        const launch = () => {
+            ensureCard();
+            void load(false);
+        };
+
+        if (window.__nyanWalletReady) {
+            launch();
+            return;
+        }
+
+        window.addEventListener("nyan-wallet-ready", launch, { once: true });
     }
 
     if (document.readyState === "loading") {
