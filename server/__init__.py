@@ -37,6 +37,7 @@ from .manual_request_35_animated_bg import apply_request_35_animated_profile_bac
 from .apology_promo_20261009 import ensure_apology_promo_20261009
 from .verify_request35_bg import verify_request35_background
 from .catalog_reprice_20261007 import apply_catalog_reprice_20261007
+from .nyan_market_leftover_exchange_20261011 import apply_nyan_market_leftover_exchange_20261011
 
 register_campaign_promos()
 apply_interactive_grants_20261004()
@@ -51,6 +52,7 @@ apply_request_35_animated_profile_background()
 ensure_apology_promo_20261009()
 verify_request35_background()
 apply_catalog_reprice_20261007()
+apply_nyan_market_leftover_exchange_20261011()
 register_referral_fix(backend_app.app)
 register_release_hardening(backend_app.app)
 register_achievements(backend_app.app)
