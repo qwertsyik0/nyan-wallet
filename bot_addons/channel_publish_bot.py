@@ -84,6 +84,18 @@ def _start_param_for_url(url: str) -> str:
     try:
         parsed = urllib.parse.urlparse(url)
         query = urllib.parse.parse_qs(parsed.query)
+
+        # Preserve an explicitly requested Mini App start parameter.
+        for key in ("startapp", "tgWebAppStartParam"):
+            value = (query.get(key) or [""])[0].strip()
+            if value and PROMO_SLUG_PATTERN.fullmatch(value):
+                return value.lower().replace("-", "_")
+
+        # Survey has its own standalone page, but must still be opened through
+        # Telegram's Mini App deep link so initData is available for the reward.
+        if parsed.path.rstrip("/").lower().endswith("/wallet-survey.html") or parsed.path.rstrip("/").lower().endswith("/survey.html"):
+            return "survey"
+
         for key in ("promo", "slug"):
             value = (query.get(key) or [""])[0]
             if value and PROMO_SLUG_PATTERN.fullmatch(value):
