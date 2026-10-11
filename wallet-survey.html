@@ -162,6 +162,7 @@
 (() => {
   const tg = window.Telegram?.WebApp;
   const API = "https://nyan-wallet-api.onrender.com";
+  const launchUrl = new URL(window.location.href);
   const form = document.getElementById("survey");
   const status = document.getElementById("status");
   const submit = document.getElementById("submit");
