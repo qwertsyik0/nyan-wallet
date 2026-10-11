@@ -271,3 +271,123 @@ html,body{
 }
 
 
+
+
+/* Owner survey analytics */
+.owner-survey-stats{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  margin:12px 0;
+}
+.owner-survey-stat{
+  padding:12px 13px;
+  border:1px solid #efd8e2;
+  border-radius:16px;
+  background:#fff8fb;
+}
+.owner-survey-stat span{
+  display:block;
+  font-size:9px;
+  color:#a8758b;
+}
+.owner-survey-stat strong{
+  display:block;
+  margin-top:4px;
+  font-size:18px;
+  color:#762449;
+}
+.owner-survey-block{
+  margin-top:10px;
+  padding:13px;
+  border:1px solid #f0dce5;
+  border-radius:17px;
+  background:#fff;
+}
+.owner-survey-question{
+  margin-bottom:10px;
+  font-size:12px;
+  font-weight:900;
+  color:#6e2147;
+}
+.owner-survey-option{margin-top:8px}
+.owner-survey-option-top{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  font-size:10px;
+  color:#7f5366;
+}
+.owner-survey-option-top strong{
+  flex:0 0 auto;
+  color:#6e2147;
+}
+.owner-survey-track{
+  height:7px;
+  margin-top:5px;
+  overflow:hidden;
+  border-radius:999px;
+  background:#f7e8ef;
+}
+.owner-survey-fill{
+  height:100%;
+  border-radius:999px;
+  background:#a43868;
+}
+.owner-survey-section-title{
+  margin:16px 0 8px;
+  font-size:12px;
+  font-weight:900;
+  color:#6e2147;
+}
+.owner-survey-comment,
+.owner-survey-participant{
+  margin-top:7px;
+  padding:11px 12px;
+  border:1px solid #f0dce5;
+  border-radius:14px;
+  background:#fff;
+}
+.owner-survey-comment-head{
+  font-size:9px;
+  color:#a8758b;
+}
+.owner-survey-comment-text{
+  margin-top:5px;
+  font-size:11px;
+  line-height:1.45;
+  color:#5e3448;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+}
+.owner-survey-empty{
+  padding:11px 12px;
+  border-radius:14px;
+  background:#fff8fb;
+  font-size:10px;
+  color:#9b7385;
+}
+.owner-survey-participant{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.owner-survey-participant strong{
+  display:block;
+  font-size:11px;
+  color:#64213f;
+}
+.owner-survey-participant span{
+  display:block;
+  margin-top:3px;
+  font-size:9px;
+  color:#a8758b;
+}
+.owner-survey-participant-answer{
+  flex:0 0 auto;
+  font-size:9px;
+  font-weight:850;
+  color:#8f2955;
+  text-align:right;
+}
