@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Опрос Nyan Wallet</title>
+  <meta name="description" content="Короткий опрос Nyan Wallet. Пройди и получи +100 🐾.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Nyan Wallet">
+  <meta property="og:title" content="Опрос Nyan Wallet">
+  <meta property="og:description" content="Помоги сделать Nyan Wallet лучше — ответь на несколько вопросов и получи +100 🐾.">
+  <meta property="og:url" content="https://qwertsyik0.github.io/nyan-wallet/wallet-survey.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Опрос Nyan Wallet">
+  <meta name="twitter:description" content="Ответь на несколько вопросов и получи +100 🐾.">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root{
+      --bg:#fff8fb;--card:#fff;--berry:#7b234b;--berry2:#a63d6d;
+      --text:#4d2638;--muted:#9a7183;--line:#efd9e3;--soft:#fff0f6;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;min-height:100vh;background:
+      radial-gradient(circle at 50% 0%,#ffe8f2 0,transparent 38%),
+      linear-gradient(180deg,#fffafd,#fff6fa);
+      font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      color:var(--text);
+    }
+    .wrap{max-width:620px;margin:0 auto;padding:24px 16px 40px}
+    .hero{
+      padding:24px 20px;border:1px solid var(--line);border-radius:28px;
+      background:rgba(255,255,255,.93);box-shadow:0 18px 44px rgba(112,31,67,.08)
+    }
+    .eyebrow{font-size:11px;font-weight:900;letter-spacing:.13em;text-transform:uppercase;color:var(--berry2)}
+    h1{margin:8px 0 10px;color:var(--berry);font-size:34px;line-height:1.02;letter-spacing:-.045em}
+    .lead{margin:0;color:var(--muted);font-size:14px;line-height:1.55}
+    .reward{
+      display:inline-flex;align-items:center;gap:8px;margin-top:16px;padding:10px 13px;
+      border-radius:999px;background:var(--soft);color:var(--berry);font-weight:900;font-size:13px
+    }
+    .survey{display:grid;gap:12px;margin-top:14px}
+    .q{
+      padding:17px;border:1px solid var(--line);border-radius:22px;background:rgba(255,255,255,.96);
+      box-shadow:0 10px 26px rgba(112,31,67,.045)
+    }
+    .qnum{font-size:10px;font-weight:900;color:#bd7897;letter-spacing:.1em;text-transform:uppercase}
+    .q h2{margin:5px 0 12px;font-size:16px;line-height:1.3;color:#64213f}
+    .opts{display:grid;gap:8px}
+    label.opt{
+      display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #f1dfe7;
+      border-radius:15px;background:#fff;cursor:pointer;font-size:13px;font-weight:750
+    }
+    label.opt:has(input:checked){border-color:#c45a87;background:#fff1f7;color:#702344}
+    input[type=radio]{accent-color:#a63d6d}
+    textarea{
+      width:100%;min-height:105px;resize:vertical;padding:13px 14px;border:1px solid #ead3de;
+      border-radius:16px;background:#fff;color:var(--text);font:inherit;outline:none
+    }
+    textarea:focus{border-color:#c45a87}
+    .submit{
+      width:100%;margin-top:14px;padding:15px 18px;border:0;border-radius:18px;
+      background:linear-gradient(135deg,#8b2b57,#b44377);color:#fff;font:inherit;font-weight:900;
+      box-shadow:0 12px 28px rgba(139,43,87,.18)
+    }
+    .submit:disabled{opacity:.55}
+    .status{margin-top:12px;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}
+    .done{
+      display:none;margin-top:14px;padding:26px 20px;text-align:center;border:1px solid var(--line);
+      border-radius:26px;background:#fff
+    }
+    .done strong{display:block;font-size:28px;color:var(--berry)}
+    .done p{margin:8px 0 0;color:var(--muted);line-height:1.5}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <section class="hero">
+    <div class="eyebrow">Nyan Wallet · опрос</div>
+    <h1>помоги сделать Wallet лучше</h1>
+    <p class="lead">ответь на несколько коротких вопросов. ответы помогут понять, что развивать дальше.</p>
+    <div class="reward">за прохождение: +100 🐾</div>
+  </section>
+
+  <form id="survey" class="survey">
+    <section class="q">
+      <div class="qnum">вопрос 01</div>
+      <h2>насколько тебе сейчас полезен Nyan Wallet?</h2>
+      <div class="opts">
+        <label class="opt"><input required type="radio" name="useful" value="very"> очень полезен</label>
+        <label class="opt"><input type="radio" name="useful" value="mostly"> скорее полезен</label>
+        <label class="opt"><input type="radio" name="useful" value="sometimes"> пользуюсь иногда</label>
+        <label class="opt"><input type="radio" name="useful" value="rarely"> почти не пользуюсь</label>
+      </div>
+    </section>
+
+    <section class="q">
+      <div class="qnum">вопрос 02</div>
+      <h2>чем ты пользуешься чаще всего?</h2>
+      <div class="opts">
+        <label class="opt"><input required type="radio" name="most_used" value="balance"> балансом и историей</label>
+        <label class="opt"><input type="radio" name="most_used" value="rewards"> каталогом наград</label>
+        <label class="opt"><input type="radio" name="most_used" value="giveaways"> розыгрышами</label>
+        <label class="opt"><input type="radio" name="most_used" value="transfers"> переводами</label>
+        <label class="opt"><input type="radio" name="most_used" value="promos"> промокодами</label>
+        <label class="opt"><input type="radio" name="most_used" value="other"> другим</label>
+      </div>
+    </section>
+
+    <section class="q">
+      <div class="qnum">вопрос 03</div>
+      <h2>чего больше всего не хватает Nyan Wallet?</h2>
+      <div class="opts">
+        <label class="opt"><input required type="radio" name="missing" value="more_rewards"> больше наград</label>
+        <label class="opt"><input type="radio" name="missing" value="more_events"> больше ивентов и активностей</label>
+        <label class="opt"><input type="radio" name="missing" value="more_customization"> больше кастомизации</label>
+        <label class="opt"><input type="radio" name="missing" value="more_wallet_tools"> больше функций кошелька</label>
+        <label class="opt"><input type="radio" name="missing" value="nothing"> сейчас всего хватает</label>
+        <label class="opt"><input type="radio" name="missing" value="other"> другое</label>
+      </div>
+    </section>
+
+    <section class="q">
+      <div class="qnum">вопрос 04</div>
+      <h2>хотите ли вы видеть отдельный канал для Nyan Wallet?</h2>
+      <div class="opts">
+        <label class="opt"><input required type="radio" name="separate_channel" value="yes"> да, отдельный канал нужен</label>
+        <label class="opt"><input type="radio" name="separate_channel" value="no"> нет, достаточно Нян Шопа</label>
+        <label class="opt"><input type="radio" name="separate_channel" value="maybe"> не уверен(а)</label>
+      </div>
+    </section>
+
+    <section class="q">
+      <div class="qnum">вопрос 05</div>
+      <h2>что тебе было бы интереснее видеть в новостях Wallet?</h2>
+      <div class="opts">
+        <label class="opt"><input required type="radio" name="updates" value="new_features"> новые функции</label>
+        <label class="opt"><input type="radio" name="updates" value="promos"> промокоды и бонусы</label>
+        <label class="opt"><input type="radio" name="updates" value="events"> ивенты и активности</label>
+        <label class="opt"><input type="radio" name="updates" value="catalog"> новые награды и каталог</label>
+        <label class="opt"><input type="radio" name="updates" value="all"> всё сразу</label>
+      </div>
+    </section>
+
+    <section class="q">
+      <div class="qnum">вопрос 06 · необязательно</div>
+      <h2>что бы ты лично добавил(а) или изменил(а)?</h2>
+      <textarea name="comment" maxlength="700" placeholder="можно оставить идею, пожелание или замечание"></textarea>
+    </section>
+
+    <button id="submit" class="submit" type="submit">отправить ответы и получить 100 🐾</button>
+    <div id="status" class="status"></div>
+  </form>
+
+  <section id="done" class="done">
+    <strong>+100 🐾</strong>
+    <p>спасибо за ответы. награда уже начислена на твой Nyan Wallet.</p>
+  </section>
+</div>
+
+<script>
+(() => {
+  const tg = window.Telegram?.WebApp;
+  const API = "https://nyan-wallet-api.onrender.com";
+  const form = document.getElementById("survey");
+  const status = document.getElementById("status");
+  const submit = document.getElementById("submit");
+  const done = document.getElementById("done");
+
+  tg?.ready?.();
+  tg?.expand?.();
+
+  const headers = (json=false) => {
+    const h = {"X-Telegram-Init-Data": tg?.initData || ""};
+    if (json) h["Content-Type"] = "application/json";
+    return h;
+  };
+
+  async function read(r){ try{return await r.json()}catch(_){return {}} }
+
+  async function check(){
+    if (!tg?.initData) {
+      status.textContent = "открой опрос через кнопку Mini App в Telegram.";
+      submit.disabled = true;
+      return;
+    }
+    try{
+      const r = await fetch(API + "/api/wallet-survey/status", {headers:headers(), cache:"no-store"});
+      const d = await read(r);
+      if (!r.ok) throw new Error(d?.detail || "не удалось проверить опрос");
+      if (d.completed) {
+        form.style.display = "none";
+        done.style.display = "block";
+        done.querySelector("p").textContent = "ты уже прошёл(ла) этот опрос. награда была начислена ранее.";
+      }
+    }catch(e){
+      status.textContent = e?.message || "не удалось загрузить опрос";
+    }
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!tg?.initData) return;
+
+    const fd = new FormData(form);
+    const payload = {
+      useful: fd.get("useful"),
+      most_used: fd.get("most_used"),
+      missing: fd.get("missing"),
+      separate_channel: fd.get("separate_channel"),
+      updates: fd.get("updates"),
+      comment: String(fd.get("comment") || "").trim()
+    };
+
+    if (Object.entries(payload).some(([k,v]) => k !== "comment" && !v)) {
+      status.textContent = "ответь на все обязательные вопросы.";
+      return;
+    }
+
+    submit.disabled = true;
+    submit.textContent = "сохраняем ответы…";
+    status.textContent = "";
+
+    try{
+      const r = await fetch(API + "/api/wallet-survey/submit", {
+        method:"POST", headers:headers(true), body:JSON.stringify(payload)
+      });
+      const d = await read(r);
+      if (!r.ok) throw new Error(d?.detail || "не удалось отправить ответы");
+
+      tg?.HapticFeedback?.notificationOccurred?.("success");
+      form.style.display = "none";
+      done.style.display = "block";
+    }catch(e){
+      status.textContent = e?.message || "не удалось отправить ответы";
+      submit.disabled = false;
+      submit.textContent = "отправить ответы и получить 100 🐾";
+    }
+  });
+
+  check();
+})();
+</script>
+</body>
+</html>
