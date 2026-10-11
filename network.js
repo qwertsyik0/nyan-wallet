@@ -96,6 +96,76 @@
         throw error;
     }
 
+    function ensureInlineErrorStyles() {
+        if (document.getElementById("nyan-inline-error-style")) return;
+        const style = document.createElement("style");
+        style.id = "nyan-inline-error-style";
+        style.textContent = `
+            .nyan-inline-error {
+                margin: 12px 0;
+                padding: 14px;
+                border: 1px solid rgba(176, 52, 93, .18);
+                border-radius: 16px;
+                background: rgba(255, 245, 249, .92);
+                color: #7f3655;
+                font-size: 13px;
+                line-height: 1.45;
+            }
+            .nyan-inline-error-title {
+                margin-bottom: 5px;
+                font-weight: 800;
+                color: #8d2f55;
+            }
+            .nyan-inline-error button {
+                width: 100%;
+                margin-top: 10px;
+                padding: 11px 14px;
+                border: 0;
+                border-radius: 12px;
+                background: #922954;
+                color: #fff;
+                font: inherit;
+                font-weight: 700;
+                cursor: pointer;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    window.NyanInlineError = function (container, message, retry) {
+        if (!container) return;
+        ensureInlineErrorStyles();
+        const box = document.createElement("div");
+        box.className = "nyan-inline-error";
+
+        const title = document.createElement("div");
+        title.className = "nyan-inline-error-title";
+        title.textContent = "Не удалось загрузить данные";
+
+        const text = document.createElement("div");
+        text.textContent = message || "Проверьте соединение и попробуйте ещё раз.";
+
+        box.append(title, text);
+
+        if (typeof retry === "function") {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = "Попробовать снова";
+            button.addEventListener("click", () => {
+                button.disabled = true;
+                button.textContent = "Повторяем…";
+                Promise.resolve(retry()).finally(() => {
+                    button.disabled = false;
+                    button.textContent = "Попробовать снова";
+                });
+            });
+            box.appendChild(button);
+        }
+
+        container.innerHTML = "";
+        container.appendChild(box);
+    };
+
     window.fetch = resilientFetch;
     window.__nyanNetworkRetryEnabled = true;
     window.__nyanDocumentAutoReloadDisabled = true;
