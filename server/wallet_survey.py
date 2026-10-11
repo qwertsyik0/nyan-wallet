@@ -151,6 +151,123 @@ async def wallet_survey_submit(
     }
 
 
+
+@router.get("/api/owner/wallet-survey/results")
+async def owner_wallet_survey_results(
+    x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
+):
+    tg = core.verify_init_data(x_telegram_init_data or "")
+    core.require_owner(tg)
+
+    labels = {
+        "useful": {
+            "very": "очень полезен",
+            "mostly": "скорее полезен",
+            "sometimes": "пользуюсь иногда",
+            "rarely": "почти не пользуюсь",
+        },
+        "most_used": {
+            "balance": "баланс и история",
+            "rewards": "каталог наград",
+            "giveaways": "розыгрыши",
+            "transfers": "переводы",
+            "promos": "промокоды",
+            "other": "другое",
+        },
+        "missing": {
+            "more_rewards": "больше наград",
+            "more_events": "больше ивентов и активностей",
+            "more_customization": "больше кастомизации",
+            "more_wallet_tools": "больше функций кошелька",
+            "nothing": "сейчас всего хватает",
+            "other": "другое",
+        },
+        "separate_channel": {
+            "yes": "да, отдельный канал нужен",
+            "no": "нет, достаточно Нян Шопа",
+            "maybe": "не уверен(а)",
+        },
+        "updates": {
+            "new_features": "новые функции",
+            "promos": "промокоды и бонусы",
+            "events": "ивенты и активности",
+            "catalog": "новые награды и каталог",
+            "all": "всё сразу",
+        },
+    }
+
+    with core.SessionLocal() as session:
+        rows = session.execute(
+            select(WalletSurveyResponse, core.User)
+            .join(core.User, core.User.telegram_id == WalletSurveyResponse.telegram_id)
+            .where(WalletSurveyResponse.survey_key == SURVEY_KEY)
+            .order_by(WalletSurveyResponse.created_at.desc())
+        ).all()
+
+    totals = {field: {} for field in ALLOWED}
+    participants = []
+    comments = []
+
+    for response, user in rows:
+        try:
+            answers = json.loads(response.answers_json or "{}")
+        except json.JSONDecodeError:
+            answers = {}
+
+        for field in ALLOWED:
+            value = answers.get(field)
+            if value:
+                totals[field][value] = totals[field].get(value, 0) + 1
+
+        name = f"@{user.username}" if user.username else (
+            " ".join(part for part in [user.first_name, user.last_name] if part).strip()
+            or f"ID {user.telegram_id}"
+        )
+
+        participant = {
+            "telegram_id": int(user.telegram_id),
+            "name": name,
+            "username": user.username,
+            "reward_amount": int(response.reward_amount),
+            "created_at": response.created_at.isoformat(),
+            "answers": answers,
+        }
+        participants.append(participant)
+
+        comment = str(answers.get("comment") or "").strip()
+        if comment:
+            comments.append({
+                "telegram_id": int(user.telegram_id),
+                "name": name,
+                "comment": comment,
+                "created_at": response.created_at.isoformat(),
+            })
+
+    total = len(participants)
+    questions = {}
+    for field, field_labels in labels.items():
+        options = []
+        for key, label in field_labels.items():
+            count = int(totals[field].get(key, 0))
+            options.append({
+                "key": key,
+                "label": label,
+                "count": count,
+                "percent": round((count / total) * 100, 1) if total else 0.0,
+            })
+        questions[field] = options
+
+    return {
+        "ok": True,
+        "survey_key": SURVEY_KEY,
+        "total": total,
+        "reward_amount": REWARD_AMOUNT,
+        "total_rewards": total * REWARD_AMOUNT,
+        "questions": questions,
+        "comments": comments,
+        "participants": participants,
+    }
+
 def register_wallet_survey(app) -> None:
     global _REGISTERED
     if _REGISTERED:
