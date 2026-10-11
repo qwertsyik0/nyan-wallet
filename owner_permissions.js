@@ -15,10 +15,7 @@
         "#owner-stats-section",
         "#owner-spend-requests",
         "#owner-promo-management",
-        "#owner-audit-list",
-        "#owner-survey-section",
-        "#owner-survey-view",
-        "#owner-survey-open"
+        "#owner-audit-list"
     ].join(",");
 
     let ownerKnown = false;
