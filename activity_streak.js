@@ -238,7 +238,7 @@
         if (balance && !activity.unlimited_balance && activity.balance != null) {
             balance.textContent = String(activity.balance);
         }
-        if (credited > 0) tg?.HapticFeedback?.notificationOccurred?.("success");
+        // Automatic daily check-in must stay silent: no vibration on app startup.
         card.querySelector("#activity-streak-refresh")?.addEventListener("click", () => void load(true));
     }
 
