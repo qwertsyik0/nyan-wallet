@@ -1,0 +1,394 @@
+:root {
+  --ny-dark-bg: #151116;
+  --ny-dark-bg-soft: #1c161d;
+  --ny-dark-surface: #211920;
+  --ny-dark-surface-2: #281e27;
+  --ny-dark-surface-3: #30242e;
+  --ny-dark-border: rgba(244, 181, 207, .14);
+  --ny-dark-border-strong: rgba(244, 181, 207, .24);
+  --ny-dark-text: #f7eaf0;
+  --ny-dark-text-soft: #d7b6c5;
+  --ny-dark-muted: #a98294;
+  --ny-dark-accent: #ee6aa3;
+  --ny-dark-accent-deep: #c5497e;
+  --ny-dark-accent-soft: rgba(238, 106, 163, .13);
+  --ny-dark-shadow: 0 18px 46px rgba(0, 0, 0, .28);
+}
+
+.nyan-theme-panel {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
+.nyan-theme-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 13px;
+}
+
+.nyan-theme-selector button {
+  min-width: 0;
+  padding: 11px 8px;
+  border: 1px solid #efd8e2;
+  border-radius: 14px;
+  background: #fff;
+  color: #7e4059;
+  box-shadow: none;
+  font-size: 11px;
+}
+
+.nyan-theme-selector button.active {
+  border-color: #922954;
+  background: #922954;
+  color: #fff;
+}
+
+.nyan-theme-current {
+  margin-top: 9px;
+  color: #a67589;
+  font-size: 10px;
+  text-align: center;
+}
+
+html[data-theme="dark"],
+html[data-theme="dark"] body {
+  background: var(--ny-dark-bg);
+  color: var(--ny-dark-text);
+}
+
+html[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at 12% -8%, rgba(197, 73, 126, .17), transparent 32%),
+    radial-gradient(circle at 92% 3%, rgba(111, 54, 82, .22), transparent 28%),
+    var(--ny-dark-bg);
+}
+
+html[data-theme="dark"] {
+  --ny-bg: var(--ny-dark-bg);
+  --ny-card: var(--ny-dark-surface);
+  --ny-text: var(--ny-dark-text);
+  --ny-sub: var(--ny-dark-text-soft);
+  --ny-accent: var(--ny-dark-accent);
+  --ny-accent-deep: var(--ny-dark-accent-deep);
+  --ny-soft: var(--ny-dark-accent-soft);
+  --ny-border: var(--ny-dark-border);
+  --ny-shadow: var(--ny-dark-shadow);
+}
+
+/* Startup */
+html[data-theme="dark"] .loading-mark {
+  border-color: var(--ny-dark-border);
+  background: linear-gradient(145deg, #261d25, #1b151b);
+  box-shadow: 0 14px 36px rgba(0,0,0,.25);
+}
+html[data-theme="dark"] .loading-title,
+html[data-theme="dark"] .logo,
+html[data-theme="dark"] .page-title {
+  color: #f2aac8;
+}
+html[data-theme="dark"] .loading-text,
+html[data-theme="dark"] .username,
+html[data-theme="dark"] .page-subtitle {
+  color: var(--ny-dark-muted);
+}
+html[data-theme="dark"] .loading-spinner {
+  border-color: #3b2b36;
+  border-top-color: var(--ny-dark-accent);
+}
+
+/* Wallet card */
+html[data-theme="dark"] .balance-card {
+  background:
+    radial-gradient(circle at 88% 12%, rgba(255,255,255,.08) 0 7%, transparent 32%),
+    linear-gradient(145deg, #2c2029 0%, #251a23 52%, #1e171d 100%);
+  border-color: var(--ny-dark-border-strong);
+  box-shadow: 0 22px 55px rgba(0,0,0,.32);
+}
+html[data-theme="dark"] .balance-card.is-owner {
+  background:
+    radial-gradient(circle at 88% 12%, rgba(255,255,255,.08) 0 7%, transparent 32%),
+    linear-gradient(145deg, #34232d 0%, #291b25 50%, #20171d 100%);
+}
+html[data-theme="dark"] .balance-card::before {
+  border-color: rgba(238,106,163,.07);
+}
+html[data-theme="dark"] .balance-card::after {
+  background: rgba(255,255,255,.035);
+}
+html[data-theme="dark"] .wallet-card-mark,
+html[data-theme="dark"] .wallet-status {
+  border-color: var(--ny-dark-border-strong);
+  background: rgba(255,255,255,.055);
+}
+html[data-theme="dark"] .wallet-card-name,
+html[data-theme="dark"] .balance,
+html[data-theme="dark"] .wallet-number,
+html[data-theme="dark"] .wallet-holder {
+  color: var(--ny-dark-text);
+}
+html[data-theme="dark"] .wallet-card-type,
+html[data-theme="dark"] .balance-label,
+html[data-theme="dark"] .currency-name,
+html[data-theme="dark"] .wallet-detail-label {
+  color: var(--ny-dark-muted);
+}
+html[data-theme="dark"] .wallet-card-bottom {
+  border-top-color: rgba(244,181,207,.1);
+}
+
+/* Generic controls/cards */
+html[data-theme="dark"] button {
+  background: var(--ny-dark-surface-2);
+  color: #f4c2d5;
+}
+html[data-theme="dark"] .primary-action,
+html[data-theme="dark"] .owner-grant-button,
+html[data-theme="dark"] .ny-filter.active,
+html[data-theme="dark"] .nyan-theme-selector button.active {
+  background: linear-gradient(135deg, #c84a80, #922954);
+  color: #fff;
+}
+html[data-theme="dark"] .owner-action,
+html[data-theme="dark"] .owner-debit-button {
+  border-color: var(--ny-dark-border-strong);
+  background: var(--ny-dark-surface);
+  color: var(--ny-dark-text-soft);
+}
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select,
+html[data-theme="dark"] .owner-field input,
+html[data-theme="dark"] .admin-search-row input,
+html[data-theme="dark"] .promo-row input {
+  border-color: var(--ny-dark-border);
+  background: #191419;
+  color: var(--ny-dark-text);
+}
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+  color: #795f6b;
+}
+html[data-theme="dark"] .empty,
+html[data-theme="dark"] .transaction-row,
+html[data-theme="dark"] .admin-section,
+html[data-theme="dark"] .owner-user-row,
+html[data-theme="dark"] .owner-promo-row,
+html[data-theme="dark"] .admin-empty,
+html[data-theme="dark"] .earn-card,
+html[data-theme="dark"] .promo-card,
+html[data-theme="dark"] .ny-section,
+html[data-theme="dark"] .ny-stat,
+html[data-theme="dark"] .ny-quick button,
+html[data-theme="dark"] .ny-event-card,
+html[data-theme="dark"] .ny-latest-item,
+html[data-theme="dark"] .ny-profile-hero,
+html[data-theme="dark"] .ny-profile-stat,
+html[data-theme="dark"] .ny-ach-mini,
+html[data-theme="dark"] #adv-profile-view .adv-panel,
+html[data-theme="dark"] .adv-panel,
+html[data-theme="dark"] .adv-row,
+html[data-theme="dark"] .feature-card,
+html[data-theme="dark"] .daily-task-row,
+html[data-theme="dark"] .daily-tasks-card,
+html[data-theme="dark"] .activity-streak-card,
+html[data-theme="dark"] .nyg-card,
+html[data-theme="dark"] .appeal-card,
+html[data-theme="dark"] .transfer-card,
+html[data-theme="dark"] .privacy-card,
+html[data-theme="dark"] .about-card {
+  border-color: var(--ny-dark-border) !important;
+  background: var(--ny-dark-surface) !important;
+  color: var(--ny-dark-text);
+  box-shadow: 0 10px 30px rgba(0,0,0,.18);
+}
+
+/* Text */
+html[data-theme="dark"] .history h2,
+html[data-theme="dark"] .owner-title,
+html[data-theme="dark"] .owner-user-row-name,
+html[data-theme="dark"] .owner-promo-code,
+html[data-theme="dark"] .owner-history-title,
+html[data-theme="dark"] .earn-topline h3,
+html[data-theme="dark"] .promo-title,
+html[data-theme="dark"] .transaction-text,
+html[data-theme="dark"] .ny-section-title,
+html[data-theme="dark"] .ny-stat-value,
+html[data-theme="dark"] .ny-goal-title,
+html[data-theme="dark"] .ny-event-title,
+html[data-theme="dark"] .ny-latest-title,
+html[data-theme="dark"] .ny-profile-name,
+html[data-theme="dark"] .ny-profile-stat b,
+html[data-theme="dark"] .ny-ach-mini-name,
+html[data-theme="dark"] .adv-title,
+html[data-theme="dark"] .adv-row-title,
+html[data-theme="dark"] .feature-card h3,
+html[data-theme="dark"] .daily-tasks-title,
+html[data-theme="dark"] .activity-streak-title,
+html[data-theme="dark"] .nyg-title {
+  color: var(--ny-dark-text) !important;
+}
+html[data-theme="dark"] .owner-subtitle,
+html[data-theme="dark"] .owner-field > span,
+html[data-theme="dark"] .owner-field small,
+html[data-theme="dark"] .owner-user-row-meta,
+html[data-theme="dark"] .owner-promo-meta,
+html[data-theme="dark"] .owner-status,
+html[data-theme="dark"] .transaction-meta,
+html[data-theme="dark"] .earn-card p,
+html[data-theme="dark"] .promo-subtitle,
+html[data-theme="dark"] .promo-status,
+html[data-theme="dark"] .earn-note,
+html[data-theme="dark"] .ny-stat-label,
+html[data-theme="dark"] .ny-goal-meta,
+html[data-theme="dark"] .ny-event-desc,
+html[data-theme="dark"] .ny-latest-meta,
+html[data-theme="dark"] .ny-profile-handle,
+html[data-theme="dark"] .ny-profile-stat span,
+html[data-theme="dark"] .adv-sub,
+html[data-theme="dark"] .adv-row-meta,
+html[data-theme="dark"] .feature-card p,
+html[data-theme="dark"] .daily-tasks-sub,
+html[data-theme="dark"] .activity-streak-subtitle,
+html[data-theme="dark"] .activity-streak-status {
+  color: var(--ny-dark-text-soft) !important;
+}
+
+/* Pink chips / badges */
+html[data-theme="dark"] .selected-user-balance,
+html[data-theme="dark"] .earn-icon,
+html[data-theme="dark"] .reward-badge,
+html[data-theme="dark"] .ny-quick-icon,
+html[data-theme="dark"] .ny-chip,
+html[data-theme="dark"] .ny-goal button,
+html[data-theme="dark"] .activity-streak-flame {
+  background: var(--ny-dark-accent-soft) !important;
+  color: #f1a4c4 !important;
+}
+html[data-theme="dark"] .transaction-amount,
+html[data-theme="dark"] .owner-user-row-balance,
+html[data-theme="dark"] .owner-promo-reward,
+html[data-theme="dark"] .feature-price {
+  color: #f08db5 !important;
+}
+
+/* Progress / separators */
+html[data-theme="dark"] .ny-progress,
+html[data-theme="dark"] .adv-level-progress,
+html[data-theme="dark"] .daily-progress,
+html[data-theme="dark"] .activity-streak-dot {
+  background: #3a2a35 !important;
+}
+html[data-theme="dark"] .ny-progress > span,
+html[data-theme="dark"] .adv-level-progress > span,
+html[data-theme="dark"] .daily-progress > span,
+html[data-theme="dark"] .activity-streak-dot.active {
+  background: linear-gradient(90deg,#ee6aa3,#b83f72) !important;
+}
+
+/* Home navigation / shell */
+html[data-theme="dark"] .nyan-home-card,
+html[data-theme="dark"] .nyan-home-more,
+html[data-theme="dark"] .nyan-shell-card,
+html[data-theme="dark"] .nyan-shell-sheet,
+html[data-theme="dark"] .nyan-bottom-nav {
+  border-color: var(--ny-dark-border) !important;
+  background: rgba(28,22,29,.96) !important;
+  color: var(--ny-dark-text);
+  box-shadow: 0 18px 40px rgba(0,0,0,.28);
+}
+html[data-theme="dark"] .nyan-home-more-button,
+html[data-theme="dark"] .nyan-shell-button,
+html[data-theme="dark"] .nyan-bottom-nav button {
+  background: var(--ny-dark-surface-2) !important;
+  color: var(--ny-dark-text-soft) !important;
+  border-color: var(--ny-dark-border) !important;
+}
+
+/* Feature tabs / filters */
+html[data-theme="dark"] .ny-filter,
+html[data-theme="dark"] .feature-tab,
+html[data-theme="dark"] .feature-mini-action,
+html[data-theme="dark"] .adv-mini-action {
+  border-color: var(--ny-dark-border) !important;
+  background: var(--ny-dark-surface-2) !important;
+  color: var(--ny-dark-text-soft) !important;
+}
+html[data-theme="dark"] .ny-filter.active,
+html[data-theme="dark"] .feature-tab.active {
+  border-color: #c84a80 !important;
+  background: #9d315f !important;
+  color: #fff !important;
+}
+
+/* Giveaways / appeals / transfer */
+html[data-theme="dark"] .nyg-message,
+html[data-theme="dark"] .nyg-empty,
+html[data-theme="dark"] .appeal-empty,
+html[data-theme="dark"] .transfer-status,
+html[data-theme="dark"] .feature-inline-list,
+html[data-theme="dark"] .feature-status,
+html[data-theme="dark"] .daily-empty {
+  color: var(--ny-dark-text-soft) !important;
+}
+html[data-theme="dark"] .nyg-pill,
+html[data-theme="dark"] .appeal-pill {
+  background: var(--ny-dark-accent-soft) !important;
+  color: #f0a0c1 !important;
+  border-color: var(--ny-dark-border) !important;
+}
+
+/* Retry/network UI */
+html[data-theme="dark"] .nyan-inline-error {
+  border-color: rgba(238,106,163,.19);
+  background: #251a21;
+  color: var(--ny-dark-text-soft);
+}
+html[data-theme="dark"] .nyan-inline-error-title {
+  color: #f19abc;
+}
+html[data-theme="dark"] .nyan-inline-error button {
+  background: #9d315f;
+  color: #fff;
+}
+
+/* Maintenance and ban overlays */
+html[data-theme="dark"] .maintenance-view,
+html[data-theme="dark"] #nyan-ban-overlay {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(68,34,50,.95), rgba(21,17,22,.99) 52%, #151116 100%) !important;
+}
+html[data-theme="dark"] .maintenance-card,
+html[data-theme="dark"] .nyan-ban-card {
+  border-color: var(--ny-dark-border) !important;
+  background: #211920 !important;
+  color: var(--ny-dark-text);
+}
+
+/* Theme control itself */
+html[data-theme="dark"] .nyan-theme-selector button {
+  border-color: var(--ny-dark-border);
+  background: var(--ny-dark-surface-2);
+  color: var(--ny-dark-text-soft);
+}
+html[data-theme="dark"] .nyan-theme-selector button.active {
+  border-color: #c84a80;
+  background: #9d315f;
+  color: #fff;
+}
+html[data-theme="dark"] .nyan-theme-current {
+  color: var(--ny-dark-muted);
+}
+
+/* Keep custom profile aurora readable in dark mode */
+html[data-theme="dark"] #adv-profile-view.adv-bg-aurora-pink .adv-panel {
+  background: rgba(33,25,32,.86) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+@media (max-width: 390px) {
+  .nyan-theme-selector {
+    grid-template-columns: 1fr;
+  }
+}
