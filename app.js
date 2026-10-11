@@ -22,6 +22,9 @@ const historyEl = document.querySelector(".history");
 const walletView = document.getElementById("wallet-view");
 const earnView = document.getElementById("earn-view");
 const ownerView = document.getElementById("owner-view");
+const ownerSurveyView = document.getElementById("owner-survey-view");
+const ownerSurveyOpen = document.getElementById("owner-survey-open");
+const ownerSurveyBack = document.getElementById("owner-survey-back");
 const earnButton = document.getElementById("earn-button");
 const earnBack = document.getElementById("earn-back");
 const ownerButton = document.getElementById("owner-button");
@@ -162,6 +165,7 @@ function showWalletView() {
     loadingView?.classList.add("hidden");
     earnView.classList.add("hidden");
     ownerView.classList.add("hidden");
+    ownerSurveyView?.classList.add("hidden");
     walletView.classList.remove("hidden");
     window.scrollTo({ top: 0, behavior: "smooth" });
 
@@ -176,6 +180,18 @@ function openEarnView() {
 
     if (tg?.BackButton) tg.BackButton.show();
     tg?.HapticFeedback?.impactOccurred?.("light");
+}
+
+function openOwnerSurveyView() {
+    if (!currentUser?.is_owner) return;
+    walletView.classList.add("hidden");
+    earnView.classList.add("hidden");
+    ownerView.classList.add("hidden");
+    ownerSurveyView?.classList.remove("hidden");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    tg?.BackButton?.show?.();
+    tg?.HapticFeedback?.impactOccurred?.("light");
+    loadOwnerSurveyResults();
 }
 
 function openOwnerView() {
@@ -198,10 +214,14 @@ earnButton?.addEventListener("click", openEarnView);
 earnBack?.addEventListener("click", showWalletView);
 ownerButton?.addEventListener("click", openOwnerView);
 ownerBack?.addEventListener("click", showWalletView);
+ownerSurveyOpen?.addEventListener("click", openOwnerSurveyView);
+ownerSurveyBack?.addEventListener("click", openOwnerView);
 
 if (tg?.BackButton?.onClick) {
     tg.BackButton.onClick(() => {
-        if (!earnView.classList.contains("hidden") || !ownerView.classList.contains("hidden")) {
+        if (ownerSurveyView && !ownerSurveyView.classList.contains("hidden")) {
+            openOwnerView();
+        } else if (!earnView.classList.contains("hidden") || !ownerView.classList.contains("hidden")) {
             showWalletView();
         }
     });
