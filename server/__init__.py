@@ -39,6 +39,7 @@ from .apology_promo_20261009 import ensure_apology_promo_20261009
 from .verify_request35_bg import verify_request35_background
 from .catalog_reprice_20261007 import apply_catalog_reprice_20261007
 from .nyan_market_leftover_exchange_20261011 import apply_nyan_market_leftover_exchange_20261011
+from .survey_channel_followups_20261011 import send_survey_channel_followups_20261011
 
 register_campaign_promos()
 apply_interactive_grants_20261004()
@@ -68,6 +69,7 @@ print_recent_wallet_transfers_20261011()
 register_broadcast(backend_app.app)
 register_maintenance(backend_app.app)
 register_wallet_survey(backend_app.app)
+send_survey_channel_followups_20261011()
 register_user_bans(backend_app.app)
 register_promo_delayed_fee(backend_app.app)
 sync_bot_menu_buttons()
