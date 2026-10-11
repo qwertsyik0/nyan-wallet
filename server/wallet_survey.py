@@ -268,10 +268,45 @@ async def owner_wallet_survey_results(
         "participants": participants,
     }
 
+
+def print_wallet_survey_report_20261011() -> None:
+    """Print an anonymized snapshot of all survey answers for owner analysis."""
+    with core.SessionLocal() as session:
+        rows = session.scalars(
+            select(WalletSurveyResponse)
+            .where(WalletSurveyResponse.survey_key == SURVEY_KEY)
+            .order_by(WalletSurveyResponse.created_at.asc())
+        ).all()
+
+    report = []
+    for index, response in enumerate(rows, start=1):
+        try:
+            answers = json.loads(response.answers_json or "{}")
+        except json.JSONDecodeError:
+            answers = {}
+        report.append({
+            "n": index,
+            "useful": answers.get("useful"),
+            "most_used": answers.get("most_used"),
+            "missing": answers.get("missing"),
+            "separate_channel": answers.get("separate_channel"),
+            "updates": answers.get("updates"),
+            "comment": str(answers.get("comment") or "").strip(),
+            "reward_amount": int(response.reward_amount or 0),
+            "created_at": response.created_at.isoformat() if response.created_at else None,
+        })
+
+    print("[wallet_survey_report_20261011] " + json.dumps({
+        "survey_key": SURVEY_KEY,
+        "total": len(report),
+        "responses": report,
+    }, ensure_ascii=False))
+
 def register_wallet_survey(app) -> None:
     global _REGISTERED
     if _REGISTERED:
         return
     core.Base.metadata.create_all(core.engine)
     app.include_router(router)
+    print_wallet_survey_report_20261011()
     _REGISTERED = True
