@@ -204,7 +204,10 @@
       box.innerHTML = d.items && d.items.length
         ? d.items.map(function (item) { return card(item.giveaway, item.tickets, item.wins || [], false); }).join("")
         : '<div class="nyg-empty">Вы пока не участвуете в розыгрышах</div>';
-    } catch (e) { box.innerHTML = '<div class="nyg-empty">' + esc(e.message) + '</div>'; }
+    } catch (e) {
+      if (typeof window.NyanInlineError === "function") window.NyanInlineError(box, e.message, openMine);
+      else box.innerHTML = '<div class="nyg-empty">' + esc(e.message) + '</div>';
+    }
   }
 
   function availableTickets(d) { return Math.max(0, Number(d.me.limit || 0) - Number(d.me.tickets || 0)); }
@@ -253,7 +256,10 @@
       const d = await api("/api/giveaways/" + encodeURIComponent(id));
       box.innerHTML = renderDetail(d);
       bindDetail(d);
-    } catch (e) { box.innerHTML = '<div class="nyg-empty">' + esc(e.message) + '</div>'; }
+    } catch (e) {
+      if (typeof window.NyanInlineError === "function") window.NyanInlineError(box, e.message, function () { return openDetail(id, returnView); });
+      else box.innerHTML = '<div class="nyg-empty">' + esc(e.message) + '</div>';
+    }
   }
 
   function bindDetail(d) {
@@ -497,9 +503,14 @@
           '</div>';
       }).join("") : '<div class="nyg-message">У вас пока нет учтённых покупок</div>';
     } catch (e) {
-      summary.textContent = e.message;
+      summary.textContent = "";
       summary.className = "nyg-message error";
-      list.innerHTML = "";
+      if (typeof window.NyanInlineError === "function") {
+        window.NyanInlineError(list, e.message, openMyPurchases);
+      } else {
+        summary.textContent = e.message;
+        list.innerHTML = "";
+      }
     }
   }
 
