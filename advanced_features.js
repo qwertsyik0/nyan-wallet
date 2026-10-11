@@ -157,7 +157,14 @@ async function loadAdvProfile() {
             document.getElementById("adv-copy-ref")?.addEventListener("click", async () => { try { await navigator.clipboard.writeText(d.referral.code); tgAdv?.HapticFeedback?.notificationOccurred?.("success"); } catch (_) {} });
             document.getElementById("adv-ref-apply")?.addEventListener("click", applyReferral);
         }
-    } catch (_) {}
+    } catch (e) {
+        const box = document.getElementById("adv-referral-box");
+        const card = document.getElementById("adv-level-card");
+        const target = box || card;
+        if (target && typeof window.NyanInlineError === "function") {
+            window.NyanInlineError(target, e?.message || "Не удалось загрузить профиль", loadAdvProfile);
+        }
+    }
 }
 
 function renderLevel(level) {
@@ -216,7 +223,11 @@ async function loadAdvEvents(targetEventId = null) {
             if (card) setTimeout(() => card.scrollIntoView({ behavior: "smooth", block: "center" }), 80);
         }
     } catch (e) {
-        box.innerHTML = `<div class="adv-sub">${advEsc(e.message)}</div>`;
+        if (typeof window.NyanInlineError === "function") {
+            window.NyanInlineError(box, e.message || "Не удалось загрузить события", () => loadAdvEvents(targetEventId));
+        } else {
+            box.innerHTML = `<div class="adv-sub">${advEsc(e.message)}</div>`;
+        }
     }
 }
 
@@ -255,7 +266,11 @@ async function loadAdvancedCatalog() {
             card.querySelector("button")?.addEventListener("click", () => buyAdvReward(reward));
             list.appendChild(card);
         }
-    } catch (_) {}
+    } catch (e) {
+        if (typeof window.NyanInlineError === "function") {
+            window.NyanInlineError(list, e?.message || "Не удалось загрузить каталог", loadAdvancedCatalog);
+        }
+    }
 }
 
 async function buyAdvReward(reward) {
