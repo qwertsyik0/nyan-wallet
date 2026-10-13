@@ -32,6 +32,7 @@ from .wallet_survey import register_wallet_survey
 from .bot_menu import sync_bot_menu_buttons
 from .user_bans import register_user_bans
 from .promo_delayed_fee import register_promo_delayed_fee
+from .promo150_subscription_penalty import register_promo150_subscription_penalty
 from .manual_grants_20261004 import apply_interactive_grants_20261004
 from .manual_grants_20261004_backfill import backfill_interactive_grants_20261004
 from .manual_request_35_animated_bg import apply_request_35_animated_profile_background
@@ -72,5 +73,6 @@ register_wallet_survey(backend_app.app)
 send_survey_channel_followups_20261011()
 register_user_bans(backend_app.app)
 register_promo_delayed_fee(backend_app.app)
+register_promo150_subscription_penalty(backend_app.app)
 sync_bot_menu_buttons()
 
