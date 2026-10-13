@@ -197,7 +197,9 @@ def _post_markup(draft: Draft) -> InlineKeyboardMarkup | None:
     grouped: dict[int, list[InlineKeyboardButton]] = {}
     for spec in draft.buttons:
         if spec.kind == "web_app":
-            button = InlineKeyboardButton(spec.text, web_app=WebAppInfo(spec.url))
+            # Telegram does not allow web_app buttons in channel posts.
+            # Publish the same HTTPS Mini App URL as a normal URL button.
+            button = InlineKeyboardButton(spec.text, url=spec.url)
         else:
             button = InlineKeyboardButton(spec.text, url=spec.url)
         grouped.setdefault(spec.row, []).append(button)
