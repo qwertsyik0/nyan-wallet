@@ -149,7 +149,12 @@ def _channel_picker_markup(channels: list[dict[str, object]]) -> InlineKeyboardM
         [InlineKeyboardButton(f"📣 {_channel_label(item)}", callback_data=f"ch:select:{int(item['id'])}")]
         for item in channels
     ]
-    rows.append([InlineKeyboardButton("🔄 Обновить список", callback_data="ch:refresh_channels")])
+    rows.append(
+        [
+            InlineKeyboardButton("➕ Добавить канал", callback_data="ch:add_channel"),
+            InlineKeyboardButton("🔄 Обновить", callback_data="ch:refresh_channels"),
+        ]
+    )
     rows.append([InlineKeyboardButton("✖ Отмена", callback_data="ch:cancel")])
     return InlineKeyboardMarkup(rows)
 
@@ -464,6 +469,49 @@ async def channel_message_handler(update: Update, context: ContextTypes.DEFAULT_
     if draft is None:
         return
 
+    if draft.mode == "awaiting_channel_add":
+        candidate: int | str | None = None
+
+        if message.forward_origin is not None:
+            origin = message.forward_origin
+            origin_chat = getattr(origin, "chat", None)
+            if origin_chat is not None and getattr(origin_chat, "type", None) == "channel":
+                candidate = int(origin_chat.id)
+
+        if candidate is None and message.forward_from_chat is not None and message.forward_from_chat.type == "channel":
+            candidate = int(message.forward_from_chat.id)
+
+        if candidate is None and message.text:
+            raw = message.text.strip()
+            if raw.startswith("@") and re.fullmatch(r"@[A-Za-z0-9_]{5,64}", raw):
+                candidate = raw
+            elif re.fullmatch(r"-?\d{5,20}", raw):
+                candidate = int(raw)
+
+        if candidate is None:
+            await message.reply_text(
+                "Не смог определить канал. Перешлите сюда любой пост из канала "
+                "или отправьте @username канала / его числовой ID."
+            )
+            raise ApplicationHandlerStop
+
+        writable, chat = await _channel_is_writable(context.bot, candidate)
+        if not writable or chat is None:
+            await message.reply_text(
+                "Канал найден, но бот не может публиковать туда. "
+                "Проверьте, что бот добавлен администратором и у него включено право «Публиковать сообщения»."
+            )
+            raise ApplicationHandlerStop
+
+        _remember_channel(chat)
+        channels = await _available_channels(context.bot)
+        draft.mode = "awaiting_channel"
+        await message.reply_text(
+            f"Добавил канал: {_channel_label(_channel_registry[int(chat.id)])}\n\nКуда публикуем?",
+            reply_markup=_channel_picker_markup(channels),
+        )
+        raise ApplicationHandlerStop
+
     if draft.mode in {"awaiting_button_url", "awaiting_button_webapp"}:
         if not message.text:
             await message.reply_text("Для кнопки пришлите текст: Название | https://ссылка")
@@ -541,6 +589,19 @@ async def channel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     draft = _channel_drafts.get(user.id)
     if draft is None:
         await query.edit_message_text("Черновик уже закрыт. Используйте /channel_post.")
+        raise ApplicationHandlerStop
+
+    if action == "add_channel":
+        draft.mode = "awaiting_channel_add"
+        await context.bot.send_message(
+            chat_id=user.id,
+            text=(
+                "Перешлите сюда любой пост из нужного канала.\n\n"
+                "Если канал публичный, можно просто отправить его @username. "
+                "Также подойдёт числовой ID канала.\n\n"
+                "Бот должен быть администратором с правом публикации."
+            ),
+        )
         raise ApplicationHandlerStop
 
     if action == "refresh_channels":
