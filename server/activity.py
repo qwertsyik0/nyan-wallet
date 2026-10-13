@@ -213,3 +213,13 @@ async def activity_check_in(
     except IntegrityError as exc:
         raise HTTPException(status_code=409, detail="Вход за сегодня уже засчитан") from exc
 
+
+
+
+def register_activity(app) -> None:
+    global _REGISTERED
+    if _REGISTERED:
+        return
+    core.Base.metadata.create_all(core.engine)
+    app.include_router(router)
+    _REGISTERED = True
