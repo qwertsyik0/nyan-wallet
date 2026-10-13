@@ -67,6 +67,8 @@ def _wallet_start_param(url: str) -> str:
             return value
     if parsed.path.rstrip("/").lower().endswith(("/wallet-survey.html", "/survey.html")):
         return "survey"
+    if parsed.path.rstrip("/").lower().endswith("/suggestion-300.html"):
+        return "suggestion_300"
     for key in ("promo", "slug"):
         value = (query.get(key) or [""])[0].strip()
         if value and PROMO_SLUG_PATTERN.fullmatch(value):
@@ -583,6 +585,7 @@ async def channel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 "Пришлите Mini App кнопку:\n"
                 "Открыть кошелёк | wallet\n\n"
                 "Для промо: Забрать бонус | promo:nyan109\n"
+                "Для предложений: Предложить улучшение | https://qwertsyik0.github.io/nyan-wallet/suggestion-300.html\n"
                 "Можно также отправить ссылку Nyan Wallet. "
                 "В канале кнопка откроет приложение через Telegram."
             ),
