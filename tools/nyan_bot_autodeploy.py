@@ -312,9 +312,21 @@ def bot_python() -> str:
 
 
 def sync_from(stage: Path, previous: str | None) -> dict[Path, bytes]:
-    """Only replace already-installed modules; never edit bot.py or .env."""
+    """Update only bot modules changed on GitHub since the last deploy.
+
+    First install is intentionally a no-overwrite baseline: VPS hotfixes are
+    preserved until their module is actually updated in GitHub.
+    """
     changes: dict[Path, bytes] = {}
+    changed_paths: set[str] = set()
+    if previous:
+        changed_paths = set(
+            command("git", "-C", str(REPO), "diff", "--name-only",
+                    previous, "origin/main", "--", "bot_addons").stdout.splitlines()
+        )
     for name in MODULES:
+        if f"bot_addons/{name}" not in changed_paths:
+            continue
         src = stage / "bot_addons" / name
         dst = BOT / name
         if src.is_file() and dst.is_file():
@@ -323,24 +335,15 @@ def sync_from(stage: Path, previous: str | None) -> dict[Path, bytes]:
                 changes[dst] = new
     payload = stage / "bot_addons" / "giveaway_bot.py.gz.b64"
     dst = BOT / "giveaway_bot.py"
-    # The archive is an installer base, not the live version. Only re-apply
-    # when it was changed in Git after the last successfully deployed commit.
-    if previous and dst.is_file() and payload.is_file():
-        changed = command("git", "-C", str(REPO), "diff", "--name-only",
-                          previous, "origin/main", "--", "bot_addons/giveaway_bot.py.gz.b64",
-                          check=False)
-        if changed.returncode != 0:
-            raise RuntimeError("Cannot compare giveaway payload revisions")
-        if changed.stdout.strip():
-            new = giveaway_source(stage)
-            if dst.read_bytes() != new:
-                changes[dst] = new
+    if ("bot_addons/giveaway_bot.py.gz.b64" in changed_paths
+            and dst.is_file() and payload.is_file()):
+        new = giveaway_source(stage)
+        if dst.read_bytes() != new:
+            changes[dst] = new
     for dst, new in changes.items():
         compile(new, str(dst), "exec")
-    # Ensure bot.py itself remains syntactically valid.
     compile((BOT / "bot.py").read_bytes(), str(BOT / "bot.py"), "exec")
     return changes
-
 
 def check_bot_imports(changes: dict[Path, bytes]) -> None:
     # Preflight using the same Python interpreter as the bot, without
