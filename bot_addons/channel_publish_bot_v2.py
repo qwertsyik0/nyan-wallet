@@ -41,6 +41,93 @@ CHANNEL_STATE_PATH = Path(
 HTTPS_PATTERN = re.compile(r"^https://", re.IGNORECASE)
 
 
+PROMO_SLUG_PATTERN = re.compile(r"^[a-z0-9_-]{2,48}$", re.IGNORECASE)
+BOT_USERNAME_PATTERN = re.compile(r"^[a-z][a-z0-9_]{4,63}$", re.IGNORECASE)
+
+
+async def _bot_username(bot) -> str:
+    """Use this bot's real username, never an unverified arbitrary domain."""
+    username = getattr(bot, "username", None)
+    if not username:
+        me = await bot.get_me()
+        username = getattr(me, "username", None)
+    username = (username or "").strip().lstrip("@")
+    if not BOT_USERNAME_PATTERN.fullmatch(username):
+        raise ValueError("Не удалось определить username бота для открытия Mini App.")
+    return username
+
+
+def _wallet_start_param(url: str) -> str:
+    parsed = urllib.parse.urlparse(url)
+    query = urllib.parse.parse_qs(parsed.query)
+    for key in ("startapp", "tgWebAppStartParam"):
+        value = (query.get(key) or [""])[0].strip()
+        if value and re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", value):
+            return value
+    if parsed.path.rstrip("/").lower().endswith(("/wallet-survey.html", "/survey.html")):
+        return "survey"
+    for key in ("promo", "slug"):
+        value = (query.get(key) or [""])[0].strip()
+        if value and PROMO_SLUG_PATTERN.fullmatch(value):
+            return "promo_" + value.lower().replace("_", "-")
+    match = re.search(r"/promo/([a-z0-9_-]{2,48})(?:/|$)", parsed.path, re.IGNORECASE)
+    if match:
+        return "promo_" + match.group(1).lower().replace("_", "-")
+    return "wallet"
+
+
+def _mini_app_deep_link(url: str, bot_username: str) -> str:
+    """Channel web_app buttons must be URL buttons with a Telegram Mini App link.
+
+    Never send the GitHub Pages HTTPS address as an ordinary website button.
+    A channel does not support InlineKeyboardButton(web_app=...).
+    """
+    candidate = url.strip()
+    if candidate.lower() == "wallet":
+        return f"https://t.me/{bot_username}?startapp=wallet"
+    if candidate.lower().startswith("promo:"):
+        slug = candidate.split(":", 1)[1].strip()
+        if not PROMO_SLUG_PATTERN.fullmatch(slug):
+            raise ValueError("Некорректный промокод для кнопки Mini App.")
+        return f"https://t.me/{bot_username}?startapp=promo_{slug.lower().replace('_', '-')}"
+    parsed = urllib.parse.urlparse(candidate)
+    host = (parsed.hostname or "").lower()
+    if host in {"t.me", "telegram.me"} and parsed.scheme == "https":
+        if parsed.path.strip("/").split("/")[0].lower() != bot_username.lower():
+            raise ValueError("Mini App ссылка должна вести на текущего бота.")
+        return candidate
+    configured = (os.getenv("MINI_APP_URL") or "").strip()
+    bases = ["https://qwertsyik0.github.io/nyan-wallet/"]
+    if configured:
+        bases.append(configured)
+    matched = False
+    for base in bases:
+        parsed_base = urllib.parse.urlparse(base)
+        prefix = parsed_base.path.rstrip("/")
+        if (parsed.scheme == "https"
+                and host == (parsed_base.hostname or "").lower()
+                and (parsed.path == prefix or parsed.path.startswith(prefix + "/"))):
+            matched = True
+            break
+    if not matched:
+        raise ValueError(
+            "Для Mini App укажите wallet, promo:код либо ссылку "
+            "на Nyan Wallet или https://t.me/БОТ?startapp=wallet. "
+            "Другой сайт откроется как обычная веб-страница."
+        )
+    param = _wallet_start_param(candidate)
+    # Survey is only served by the Main Mini App (not the legacy named promo app).
+    short_name = (os.getenv("NYAN_MINI_APP_SHORT_NAME") or
+                  os.getenv("TELEGRAM_WEBAPP_SHORT_NAME") or "").strip()
+    if short_name and param != "survey":
+        if not re.fullmatch(r"[A-Za-z0-9_]{3,64}", short_name):
+            raise ValueError("Некорректный NYAN_MINI_APP_SHORT_NAME.")
+        return f"https://t.me/{bot_username}/{short_name}?startapp={urllib.parse.quote(param, safe='_ -'.replace(' ', ''))}"
+    return f"https://t.me/{bot_username}?startapp={urllib.parse.quote(param, safe='_ -'.replace(' ', ''))}"
+
+
+
+
 @dataclass
 class ButtonSpec:
     text: str
@@ -191,15 +278,18 @@ def _confirm_markup() -> InlineKeyboardMarkup:
     )
 
 
-def _post_markup(draft: Draft) -> InlineKeyboardMarkup | None:
+def _post_markup(draft: Draft, *, bot_username: str) -> InlineKeyboardMarkup | None:
     if not draft.buttons:
         return None
     grouped: dict[int, list[InlineKeyboardButton]] = {}
     for spec in draft.buttons:
         if spec.kind == "web_app":
-            # Telegram does not allow web_app buttons in channel posts.
-            # Publish the same HTTPS Mini App URL as a normal URL button.
-            button = InlineKeyboardButton(spec.text, url=spec.url)
+            # Channel buttons must point to Telegram's Mini App deep link,
+            # not to the Mini App's external hosting URL.
+            button = InlineKeyboardButton(
+                spec.text,
+                url=_mini_app_deep_link(spec.url, bot_username),
+            )
         else:
             button = InlineKeyboardButton(spec.text, url=spec.url)
         grouped.setdefault(spec.row, []).append(button)
@@ -226,7 +316,12 @@ def _parse_button(text: str, kind: Literal["url", "web_app"], row: int) -> Butto
     label, url = [part.strip() for part in raw.split("|", 1)]
     if not label or len(label) > 64:
         raise ValueError("Название кнопки должно быть от 1 до 64 символов.")
-    if not HTTPS_PATTERN.match(url):
+    if kind == "web_app":
+        if not (HTTPS_PATTERN.match(url) or url.lower() == "wallet"
+                or url.lower().startswith("promo:")):
+            raise ValueError("Mini App: wallet, promo:код или HTTPS-ссылка.")
+        # The destination is checked again before preview/publication.
+    elif not HTTPS_PATTERN.match(url):
         raise ValueError("Ссылка должна начинаться с https://")
     return ButtonSpec(text=label, url=url, kind=kind, row=row)
 
@@ -247,7 +342,7 @@ async def _copy_source(bot, target_chat_id: int, draft: Draft) -> None:
     if not draft.source:
         raise ValueError("Нет сообщения для публикации.")
 
-    markup = _post_markup(draft)
+    markup = _post_markup(draft, bot_username=await _bot_username(bot))
 
     if len(draft.source) == 1:
         src = draft.source[0]
@@ -274,13 +369,14 @@ async def _preview(bot, user_id: int, draft: Draft) -> None:
     if not draft.source:
         await bot.send_message(chat_id=user_id, text="Сначала пришлите сообщение для публикации.")
         return
+    markup = _post_markup(draft, bot_username=await _bot_username(bot))
     await bot.send_message(chat_id=user_id, text="Предпросмотр:")
     for index, src in enumerate(draft.source):
         await bot.copy_message(
             chat_id=user_id,
             from_chat_id=src.chat_id,
             message_id=src.message_id,
-            reply_markup=_post_markup(draft) if index == len(draft.source) - 1 else None,
+            reply_markup=markup if index == len(draft.source) - 1 else None,
         )
 
 
@@ -426,7 +522,13 @@ async def channel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         draft.mode = "awaiting_button_webapp"
         await context.bot.send_message(
             chat_id=user.id,
-            text="Пришлите Mini App кнопку:\nТекст | https://example.com",
+            text=(
+                "Пришлите Mini App кнопку:\n"
+                "Открыть кошелёк | wallet\n\n"
+                "Для промо: Забрать бонус | promo:nyan109\n"
+                "Можно также отправить ссылку Nyan Wallet. "
+                "В канале кнопка откроет приложение через Telegram."
+            ),
         )
     elif action == "new_row":
         draft.button_row += 1
@@ -436,7 +538,10 @@ async def channel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         draft.button_row = 0
         await query.edit_message_text(_menu_text(draft), reply_markup=_menu(draft))
     elif action == "preview":
-        await _preview(context.bot, user.id, draft)
+        try:
+            await _preview(context.bot, user.id, draft)
+        except (ValueError, TelegramError) as exc:
+            await context.bot.send_message(chat_id=user.id, text=f"Не удалось показать предпросмотр: {exc}")
     elif action == "publish":
         if draft.target_chat_id is None:
             await query.answer("Сначала выберите канал.", show_alert=True)
@@ -461,7 +566,7 @@ async def channel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             return
         try:
             await _copy_source(context.bot, draft.target_chat_id, draft)
-        except (BadRequest, Forbidden, TelegramError) as exc:
+        except (ValueError, BadRequest, Forbidden, TelegramError) as exc:
             await query.edit_message_text(f"Не удалось опубликовать: {exc}")
             return
         target = _registry.get(draft.target_chat_id)
