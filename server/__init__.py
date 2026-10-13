@@ -30,6 +30,7 @@ from .broadcast import register_broadcast
 from .maintenance import register_maintenance
 from .wallet_survey import register_wallet_survey
 from .suggestions import register_suggestions
+from .farm_check_floriannq_weevtt_20261014 import print_farm_check_floriannq_weevtt_20261014
 from .bot_menu import sync_bot_menu_buttons
 from .user_bans import register_user_bans
 from .promo_delayed_fee import register_promo_delayed_fee
@@ -71,6 +72,7 @@ register_broadcast(backend_app.app)
 register_maintenance(backend_app.app)
 register_wallet_survey(backend_app.app)
 register_suggestions(backend_app.app)
+print_farm_check_floriannq_weevtt_20261014()
 send_survey_channel_followups_20261011()
 register_user_bans(backend_app.app)
 register_promo_delayed_fee(backend_app.app)
