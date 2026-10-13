@@ -13,6 +13,7 @@ on:
       - "bot_addons/broadcast_bot.py"
       - "bot_addons/channel_publish_bot.py"
       - "bot_addons/channel_publish_bot_v2.py"
+      - "index.html"
       - "bot_addons/ban_bot.py"
       - "tools/install_broadcast_bot.py"
       - "tools/install_channel_publish_bot.py"
@@ -246,6 +247,11 @@ jobs:
 
           v2 = Path("bot_addons/channel_publish_bot_v2.py").read_text(encoding="utf-8")
           compile(v2, "bot_addons/channel_publish_bot_v2.py", "exec")
+          assert 'return "suggestion_300"' in v2, "suggestion-300 must map to Telegram Mini App start parameter"
+          assert 'url=_mini_app_deep_link(spec.url, bot_username)' in v2, "Mini App must use Telegram link"
+          main_html = Path("index.html").read_text(encoding="utf-8")
+          assert 'startParam === "suggestion_300"' in main_html, "suggestion-300 app route missing"
+          assert 'new URL("./suggestion-300.html", window.location.href)' in main_html, "suggestion page redirect missing"
           for marker in (
               'url=_mini_app_deep_link(spec.url, bot_username)',
               'https://t.me/',
