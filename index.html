@@ -34,6 +34,19 @@
           return;
         }
 
+        if (startParam === "suggestion_300" || startParam === "suggestion-300") {
+          // Route the Main Mini App deep link to the suggestions form while
+          // preserving Telegram's launch hash/initData for authenticated requests.
+          const target = new URL("./suggestion-300.html", window.location.href);
+          const current = new URL(window.location.href);
+          for (const [key, value] of current.searchParams.entries()) {
+            if (!["startapp", "tgWebAppStartParam"].includes(key)) target.searchParams.set(key, value);
+          }
+          if (current.hash) target.hash = current.hash;
+          window.location.replace(target.toString());
+          return;
+        }
+
         if (startParam === "survey" || startParam === "wallet_survey" || startParam === "wallet-survey") {
           const target = new URL("./wallet-survey.html", window.location.href);
           const current = new URL(window.location.href);
