@@ -5,6 +5,12 @@ from .backend_app import PROMO_PATTERN, PromoCode, SessionLocal, normalize_promo
 
 CAMPAIGN_PROMOS = [
     {
+        "code": "NYAN150",
+        "reward_amount": 150,
+        "max_uses": None,
+        "description": "Nyan Wallet: отдельная страница промокода на 150 ЛК, один раз на аккаунт",
+    },
+    {
         "code": "NYAN50",
         "reward_amount": 50,
         "max_uses": None,
