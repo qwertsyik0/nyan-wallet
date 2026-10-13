@@ -163,6 +163,10 @@ app.add_middleware(
 )
 
 PROMO_PATTERN = re.compile(r"^[A-Z0-9_-]{2,32}$")
+REQUIRED_CHANNEL_USERNAME = (os.getenv("REQUIRED_CHANNEL_USERNAME") or "@NyanWallet").strip()
+if REQUIRED_CHANNEL_USERNAME and not REQUIRED_CHANNEL_USERNAME.startswith("@"):
+    REQUIRED_CHANNEL_USERNAME = "@" + REQUIRED_CHANNEL_USERNAME
+REQUIRED_CHANNEL_URL = (os.getenv("REQUIRED_CHANNEL_URL") or "https://t.me/NyanWallet").strip()
 
 
 def now_utc() -> datetime:
@@ -281,7 +285,69 @@ def seed_bootstrap_promo() -> None:
 seed_bootstrap_promo()
 
 
-def verify_init_data(init_data: str) -> dict:
+def _channel_subscription_status(telegram_id: int) -> dict:
+    if not REQUIRED_CHANNEL_USERNAME:
+        return {"subscribed": True, "status": "disabled"}
+
+    payload = urllib.parse.urlencode(
+        {
+            "chat_id": REQUIRED_CHANNEL_USERNAME,
+            "user_id": int(telegram_id),
+        }
+    ).encode("utf-8")
+    request = urllib.request.Request(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/getChatMember",
+        data=payload,
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=6) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "subscription_check_unavailable",
+                "message": "Не удалось проверить подписку на информационный канал. Попробуйте ещё раз.",
+                "channel_url": REQUIRED_CHANNEL_URL,
+            },
+        ) from exc
+
+    if not data.get("ok"):
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "subscription_check_unavailable",
+                "message": "Не удалось проверить подписку на информационный канал. Попробуйте ещё раз.",
+                "channel_url": REQUIRED_CHANNEL_URL,
+            },
+        )
+
+    member = data.get("result") or {}
+    status = str(member.get("status") or "")
+    subscribed = status in {"creator", "administrator", "member"} or (
+        status == "restricted" and bool(member.get("is_member"))
+    )
+    return {"subscribed": subscribed, "status": status or "unknown"}
+
+
+def require_channel_subscription(telegram_id: int) -> dict:
+    result = _channel_subscription_status(telegram_id)
+    if not result["subscribed"]:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "subscription_required",
+                "message": "Для продолжения необходимо подписаться на информационный канал.",
+                "channel_url": REQUIRED_CHANNEL_URL,
+                "channel_username": REQUIRED_CHANNEL_USERNAME,
+            },
+        )
+    return result
+
+
+def verify_init_data(init_data: str, *, require_subscription: bool = True) -> dict:
     if not init_data:
         raise HTTPException(status_code=401, detail="Telegram initData отсутствует")
 
@@ -341,6 +407,9 @@ def verify_init_data(init_data: str) -> dict:
 
     if not isinstance(user.get("id"), int):
         raise HTTPException(status_code=401, detail="Некорректный Telegram ID")
+
+    if require_subscription:
+        require_channel_subscription(user["id"])
 
     return user
 
@@ -712,6 +781,24 @@ async def health():
         "ok": True,
         "service": "Nyan Wallet API",
         "database": "postgresql" if DATABASE_URL.startswith("postgresql") else "sqlite",
+    }
+
+
+@app.get("/api/subscription/status")
+async def subscription_status(
+    x_telegram_init_data: str | None = Header(
+        default=None,
+        alias="X-Telegram-Init-Data",
+    )
+):
+    tg_user = verify_init_data(x_telegram_init_data or "", require_subscription=False)
+    result = _channel_subscription_status(tg_user["id"])
+    return {
+        "ok": True,
+        "subscribed": bool(result["subscribed"]),
+        "status": result["status"],
+        "channel_url": REQUIRED_CHANNEL_URL,
+        "channel_username": REQUIRED_CHANNEL_USERNAME,
     }
 
 
