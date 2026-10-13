@@ -25,6 +25,7 @@ from telegram.ext import (
     Application,
     ApplicationHandlerStop,
     CallbackQueryHandler,
+    ChatMemberHandler,
     CommandHandler,
     ContextTypes,
     MessageHandler,
@@ -212,12 +213,30 @@ def _channel_label(item: dict[str, object]) -> str:
     return f"{title} (@{username})" if username else title
 
 
-async def _channel_is_writable(bot, chat_id: int) -> tuple[bool, object | None]:
+def _configured_channels() -> list[int | str]:
+    """Discover the channel configured for the old Nyan Wallet publisher."""
+    results: list[int | str] = []
+    for key in ("TELEGRAM_CHANNEL_ID", "NYAN_TELEGRAM_CHANNEL_ID", "NYAN_CHANNEL_ID"):
+        value = os.getenv(key, "").strip()
+        if not value:
+            continue
+        if re.fullmatch(r"-?\d+", value) and int(value) != 0:
+            candidate: int | str = int(value)
+        elif re.fullmatch(r"@[A-Za-z0-9_]{5,64}", value):
+            candidate = value
+        else:
+            continue
+        if candidate not in results:
+            results.append(candidate)
+    return results
+
+
+async def _channel_is_writable(bot, chat_id: int | str) -> tuple[bool, object | None]:
     try:
         chat = await bot.get_chat(chat_id)
         if getattr(chat, "type", None) != "channel":
-            return False, None
-        member = await bot.get_chat_member(chat_id, bot.id)
+            return False, chat
+        member = await bot.get_chat_member(chat.id, bot.id)
         status = getattr(member, "status", "")
         can_post = getattr(member, "can_post_messages", None)
         writable = status in {"administrator", "creator"} and can_post is not False
@@ -227,20 +246,42 @@ async def _channel_is_writable(bot, chat_id: int) -> tuple[bool, object | None]:
 
 
 async def _available_channels(bot) -> list[dict[str, object]]:
-    available: list[dict[str, object]] = []
-    stale: list[int] = []
-    for chat_id in list(_registry):
-        writable, chat = await _channel_is_writable(bot, chat_id)
+    # Telegram Bot API cannot enumerate every channel where a bot is admin.
+    # Recover legacy configured channels as well as previously registered ones.
+    candidates: list[int | str] = list(_registry)
+    for candidate in _configured_channels():
+        if candidate not in candidates:
+            candidates.append(candidate)
+
+    result: list[dict[str, object]] = []
+    seen: set[int] = set()
+    for candidate in candidates:
+        writable, chat = await _channel_is_writable(bot, candidate)
+        if not writable or chat is None:
+            # Do NOT permanently forget a registered channel on a transient
+            # Telegram API/network failure or temporary permission change.
+            continue
+        _remember_channel(chat)
+        if int(chat.id) not in seen:
+            seen.add(int(chat.id))
+            result.append(_registry[int(chat.id)])
+    return sorted(result, key=lambda x: str(x.get("title") or "").casefold())
+
+
+async def channel_membership_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Register channels automatically when the bot is made administrator."""
+    event = update.my_chat_member
+    if event is None or getattr(event.chat, "type", None) != "channel":
+        return
+    status = getattr(event.new_chat_member, "status", "")
+    allowed = getattr(event.new_chat_member, "can_post_messages", None) is not False
+    if status in {"administrator", "creator"} and allowed:
+        writable, chat = await _channel_is_writable(context.bot, event.chat.id)
         if writable and chat is not None:
             _remember_channel(chat)
-            available.append(_registry[chat_id])
-        else:
-            stale.append(chat_id)
-    for chat_id in stale:
-        _registry.pop(chat_id, None)
-    if stale:
-        _save_registry()
-    return sorted(available, key=lambda x: str(x.get("title") or "").lower())
+    elif status in {"left", "kicked", "member", "restricted"}:
+        if _registry.pop(int(event.chat.id), None) is not None:
+            _save_registry()
 
 
 def _channel_picker(channels: list[dict[str, object]]) -> InlineKeyboardMarkup:
@@ -399,9 +440,11 @@ async def channel_post_command(update: Update, context: ContextTypes.DEFAULT_TYP
     if not channels:
         draft.mode = "awaiting_channel_add"
         await update.effective_message.reply_text(
-            "Пока нет доступных каналов.\n\n"
-            "Добавьте бота администратором канала с правом публикации, "
-            "затем перешлите сюда любое сообщение из этого канала."
+            "Пока не удалось подтвердить доступ к каналам.\n\n"
+            "Если бот уже администратор, просто перешлите сюда одно "
+            "сообщение из нужного канала или пришлите его @username. "
+            "Повторно добавлять бота не нужно.\n"
+            "Проверьте право «Публикация сообщений»."
         )
         return
 
@@ -439,10 +482,21 @@ async def channel_message_handler(update: Update, context: ContextTypes.DEFAULT_
         origin = getattr(message, "forward_origin", None)
         origin_chat = getattr(origin, "chat", None) if origin is not None else None
         chat = source_chat or origin_chat
-        if chat is None or getattr(chat, "type", None) != "channel":
-            await message.reply_text("Не вижу канал. Перешлите обычное сообщение именно из канала.")
-            raise ApplicationHandlerStop
-        writable, resolved = await _channel_is_writable(context.bot, int(chat.id))
+        if chat is not None and getattr(chat, "type", None) == "channel":
+            candidate: int | str = int(chat.id)
+        else:
+            raw = (message.text or "").strip()
+            if re.fullmatch(r"@[A-Za-z0-9_]{5,64}", raw):
+                candidate = raw
+            elif re.fullmatch(r"-100\d{5,}", raw):
+                candidate = int(raw)
+            else:
+                await message.reply_text(
+                    "Не вижу канал. Перешлите сообщение из канала, "
+                    "отправьте @username публичного канала либо его числовой ID."
+                )
+                raise ApplicationHandlerStop
+        writable, resolved = await _channel_is_writable(context.bot, candidate)
         if not writable or resolved is None:
             await message.reply_text("Бот не может публиковать в этот канал. Проверьте права администратора.")
             raise ApplicationHandlerStop
@@ -604,6 +658,7 @@ def register_channel_publish_handlers(app: Application) -> None:
     app.add_handler(CommandHandler("channel_post", channel_post_command), group=-31)
     app.add_handler(CommandHandler("publish_channel", channel_post_command), group=-31)
     app.add_handler(CallbackQueryHandler(channel_callback, pattern=r"^cp2:"), group=-31)
+    app.add_handler(ChatMemberHandler(channel_membership_handler, ChatMemberHandler.MY_CHAT_MEMBER), group=-30)
     app.add_handler(MessageHandler(filters.ChatType.CHANNEL, channel_seen_handler), group=-30)
     app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, channel_message_handler), group=-29)
 
