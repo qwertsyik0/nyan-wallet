@@ -26,6 +26,52 @@ CHANNEL_STATE_PATH = Path(
     )
 ).expanduser()
 
+CHANNEL_PENDING_PATH = Path(
+    os.getenv(
+        "NYAN_CHANNEL_PUBLISH_PENDING_FILE",
+        str(Path(__file__).with_name("channel_publish_pending.json")),
+    )
+).expanduser()
+
+
+def _load_pending_channel_add() -> set[int]:
+    try:
+        payload = json.loads(CHANNEL_PENDING_PATH.read_text(encoding="utf-8"))
+    except (FileNotFoundError, OSError, ValueError, TypeError):
+        return set()
+    values = payload.get("owners") if isinstance(payload, dict) else None
+    if not isinstance(values, list):
+        return set()
+    result: set[int] = set()
+    for value in values:
+        try:
+            result.add(int(value))
+        except (TypeError, ValueError):
+            pass
+    return result
+
+
+_pending_channel_add = _load_pending_channel_add()
+
+
+def _save_pending_channel_add() -> None:
+    try:
+        CHANNEL_PENDING_PATH.parent.mkdir(parents=True, exist_ok=True)
+        CHANNEL_PENDING_PATH.write_text(
+            json.dumps({"owners": sorted(_pending_channel_add)}, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except OSError:
+        pass
+
+
+def _set_pending_channel_add(owner_id: int, enabled: bool) -> None:
+    if enabled:
+        _pending_channel_add.add(int(owner_id))
+    else:
+        _pending_channel_add.discard(int(owner_id))
+    _save_pending_channel_add()
+
 
 def _load_channel_registry() -> dict[int, dict[str, object]]:
     try:
@@ -460,16 +506,38 @@ async def channel_post_command(update: Update, context: ContextTypes.DEFAULT_TYP
     await _start_channel_draft(update, context, replied=message.reply_to_message if message else None)
 
 
+async def channel_add_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    message = update.effective_message
+    if user is None or message is None or user.id != _owner_id():
+        return
+
+    draft = _channel_drafts.get(user.id) or BroadcastDraft(owner_id=user.id)
+    draft.mode = "awaiting_channel_add"
+    _channel_drafts[user.id] = draft
+    _set_pending_channel_add(user.id, True)
+
+    await message.reply_text(
+        "Режим добавления канала включён. Отправьте @username, числовой ID "
+        "или перешлите пост из нужного канала."
+    )
+    raise ApplicationHandlerStop
+
+
 async def channel_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     message = update.effective_message
     if user is None or message is None or user.id != _owner_id():
         return
-    draft = _channel_drafts.get(user.id)
-    if draft is None:
-        return
 
-    if draft.mode == "awaiting_channel_add":
+    draft = _channel_drafts.get(user.id)
+    waiting_channel_add = user.id in _pending_channel_add or (draft is not None and draft.mode == "awaiting_channel_add")
+
+    if waiting_channel_add:
+        if draft is None:
+            draft = BroadcastDraft(owner_id=user.id)
+            draft.mode = "awaiting_channel_add"
+            _channel_drafts[user.id] = draft
         candidate: int | str | None = None
 
         if message.forward_origin is not None:
@@ -504,6 +572,7 @@ async def channel_message_handler(update: Update, context: ContextTypes.DEFAULT_
             raise ApplicationHandlerStop
 
         _remember_channel(chat)
+        _set_pending_channel_add(user.id, False)
         channels = await _available_channels(context.bot)
         draft.mode = "awaiting_channel"
         await message.reply_text(
@@ -511,6 +580,9 @@ async def channel_message_handler(update: Update, context: ContextTypes.DEFAULT_
             reply_markup=_channel_picker_markup(channels),
         )
         raise ApplicationHandlerStop
+
+    if draft is None:
+        return
 
     if draft.mode in {"awaiting_button_url", "awaiting_button_webapp"}:
         if not message.text:
@@ -593,6 +665,7 @@ async def channel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     if action == "add_channel":
         draft.mode = "awaiting_channel_add"
+        _set_pending_channel_add(user.id, True)
         await context.bot.send_message(
             chat_id=user.id,
             text=(
@@ -632,6 +705,7 @@ async def channel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             raise ApplicationHandlerStop
 
         _channel_selected_targets[user.id] = selected_id
+        _set_pending_channel_add(user.id, False)
         await query.edit_message_text(f"Канал выбран: {_channel_label(selected)}")
 
         if draft.source_message_ids:
@@ -693,6 +767,7 @@ async def channel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     elif action == "cancel":
         _channel_drafts.pop(user.id, None)
         _channel_selected_targets.pop(user.id, None)
+        _set_pending_channel_add(user.id, False)
         await query.edit_message_text("Черновик публикации удалён.")
     elif action == "confirm_publish":
         channel_id = _channel_selected_targets.get(user.id)
@@ -759,6 +834,7 @@ async def _ensure_channel_command_menu(application: Application) -> None:
         owner_commands = await application.bot.get_my_commands(scope=scope)
         merged: dict[str, BotCommand] = {command.command: command for command in [*default_commands, *owner_commands]}
         merged["channel_post"] = BotCommand(command="channel_post", description="Создать публикацию в канал")
+        merged["channel_add"] = BotCommand(command="channel_add", description="Добавить канал для публикаций")
         await application.bot.set_my_commands(list(merged.values())[:100], scope=scope)
     except TelegramError:
         pass
@@ -769,6 +845,7 @@ def register_channel_publish_handlers(app: Application) -> None:
 
     app.add_handler(ChatMemberHandler(channel_membership_handler, ChatMemberHandler.MY_CHAT_MEMBER), group=-23)
     app.add_handler(MessageHandler(filters.ChatType.CHANNEL, channel_seen_handler), group=-22)
+    app.add_handler(CommandHandler("channel_add", channel_add_command), group=-21)
     app.add_handler(CommandHandler("channel_post", channel_post_command), group=-21)
     app.add_handler(CommandHandler("publish_channel", channel_post_command), group=-21)
     app.add_handler(CallbackQueryHandler(channel_callback, pattern=r"^ch:"), group=-21)
