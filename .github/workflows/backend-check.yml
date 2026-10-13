@@ -7,6 +7,7 @@ on:
       - "server/**/*.py"
       - "*.js"
       - "tools/install_giveaway_bot.py"
+      - "tools/nyan_bot_autodeploy.py"
       - "bot_addons/giveaway_bot.py.gz.b64"
       - "bot_addons/maintenance_bot.py"
       - "bot_addons/broadcast_bot.py"
@@ -30,7 +31,9 @@ jobs:
         with:
           python-version: "3.13"
       - name: Compile backend and installer
-        run: python -m py_compile server/*.py tools/install_giveaway_bot.py tools/install_maintenance_bot.py tools/install_broadcast_bot.py tools/install_channel_publish_bot.py tools/install_ban_bot.py bot_addons/broadcast_bot.py bot_addons/channel_publish_bot.py bot_addons/ban_bot.py
+        run: python -m py_compile server/*.py tools/install_giveaway_bot.py tools/install_maintenance_bot.py tools/install_broadcast_bot.py tools/install_channel_publish_bot.py tools/install_ban_bot.py bot_addons/broadcast_bot.py bot_addons/channel_publish_bot.py bot_addons/ban_bot.py tools/nyan_bot_autodeploy.py
+      - name: Check VPS auto-deploy entry point
+        run: python tools/nyan_bot_autodeploy.py --help
       - name: Validate giveaway bot payload
         run: |
           python - <<'PY'
