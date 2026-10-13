@@ -8,6 +8,7 @@
     const activateButton = document.getElementById("promo-activate");
     const walletButton = document.getElementById("promo-wallet");
     const status = document.getElementById("promo-status");
+    const CHANNEL_URL = "https://t.me/NyanWallet";
     const bodyData = document.body?.dataset || {};
     const defaultCode = bodyData.defaultPromoCode || "NYANFLASH600";
     const lockPromoCode = bodyData.promoLockCode === "true";
@@ -55,6 +56,44 @@
         if (!status) return;
         status.textContent = text || "";
         status.className = "promo-status" + (type ? " " + type : "");
+    }
+
+    function showSubscriptionRequired(message = "Вы не подписаны на канал.") {
+        if (!status) return;
+        status.className = "promo-status error";
+        status.innerHTML = "";
+
+        const text = document.createElement("div");
+        text.textContent = message;
+
+        const actions = document.createElement("div");
+        actions.style.display = "grid";
+        actions.style.gap = "8px";
+        actions.style.marginTop = "12px";
+
+        const subscribe = document.createElement("button");
+        subscribe.type = "button";
+        subscribe.className = "promo-activate";
+        subscribe.textContent = "Подписаться";
+        subscribe.addEventListener("click", () => {
+            if (tg?.openTelegramLink) tg.openTelegramLink(CHANNEL_URL);
+            else window.open(CHANNEL_URL, "_blank", "noopener,noreferrer");
+        });
+
+        const retry = document.createElement("button");
+        retry.type = "button";
+        retry.className = "promo-wallet";
+        retry.textContent = "Попробовать снова";
+        retry.addEventListener("click", () => {
+            if (activateButton) {
+                activateButton.disabled = false;
+                activateButton.textContent = `Забрать ${rewardAmount} 🐾`;
+            }
+            void activate();
+        });
+
+        actions.append(subscribe, retry);
+        status.append(text, actions);
     }
 
     function limitText() {
@@ -145,10 +184,24 @@
             const data = await readJson(response);
 
             if (!response.ok) {
-                const detail = typeof data?.detail === "string"
-                    ? data.detail
-                    : "Не удалось активировать промокод";
-                throw new Error(detail);
+                const rawDetail = data?.detail;
+                const detailCode = typeof rawDetail === "object" ? rawDetail?.code : null;
+                const detailMessage = typeof rawDetail === "object"
+                    ? rawDetail?.message
+                    : rawDetail;
+
+                if (response.status === 403 && detailCode === "subscription_required") {
+                    showSubscriptionRequired("Вы не подписаны на канал.");
+                    if (activateButton) {
+                        activateButton.disabled = false;
+                        activateButton.textContent = `Забрать ${rewardAmount} 🐾`;
+                    }
+                    tg?.MainButton?.setText?.("Попробовать снова");
+                    tg?.MainButton?.enable?.();
+                    return;
+                }
+
+                throw new Error(detailMessage || "Не удалось активировать промокод");
             }
 
             const reward = Number(data?.reward || 0);
