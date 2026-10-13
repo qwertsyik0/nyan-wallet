@@ -128,7 +128,6 @@ def install(args: argparse.Namespace) -> None:
     log = STATE / "deploy.log"
     cron = f"* * * * * {python} {REPO / 'tools/nyan_bot_autodeploy.py'} run >> {log} 2>&1 {MARKER}"
     update = "\n".join(lines + [cron]) + "\n"
-    command("crontab", "-", check=False) if False else None  # install through stdin below
     subprocess.run(["crontab", "-"], input=update, text=True, check=True)
     print(f"Configured {service} ({scope}). Checking GitHub every minute.")
     print(f"Logs: tail -n 60 {log}")
@@ -260,6 +259,12 @@ def deploy(force: bool = False) -> None:
                     # Keep production git fast-forward only. Never touch .env or DB.
                     git("merge", "--ff-only", target)
                     checkout_updated = old != target
+                    if changes:
+                        snapshot = STATE / "backups" / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+                        snapshot.mkdir(parents=True, exist_ok=True)
+                        for dst, old_data in backup.items():
+                            (snapshot / dst.name).write_bytes(old_data)
+                        print(f"[{date()}] saved pre-deploy backup: {snapshot}", flush=True)
                     for dst, data in changes.items():
                         mode = dst.stat().st_mode & 0o777
                         tmp = dst.with_suffix(dst.suffix + ".deploy-tmp")
