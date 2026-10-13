@@ -807,3 +807,68 @@ async def owner_promo_create(
 ):
     tg_user = verify_init_data(x_telegram_init_data or "")
     return {"ok": True, "promo": create_owner_promo(tg_user, payload)}
+
+
+# --- one-time interactive grant batch 2026-10-13 ---
+_INTERACTIVE_GRANT_USERS_20261013 = [
+    "kutsuko",
+    "sha4ow0",
+    "vampr1kski",
+    "CopiaCardinal",
+    "wwiettt",
+    "rc_otq",
+    "Alexx_Topp1",
+]
+_INTERACTIVE_GRANT_AMOUNT_20261013 = 100
+_INTERACTIVE_GRANT_DESCRIPTION_20261013 = "Участие в интерактиве\u2063"
+
+
+def _run_interactive_grants_20261013() -> None:
+    timestamp = now_utc()
+    granted = []
+    skipped = []
+    missing = []
+
+    with SessionLocal() as session:
+        with session.begin():
+            for username in _INTERACTIVE_GRANT_USERS_20261013:
+                user = session.scalar(
+                    select(User)
+                    .where(func.lower(User.username) == username.lower())
+                    .with_for_update()
+                )
+                if user is None:
+                    missing.append(username)
+                    continue
+
+                already_done = session.scalar(
+                    select(Transaction.id).where(
+                        Transaction.telegram_id == user.telegram_id,
+                        Transaction.amount == _INTERACTIVE_GRANT_AMOUNT_20261013,
+                        Transaction.operation_type == "owner_grant",
+                        Transaction.description == _INTERACTIVE_GRANT_DESCRIPTION_20261013,
+                    )
+                )
+                if already_done is not None:
+                    skipped.append(username)
+                    continue
+
+                user.balance += _INTERACTIVE_GRANT_AMOUNT_20261013
+                session.add(Transaction(
+                    telegram_id=user.telegram_id,
+                    amount=_INTERACTIVE_GRANT_AMOUNT_20261013,
+                    operation_type="owner_grant",
+                    description=_INTERACTIVE_GRANT_DESCRIPTION_20261013,
+                    created_at=timestamp,
+                ))
+                granted.append((username, user.balance))
+
+    print(
+        "INTERACTIVE_GRANT_20261013 "
+        f"granted={granted} skipped={skipped} missing={missing}",
+        flush=True,
+    )
+
+
+_run_interactive_grants_20261013()
+# --- end one-time interactive grant batch 2026-10-13 ---
