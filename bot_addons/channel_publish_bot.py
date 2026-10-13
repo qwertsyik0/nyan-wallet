@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+import json
 import os
 import re
 import urllib.parse
 from dataclasses import replace
+from pathlib import Path
 from typing import Literal
 
 from telegram import BotCommand, BotCommandScopeChat, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.error import BadRequest, Forbidden, NetworkError, RetryAfter, TelegramError
-from telegram.ext import Application, ApplicationHandlerStop, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import Application, ApplicationHandlerStop, CallbackQueryHandler, ChatMemberHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
 from broadcast_bot import BroadcastBotError, BroadcastDraft, ButtonSpec, _owner_id
 
@@ -16,6 +18,146 @@ DEFAULT_MINI_APP_URL = "https://qwertsyik0.github.io/nyan-wallet/"
 PROMO_SLUG_PATTERN = re.compile(r"^[a-z0-9_-]{2,48}$", re.IGNORECASE)
 _channel_drafts: dict[int, BroadcastDraft] = {}
 _channel_post_init_hook_installed = False
+_channel_selected_targets: dict[int, int] = {}
+CHANNEL_STATE_PATH = Path(
+    os.getenv(
+        "NYAN_CHANNEL_PUBLISH_STATE_FILE",
+        str(Path(__file__).with_name("channel_publish_channels.json")),
+    )
+).expanduser()
+
+
+def _load_channel_registry() -> dict[int, dict[str, object]]:
+    try:
+        payload = json.loads(CHANNEL_STATE_PATH.read_text(encoding="utf-8"))
+    except (FileNotFoundError, OSError, ValueError, TypeError):
+        return {}
+    channels = payload.get("channels") if isinstance(payload, dict) else None
+    if not isinstance(channels, list):
+        return {}
+    result: dict[int, dict[str, object]] = {}
+    for item in channels:
+        if not isinstance(item, dict):
+            continue
+        try:
+            chat_id = int(item.get("id"))
+        except (TypeError, ValueError):
+            continue
+        result[chat_id] = {
+            "id": chat_id,
+            "title": str(item.get("title") or "Канал"),
+            "username": str(item.get("username") or ""),
+        }
+    return result
+
+
+_channel_registry = _load_channel_registry()
+
+
+def _save_channel_registry() -> None:
+    try:
+        CHANNEL_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        CHANNEL_STATE_PATH.write_text(
+            json.dumps(
+                {"channels": list(_channel_registry.values())},
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+    except OSError:
+        pass
+
+
+def _remember_channel(chat) -> None:
+    if chat is None or getattr(chat, "type", None) != "channel":
+        return
+    chat_id = int(chat.id)
+    _channel_registry[chat_id] = {
+        "id": chat_id,
+        "title": str(getattr(chat, "title", None) or "Канал"),
+        "username": str(getattr(chat, "username", None) or ""),
+    }
+    _save_channel_registry()
+
+
+def _forget_channel(chat_id: int) -> None:
+    if _channel_registry.pop(int(chat_id), None) is not None:
+        _save_channel_registry()
+
+
+def _channel_label(item: dict[str, object]) -> str:
+    title = str(item.get("title") or "Канал").strip()
+    username = str(item.get("username") or "").strip().lstrip("@")
+    label = f"{title} · @{username}" if username else title
+    return label[:56]
+
+
+async def _channel_is_writable(bot, chat_id: int | str) -> tuple[bool, object | None]:
+    try:
+        chat = await bot.get_chat(chat_id)
+        if getattr(chat, "type", None) != "channel":
+            return False, chat
+        me = await bot.get_me()
+        member = await bot.get_chat_member(chat.id, me.id)
+    except TelegramError:
+        return False, None
+
+    status = str(getattr(member, "status", ""))
+    if status not in {"administrator", "creator"}:
+        return False, chat
+    can_post = getattr(member, "can_post_messages", None)
+    if can_post is False:
+        return False, chat
+    return True, chat
+
+
+async def _available_channels(bot) -> list[dict[str, object]]:
+    candidates: list[int | str] = list(_channel_registry)
+    try:
+        configured = _configured_channel_id()
+    except BroadcastBotError:
+        configured = None
+    if configured is not None and configured not in candidates:
+        candidates.append(configured)
+
+    available: list[dict[str, object]] = []
+    seen: set[int] = set()
+    for candidate in candidates:
+        writable, chat = await _channel_is_writable(bot, candidate)
+        if not writable or chat is None:
+            try:
+                numeric_id = int(candidate)
+            except (TypeError, ValueError):
+                numeric_id = None
+            if numeric_id is not None:
+                _forget_channel(numeric_id)
+            continue
+        _remember_channel(chat)
+        chat_id = int(chat.id)
+        if chat_id in seen:
+            continue
+        seen.add(chat_id)
+        available.append(_channel_registry[chat_id])
+
+    available.sort(key=lambda item: str(item.get("title") or "").casefold())
+    return available
+
+
+def _channel_picker_markup(channels: list[dict[str, object]]) -> InlineKeyboardMarkup:
+    rows = [
+        [InlineKeyboardButton(f"📣 {_channel_label(item)}", callback_data=f"ch:select:{int(item['id'])}")]
+        for item in channels
+    ]
+    rows.append([InlineKeyboardButton("🔄 Обновить список", callback_data="ch:refresh_channels")])
+    rows.append([InlineKeyboardButton("✖ Отмена", callback_data="ch:cancel")])
+    return InlineKeyboardMarkup(rows)
+
+
+def _selected_channel_text(owner_id: int) -> str:
+    chat_id = _channel_selected_targets.get(owner_id)
+    item = _channel_registry.get(chat_id) if chat_id is not None else None
+    return _channel_label(item) if item else "не выбран"
 
 
 def _mini_app_base() -> str:
@@ -190,7 +332,8 @@ def _menu_text(draft: BroadcastDraft) -> str:
         "Черновик публикации в канал готов.\n\n"
         f"Сообщений в блоке: {len(draft.source_message_ids)}\n"
         f"Кнопок исходника: {source_count}\n"
-        f"Добавлено кнопок: {len(draft.buttons)}\n\n"
+        f"Добавлено кнопок: {len(draft.buttons)}\n"
+        f"Канал: {_selected_channel_text(draft.owner_id)}\n\n"
         "Можно добавить URL/Mini App кнопки, посмотреть предпросмотр или опубликовать после подтверждения."
     )
 
@@ -279,14 +422,18 @@ async def _start_channel_draft(update: Update, context: ContextTypes.DEFAULT_TYP
     if user is None or message is None or user.id != _owner_id():
         return
 
-    try:
-        _configured_channel_id()
-    except BroadcastBotError as exc:
-        await message.reply_text(str(exc))
+    channels = await _available_channels(context.bot)
+    if not channels:
+        await message.reply_text(
+            "Не нашёл ни одного канала, где бот может публиковать. "
+            "Добавьте бота администратором канала с правом публикации."
+        )
         raise ApplicationHandlerStop
 
     draft = BroadcastDraft(owner_id=user.id)
+    draft.mode = "awaiting_channel"
     _channel_drafts[user.id] = draft
+    _channel_selected_targets.pop(user.id, None)
 
     if replied is not None:
         if replied.media_group_id:
@@ -295,15 +442,10 @@ async def _start_channel_draft(update: Update, context: ContextTypes.DEFAULT_TYP
         draft.source_chat_id = replied.chat_id
         draft.source_message_ids = [replied.message_id]
         draft.source_markup = replied.reply_markup
-        draft.mode = "ready"
-        await _preview(context, user.id, draft)
-        await _show_menu(context, user.id, draft)
-        raise ApplicationHandlerStop
 
     await message.reply_text(
-        "Режим публикации в канал включён.\n\n"
-        "Пришлите текст, фото, видео, GIF, документ или альбом. Форматирование Telegram будет сохранено через копирование сообщения.\n\n"
-        "Для кнопки на промо можно будет отправить: 🐾 Забрать 109 | promo:nyan109"
+        "Куда публикуем?",
+        reply_markup=_channel_picker_markup(channels),
     )
     raise ApplicationHandlerStop
 
@@ -401,6 +543,51 @@ async def channel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.edit_message_text("Черновик уже закрыт. Используйте /channel_post.")
         raise ApplicationHandlerStop
 
+    if action == "refresh_channels":
+        channels = await _available_channels(context.bot)
+        if not channels:
+            await query.edit_message_text(
+                "Не нашёл каналов с правом публикации.",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✖ Отмена", callback_data="ch:cancel")]]),
+            )
+        else:
+            await query.edit_message_text("Куда публикуем?", reply_markup=_channel_picker_markup(channels))
+        raise ApplicationHandlerStop
+
+    if action.startswith("select:"):
+        try:
+            selected_id = int(action.split(":", 1)[1])
+        except (TypeError, ValueError):
+            await query.answer("Некорректный канал", show_alert=True)
+            raise ApplicationHandlerStop
+
+        channels = await _available_channels(context.bot)
+        selected = next((item for item in channels if int(item["id"]) == selected_id), None)
+        if selected is None:
+            await query.edit_message_text(
+                "Этот канал больше недоступен для публикации. Выберите другой.",
+                reply_markup=_channel_picker_markup(channels) if channels else None,
+            )
+            raise ApplicationHandlerStop
+
+        _channel_selected_targets[user.id] = selected_id
+        await query.edit_message_text(f"Канал выбран: {_channel_label(selected)}")
+
+        if draft.source_message_ids:
+            draft.mode = "ready"
+            await _preview(context, user.id, draft)
+            await _show_menu(context, user.id, draft)
+        else:
+            draft.mode = "awaiting_content"
+            await context.bot.send_message(
+                chat_id=user.id,
+                text=(
+                    "Теперь пришлите текст, фото, видео, GIF, документ или альбом. "
+                    "Форматирование Telegram сохранится."
+                ),
+            )
+        raise ApplicationHandlerStop
+
     if action == "add_url":
         draft.mode = "awaiting_button_url"
         await context.bot.send_message(chat_id=user.id, text="Пришлите кнопку в формате:\nОтзывы | https://example.com")
@@ -444,9 +631,18 @@ async def channel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.edit_message_text(_menu_text(draft), reply_markup=_menu_markup(draft))
     elif action == "cancel":
         _channel_drafts.pop(user.id, None)
+        _channel_selected_targets.pop(user.id, None)
         await query.edit_message_text("Черновик публикации удалён.")
     elif action == "confirm_publish":
-        channel_id = _configured_channel_id()
+        channel_id = _channel_selected_targets.get(user.id)
+        if channel_id is None:
+            channels = await _available_channels(context.bot)
+            await context.bot.send_message(
+                chat_id=user.id,
+                text="Сначала выберите канал.",
+                reply_markup=_channel_picker_markup(channels) if channels else None,
+            )
+            raise ApplicationHandlerStop
         try:
             username = await _bot_username(context.bot)
             await _copy_to_chat(bot=context.bot, chat_id=channel_id, draft=draft, bot_username=username)
@@ -459,10 +655,40 @@ async def channel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         except (RetryAfter, NetworkError, TelegramError, BroadcastBotError) as exc:
             await context.bot.send_message(chat_id=user.id, text=f"Не удалось опубликовать: {exc}")
             raise ApplicationHandlerStop from exc
+        target_label = _selected_channel_text(user.id)
         _channel_drafts.pop(user.id, None)
-        await query.edit_message_text("Публикация отправлена в канал.")
+        _channel_selected_targets.pop(user.id, None)
+        await query.edit_message_text(f"Публикация отправлена: {target_label}.")
 
     raise ApplicationHandlerStop
+
+
+async def channel_membership_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    change = update.my_chat_member
+    if change is None or getattr(change.chat, "type", None) != "channel":
+        return
+    status = str(getattr(change.new_chat_member, "status", ""))
+    can_post = getattr(change.new_chat_member, "can_post_messages", None)
+    if status in {"administrator", "creator"} and can_post is not False:
+        _remember_channel(change.chat)
+    else:
+        _forget_channel(int(change.chat.id))
+
+
+async def channel_seen_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat = update.effective_chat
+    if chat is None or getattr(chat, "type", None) != "channel":
+        return
+    writable, resolved = await _channel_is_writable(context.bot, int(chat.id))
+    if writable and resolved is not None:
+        _remember_channel(resolved)
+
+
+async def _bootstrap_channel_registry(application: Application) -> None:
+    try:
+        await _available_channels(application.bot)
+    except TelegramError:
+        pass
 
 
 async def _ensure_channel_command_menu(application: Application) -> None:
@@ -480,6 +706,8 @@ async def _ensure_channel_command_menu(application: Application) -> None:
 def register_channel_publish_handlers(app: Application) -> None:
     global _channel_post_init_hook_installed
 
+    app.add_handler(ChatMemberHandler(channel_membership_handler, ChatMemberHandler.MY_CHAT_MEMBER), group=-23)
+    app.add_handler(MessageHandler(filters.ChatType.CHANNEL, channel_seen_handler), group=-22)
     app.add_handler(CommandHandler("channel_post", channel_post_command), group=-21)
     app.add_handler(CommandHandler("publish_channel", channel_post_command), group=-21)
     app.add_handler(CallbackQueryHandler(channel_callback, pattern=r"^ch:"), group=-21)
@@ -491,6 +719,7 @@ def register_channel_publish_handlers(app: Application) -> None:
         async def _channel_post_init(application: Application) -> None:
             if previous_post_init is not None:
                 await previous_post_init(application)
+            await _bootstrap_channel_registry(application)
             await _ensure_channel_command_menu(application)
 
         app.post_init = _channel_post_init
