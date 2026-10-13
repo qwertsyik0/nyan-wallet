@@ -550,15 +550,6 @@ def redeem_promo(tg_user: dict, raw_code: str, *, allow_conditional: bool = Fals
                     )
                 )
 
-                if code == "NYAN150":
-                    from .promo150_subscription_penalty import schedule_subscription_watch
-                    schedule_subscription_watch(
-                        session,
-                        promo_id=promo.id,
-                        telegram_id=telegram_id,
-                        activated_at=timestamp,
-                    )
-
                 if code == "NYAN300":
                     from .promo_delayed_fee import schedule_fee
                     schedule_fee(
