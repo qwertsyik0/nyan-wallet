@@ -12,6 +12,7 @@ on:
       - "bot_addons/maintenance_bot.py"
       - "bot_addons/broadcast_bot.py"
       - "bot_addons/channel_publish_bot.py"
+      - "bot_addons/channel_publish_bot_v2.py"
       - "bot_addons/ban_bot.py"
       - "tools/install_broadcast_bot.py"
       - "tools/install_channel_publish_bot.py"
@@ -31,7 +32,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Compile backend and installer
-        run: python -m py_compile server/*.py tools/install_giveaway_bot.py tools/install_maintenance_bot.py tools/install_broadcast_bot.py tools/install_channel_publish_bot.py tools/install_ban_bot.py bot_addons/broadcast_bot.py bot_addons/channel_publish_bot.py bot_addons/ban_bot.py tools/nyan_bot_autodeploy.py
+        run: python -m py_compile server/*.py tools/install_giveaway_bot.py tools/install_maintenance_bot.py tools/install_broadcast_bot.py tools/install_channel_publish_bot.py tools/install_ban_bot.py bot_addons/broadcast_bot.py bot_addons/channel_publish_bot.py bot_addons/channel_publish_bot_v2.py bot_addons/ban_bot.py tools/nyan_bot_autodeploy.py
       - name: Check VPS auto-deploy entry point
         run: python tools/nyan_bot_autodeploy.py --help
       - name: Validate giveaway bot payload
@@ -242,6 +243,18 @@ jobs:
               '_ensure_owner_command_menu',
           ):
               assert marker in bot, f"broadcast bot marker missing: {marker}"
+
+          v2 = Path("bot_addons/channel_publish_bot_v2.py").read_text(encoding="utf-8")
+          compile(v2, "bot_addons/channel_publish_bot_v2.py", "exec")
+          for marker in (
+              'url=_mini_app_deep_link(spec.url, bot_username)',
+              'https://t.me/',
+              'startapp=',
+              'promo:',
+              'wallet',
+          ):
+              assert marker in v2, f"channel publisher v2 marker missing: {marker}"
+          assert 'url=spec.url)\n        else:' not in v2.split('def _post_markup', 1)[1].split('def _menu_text', 1)[0], "Mini App must not use raw host URL"
 
           channel = Path("bot_addons/channel_publish_bot.py").read_text(encoding="utf-8")
           compile(channel, "bot_addons/channel_publish_bot.py", "exec")
