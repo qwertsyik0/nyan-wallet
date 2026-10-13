@@ -14,6 +14,7 @@ import gzip
 import json
 import os
 import re
+import signal
 import shutil
 import subprocess
 import sys
@@ -30,6 +31,78 @@ CONFIG = STATE / "config.json"
 MARKER = "# NYAN_BOT_AUTO_DEPLOY"
 MODULES = ("ban_bot.py", "broadcast_bot.py", "channel_publish_bot.py",
            "channel_publish_bot_v2.py", "maintenance_bot.py")
+
+
+def find_bot_processes() -> list[int]:
+    """Find own live Python bot.py processes without relying on shell grep."""
+    pids: list[int] = []
+    expected = (BOT / "bot.py").resolve()
+    if not expected.is_file():
+        return pids
+    for proc in Path("/proc").iterdir():
+        if not proc.name.isdigit():
+            continue
+        try:
+            if proc.stat().st_uid != os.getuid():
+                continue
+            argv = [part.decode("utf-8", "replace")
+                    for part in (proc / "cmdline").read_bytes().split(b"\0") if part]
+            if len(argv) < 2:
+                continue
+            cwd = (proc / "cwd").resolve()
+            matches = False
+            for arg in argv[1:]:
+                if arg == "bot.py" and cwd == BOT.resolve():
+                    matches = True
+                elif arg.endswith("/bot.py") and Path(arg).resolve() == expected:
+                    matches = True
+            if not matches:
+                continue
+            state = (proc / "stat").read_text().rsplit(")", 1)[-1].strip().split()[0]
+            if state != "Z":
+                pids.append(int(proc.name))
+        except (OSError, PermissionError, ValueError, IndexError):
+            continue
+    return sorted(pids)
+
+
+def restart_nohup() -> None:
+    pids = find_bot_processes()
+    for pid in pids:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+    deadline = time.monotonic() + 12
+    while time.monotonic() < deadline and any(pid in find_bot_processes() for pid in pids):
+        time.sleep(0.4)
+    for pid in pids:
+        if pid in find_bot_processes():
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+    time.sleep(1)
+    if any(pid in find_bot_processes() for pid in pids):
+        raise RuntimeError("Previous bot did not exit; refusing a duplicate Telegram poller")
+    with (BOT / "bot.log").open("a", encoding="utf-8") as log:
+        process = subprocess.Popen(
+            [bot_python(), str(BOT / "bot.py")],
+            cwd=BOT,
+            stdin=subprocess.DEVNULL,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+            close_fds=True,
+        )
+    time.sleep(8)
+    active = find_bot_processes()
+    if active != [process.pid]:
+        raise RuntimeError(
+            f"Bot startup failed (new PID {process.pid}, live PIDs {active}); "
+            f"check {BOT / 'bot.log'}"
+        )
+    print(f"[{date()}] nohup bot healthy, PID={process.pid}", flush=True)
 
 
 def command(*args: str, cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess:
@@ -50,6 +123,15 @@ def date() -> str:
 def service_command(config: dict, action: str, check: bool = True) -> subprocess.CompletedProcess:
     scope = config["scope"]
     unit = config["service"]
+    if scope == "nohup":
+        if action == "restart":
+            restart_nohup()
+            return subprocess.CompletedProcess(["nohup", action], 0, "active", "")
+        if action == "is-active":
+            active = find_bot_processes()
+            return subprocess.CompletedProcess(["nohup", action], 0 if len(active) == 1 else 3,
+                                               str(active), "")
+        raise RuntimeError(f"Unsupported nohup action: {action}")
     if scope == "user":
         args = ["systemctl", "--user", action, unit]
         # User systemd services also work when started by cron, if lingering is enabled.
@@ -102,18 +184,24 @@ def install(args: argparse.Namespace) -> None:
     service = args.service or (detected[0] if detected else None)
     scope = args.scope or (detected[1] if detected else None)
     if not service or not scope:
-        raise RuntimeError(
-            "Cannot identify the running bot's systemd unit. No cron job installed.\n"
-            "Check: systemctl --user list-units --type=service --all ; "
-            "systemctl list-units --type=service --all\n"
-            "Then run: python3 tools/nyan_bot_autodeploy.py install "
-            "--service YOUR_BOT.service --scope user|system"
-        )
-    if not re.fullmatch(r"[a-zA-Z0-9_.@-]+\.service", service):
+        # Historic Nyan Cash uses nohup and keep_bot_alive.sh via cron.
+        # Reuse this process without creating a second polling worker.
+        if find_bot_processes():
+            service, scope = "bot.py", "nohup"
+        else:
+            raise RuntimeError(
+                "No running bot.py or systemd unit found; crontab unchanged.\n"
+                "Start the existing bot or use: python3 tools/nyan_bot_autodeploy.py "
+                "install --service bot.py --scope nohup"
+            )
+    if scope == "nohup":
+        if service != "bot.py":
+            raise RuntimeError("nohup supervisor supports only bot.py")
+    elif not re.fullmatch(r"[a-zA-Z0-9_.@-]+\.service", service):
         raise RuntimeError("Invalid systemd unit name")
     cfg = {"service": service, "scope": scope, "bot_root": str(BOT)}
     check = service_command(cfg, "is-active", check=False)
-    if check.returncode:
+    if scope != "nohup" and check.returncode:
         raise RuntimeError(f"Bot service {scope}:{service} is not active; refusing to configure auto-restart.")
     if scope == "system" and os.geteuid() != 0:
         sudo = command("sudo", "-n", "-l", check=False)
@@ -123,8 +211,17 @@ def install(args: argparse.Namespace) -> None:
     CONFIG.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     CONFIG.chmod(0o600)
     current = command("crontab", "-l", check=False)
+    if current.returncode and "no crontab for" not in current.stderr.lower():
+        raise RuntimeError("Cannot read crontab: " + current.stderr.strip())
     old = current.stdout if current.returncode == 0 else ""
-    lines = [line for line in old.splitlines() if MARKER not in line]
+    backup = STATE / ("crontab.before-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + ".txt")
+    backup.write_text(old, encoding="utf-8")
+    legacy = [line for line in old.splitlines()
+              if scope == "nohup" and "keep_bot_alive.sh" in line and "new_bot" in line]
+    lines = [line for line in old.splitlines()
+             if MARKER not in line and line not in legacy]
+    if legacy:
+        print(f"Disabled {len(legacy)} old keep_bot_alive.sh cron tasks to avoid duplicate polling")
     python = shutil.which("python3") or sys.executable
     log = STATE / "deploy.log"
     cron = f"* * * * * {python} {REPO / 'tools/nyan_bot_autodeploy.py'} run >> {log} 2>&1 {MARKER}"
@@ -268,6 +365,9 @@ def deploy(force: bool = False) -> None:
         successful = (STATE / "deployed.sha").read_text().strip() if (STATE / "deployed.sha").exists() else None
         failed = (STATE / "failed.sha").read_text().strip() if (STATE / "failed.sha").exists() else None
         if not force and successful == target:
+            if cfg["scope"] == "nohup" and len(find_bot_processes()) != 1:
+                print(f"[{date()}] repairing polling process count: {find_bot_processes()}", flush=True)
+                service_command(cfg, "restart")
             return
         if not force and failed == target:
             return
@@ -314,9 +414,10 @@ def deploy(force: bool = False) -> None:
                         finally:
                             tmp.unlink(missing_ok=True)
                         touched = True
-                    if touched:
+                    if touched or (cfg["scope"] == "nohup" and len(find_bot_processes()) != 1):
                         service_command(cfg, "restart")
-                        time.sleep(5)
+                        if cfg["scope"] != "nohup":
+                            time.sleep(5)
                         active = service_command(cfg, "is-active", check=False)
                         if active.returncode:
                             raise RuntimeError(f"Bot did not stay active after restart: {active.stderr.strip()}")
@@ -345,7 +446,7 @@ def main() -> None:
     sub = parser.add_subparsers(dest="action", required=True)
     setup = sub.add_parser("install")
     setup.add_argument("--service", help="Existing bot systemd unit, e.g. nyancash.service")
-    setup.add_argument("--scope", choices=("user", "system"))
+    setup.add_argument("--scope", choices=("user", "system", "nohup"))
     sub.add_parser("run")
     sub.add_parser("retry")
     sub.add_parser("status")
