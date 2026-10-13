@@ -85,7 +85,10 @@ def restart_nohup() -> None:
     time.sleep(1)
     if any(pid in find_bot_processes() for pid in pids):
         raise RuntimeError("Previous bot did not exit; refusing a duplicate Telegram poller")
-    with (BOT / "bot.log").open("a", encoding="utf-8") as log:
+    log_path = BOT / "bot.log"
+    with log_path.open("a", encoding="utf-8") as log:
+        log.seek(0, os.SEEK_END)
+        log_start = log.tell()
         process = subprocess.Popen(
             [bot_python(), str(BOT / "bot.py")],
             cwd=BOT,
@@ -102,6 +105,11 @@ def restart_nohup() -> None:
             f"Bot startup failed (new PID {process.pid}, live PIDs {active}); "
             f"check {BOT / 'bot.log'}"
         )
+    with log_path.open("r", encoding="utf-8", errors="replace") as log:
+        log.seek(log_start)
+        recent_output = log.read(100000).lower()
+    if "telegram.error.conflict" in recent_output or "terminated by other getupdates request" in recent_output:
+        raise RuntimeError("Telegram getUpdates conflict detected; inspect bot.log")
     print(f"[{date()}] nohup bot healthy, PID={process.pid}", flush=True)
 
 
@@ -370,6 +378,9 @@ def deploy(force: bool = False) -> None:
                 service_command(cfg, "restart")
             return
         if not force and failed == target:
+            if cfg["scope"] == "nohup" and len(find_bot_processes()) != 1:
+                print(f"[{date()}] repairing bot after blocked deployment", flush=True)
+                service_command(cfg, "restart")
             return
         if git("rev-parse", "--abbrev-ref", "HEAD") != "main":
             raise RuntimeError("Checkout must be on the main branch")
