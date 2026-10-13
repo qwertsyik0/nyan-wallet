@@ -93,8 +93,11 @@ def _mini_app_deep_link(url: str, bot_username: str) -> str:
     parsed = urllib.parse.urlparse(candidate)
     host = (parsed.hostname or "").lower()
     if host in {"t.me", "telegram.me"} and parsed.scheme == "https":
-        if parsed.path.strip("/").split("/")[0].lower() != bot_username.lower():
+        parts = parsed.path.strip("/").split("/")
+        if parts[0].lower() != bot_username.lower():
             raise ValueError("Mini App ссылка должна вести на текущего бота.")
+        if len(parts) == 1 and "startapp" not in urllib.parse.parse_qs(parsed.query, keep_blank_values=True):
+            raise ValueError("Это ссылка на чат бота, а не на Mini App. Добавьте ?startapp=wallet.")
         return candidate
     configured = (os.getenv("MINI_APP_URL") or "").strip()
     bases = ["https://qwertsyik0.github.io/nyan-wallet/"]
@@ -119,11 +122,11 @@ def _mini_app_deep_link(url: str, bot_username: str) -> str:
     # Survey is only served by the Main Mini App (not the legacy named promo app).
     short_name = (os.getenv("NYAN_MINI_APP_SHORT_NAME") or
                   os.getenv("TELEGRAM_WEBAPP_SHORT_NAME") or "").strip()
-    if short_name and param != "survey":
+    if short_name and param.startswith("promo_"):
         if not re.fullmatch(r"[A-Za-z0-9_]{3,64}", short_name):
             raise ValueError("Некорректный NYAN_MINI_APP_SHORT_NAME.")
-        return f"https://t.me/{bot_username}/{short_name}?startapp={urllib.parse.quote(param, safe='_ -'.replace(' ', ''))}"
-    return f"https://t.me/{bot_username}?startapp={urllib.parse.quote(param, safe='_ -'.replace(' ', ''))}"
+        return f"https://t.me/{bot_username}/{short_name}?startapp={urllib.parse.quote(param, safe='_-')}"
+    return f"https://t.me/{bot_username}?startapp={urllib.parse.quote(param, safe='_-')}"
 
 
 
