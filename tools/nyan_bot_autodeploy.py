@@ -11,6 +11,7 @@ import argparse
 import base64
 import fcntl
 import gzip
+import io
 import json
 import os
 import re
@@ -18,6 +19,7 @@ import signal
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import time
 import urllib.request
@@ -121,7 +123,9 @@ def command(*args: str, cwd: Path | None = None, check: bool = True) -> subproce
 
 
 def git(*args: str) -> str:
-    return command("git", "-C", str(REPO), *args).stdout.strip()
+    # The VPS Git is older than Git 1.8.5 and does not support global -C.
+    # Set cwd in subprocess instead; works with both old and modern Git.
+    return command("git", *args, cwd=REPO).stdout.strip()
 
 
 def date() -> str:
@@ -321,8 +325,9 @@ def sync_from(stage: Path, previous: str | None) -> dict[Path, bytes]:
     changed_paths: set[str] = set()
     if previous:
         changed_paths = set(
-            command("git", "-C", str(REPO), "diff", "--name-only",
-                    previous, "origin/main", "--", "bot_addons").stdout.splitlines()
+            command("git", "diff", "--name-only",
+                    previous, "origin/main", "--", "bot_addons",
+                    cwd=REPO).stdout.splitlines()
         )
     for name in MODULES:
         if f"bot_addons/{name}" not in changed_paths:
@@ -357,6 +362,32 @@ def check_bot_imports(changes: dict[Path, bytes]) -> None:
         command(bot_python(), "-m", "py_compile", *[str(check_root / path.name) for path in changes])
 
 
+def stage_release(stage: Path, commit: str) -> None:
+    """Export a candidate commit without Git worktree (unsupported on older Git)."""
+    response = subprocess.run(
+        ["git", "archive", "--format=tar", commit],
+        cwd=REPO,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=120,
+        check=False,
+    )
+    if response.returncode:
+        raise RuntimeError(
+            f"git archive {commit[:10]} failed: "
+            + response.stderr.decode("utf-8", "replace").strip()
+        )
+    with tarfile.open(fileobj=io.BytesIO(response.stdout), mode="r:") as archive:
+        stage_abs = stage.resolve()
+        for member in archive.getmembers():
+            destination = (stage / member.name).resolve()
+            if not destination.is_relative_to(stage_abs):
+                raise RuntimeError(f"Unsafe archive path: {member.name!r}")
+            if member.issym() or member.islnk():
+                raise RuntimeError(f"Links are not allowed in release archive: {member.name!r}")
+        archive.extractall(stage)
+
+
 def deploy(force: bool = False) -> None:
     STATE.mkdir(parents=True, exist_ok=True)
     if not CONFIG.is_file():
@@ -389,7 +420,8 @@ def deploy(force: bool = False) -> None:
             raise RuntimeError("Checkout must be on the main branch")
         if git("status", "--porcelain", "--untracked-files=no"):
             raise RuntimeError("Tracked local edits found; refusing to overwrite them")
-        if command("git", "-C", str(REPO), "merge-base", "--is-ancestor", old, target, check=False).returncode:
+        # Use portable merge-base (also works with the VPS's old Git).
+        if git("merge-base", old, target) != old:
             raise RuntimeError("main diverged; refusing non-fast-forward update")
         if old != target and not ci_ready(old, target):
             return
@@ -400,7 +432,7 @@ def deploy(force: bool = False) -> None:
         try:
             with tempfile.TemporaryDirectory(prefix="nyan-release-") as directory:
                 stage = Path(directory)
-                git("worktree", "add", "--detach", "--quiet", str(stage), target)
+                stage_release(stage, target)
                 try:
                     syntax_check(stage)
                     # Compare current deployed version rather than current local checkout:
@@ -439,8 +471,7 @@ def deploy(force: bool = False) -> None:
                     (STATE / "failed.sha").unlink(missing_ok=True)
                     print(f"[{date()}] success: {target[:10]}; modules: {', '.join(p.name for p in changes) or 'no changes'}", flush=True)
                 finally:
-                    command("git", "-C", str(REPO), "worktree", "remove",
-                            "--force", str(stage), check=False)
+                    pass  # TemporaryDirectory removes the exported release stage.
         except Exception as error:
             for path, content in backup.items():
                 path.write_bytes(content)
