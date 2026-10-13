@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -147,6 +148,42 @@ def syntax_check(folder: Path) -> None:
         compile(raw, "giveaway_bot.py", "exec")
 
 
+
+def ci_ready(old: str, target: str) -> bool:
+    # Check GitHub Actions only for commits touching executable code.
+    changed = git("diff", "--name-only", old, target).splitlines()
+    required = any(
+        path.startswith(("server/", "bot_addons/", "tools/"))
+        or path.endswith(".js")
+        or path == ".github/workflows/backend-check.yml"
+        for path in changed
+    )
+    if not required:
+        return True
+    url = (
+        "https://api.github.com/repos/qwertsyik0/nyan-wallet/actions/runs"
+        f"?head_sha={target}&per_page=20"
+    )
+    request = urllib.request.Request(
+        url, headers={"Accept": "application/vnd.github+json",
+                      "User-Agent": "nyan-bot-autodeploy/1.0"}
+    )
+    with urllib.request.urlopen(request, timeout=15) as response:
+        data = json.load(response)
+    runs = [r for r in data.get("workflow_runs", [])
+            if r.get("name") == "Backend and client syntax check"
+            and r.get("head_sha") == target and r.get("event") == "push"]
+    if not runs or runs[0].get("status") != "completed":
+        print(f"[{date()}] GitHub Actions validation pending for {target[:10]}", flush=True)
+        return False
+    if runs[0].get("conclusion") != "success":
+        (STATE / "failed.sha").write_text(target + "\n", encoding="utf-8")
+        raise RuntimeError(
+            f"GitHub Actions validation {runs[0].get('conclusion')}: deployment blocked"
+        )
+    return True
+
+
 def giveaway_source(folder: Path) -> bytes:
     import importlib.util
     installer = folder / "tools" / "install_giveaway_bot.py"
@@ -240,6 +277,8 @@ def deploy(force: bool = False) -> None:
             raise RuntimeError("Tracked local edits found; refusing to overwrite them")
         if command("git", "-C", str(REPO), "merge-base", "--is-ancestor", old, target, check=False).returncode:
             raise RuntimeError("main diverged; refusing non-fast-forward update")
+        if old != target and not ci_ready(old, target):
+            return
         print(f"[{date()}] deploy {old[:10]} -> {target[:10]}", flush=True)
         backup: dict[Path, bytes] = {}
         touched = False
