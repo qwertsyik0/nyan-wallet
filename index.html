@@ -59,6 +59,7 @@
       })();
     </script>
     <link rel="stylesheet" href="./style.css?v=20261013-1">
+    <link rel="stylesheet" href="./boot_recovery.css?v=20261014-1">
     <link rel="stylesheet" href="./redesign.css?v=20260918-1">
     <link rel="stylesheet" href="./owner_holo.css?v=20260918-1">
     <link rel="stylesheet" href="./giveaways.css?v=20260918-1">
@@ -75,8 +76,11 @@
     <main id="loading-view" class="loading-view" aria-live="polite">
         <div class="loading-mark">🐾</div>
         <div class="loading-title">Nyan Wallet</div>
-        <div class="loading-text">загружаем кошелёк</div>
+        <div id="loading-status" class="loading-text" role="status">подключаемся к кошельку</div>
         <div class="loading-spinner" aria-hidden="true"></div>
+        <div id="loading-hint" class="loading-hint">запрашиваем данные вашего кошелька</div>
+        <button id="loading-retry" class="loading-retry" type="button" hidden>Проверить сейчас</button>
+        <div class="loading-note">баланс и история сохраняются, даже если соединение прервалось</div>
     </main>
 
     <main id="subscription-view" class="subscription-view hidden" aria-live="polite">
@@ -342,10 +346,10 @@
         <div class="earn-note">Лапкоины нельзя купить за реальные деньги или обменять обратно на деньги.</div>
     </main></div>
 
-<script src="./network.js?v=20261011-10"></script>
+<script src="./network.js?v=20261014-1"></script>
 <script src="./ban_notice.js?v=20261005-1"></script>
-<script src="./maintenance.js?v=20260921-9"></script>
-<script src="./app.js?v=20261013-1"></script>
+<script src="./maintenance.js?v=20261014-1"></script>
+<script src="./app.js?v=20261014-1"></script>
 <script src="./owner_permissions.js?v=20261011-4"></script>
 <script src="./daily_tasks.js?v=20261011-3"></script>
 <script src="./daily_tasks_hardening.js?v=20260921-2"></script>
