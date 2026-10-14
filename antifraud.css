@@ -1,0 +1,116 @@
+.nyan-antifraud {
+    border: 1px solid rgba(154, 44, 89, .16);
+    background: linear-gradient(155deg, #fff, #fff8fb);
+}
+.nyan-af-tools {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 9px;
+    margin-top: 15px;
+}
+.nyan-af-tools input, .nyan-af-tools select {
+    min-width: 0;
+    width: 100%;
+    min-height: 42px;
+    padding: 10px 11px;
+    border: 1px solid #edcfdc;
+    border-radius: 12px;
+    background: #fff;
+    color: #7d2f51;
+    font-size: 12px;
+}
+.nyan-af-tools input { grid-column: 1 / -1; }
+.nyan-af-tools button,
+.nyan-af-open,
+.nyan-af-owner-open {
+    min-height: 40px;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 12px;
+    background: #972f5b;
+    color: #fff;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.nyan-af-tools button:disabled { opacity: .55; }
+.nyan-af-status, .nyan-af-disclaimer, .nyan-af-empty {
+    margin: 13px 0 9px;
+    color: #9c7082;
+    font-size: 12px;
+    line-height: 1.55;
+}
+.nyan-af-disclaimer { margin-top: 16px; }
+.nyan-af-totals {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0,1fr));
+    gap: 7px;
+    margin: 12px 0;
+}
+.nyan-af-totals .nyan-af-line {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin: 0;
+    padding: 10px;
+    border: 1px solid #f0dce5;
+    border-radius: 12px;
+    background: #fff;
+    overflow-wrap: anywhere;
+}
+.nyan-af-line span { color: #af8297; font-size: 11px; }
+.nyan-af-line strong { color: #79344f; font-size: 13px; }
+.nyan-af-list { display: grid; gap: 11px; }
+.nyan-af-case, .nyan-af-detail {
+    padding: 14px;
+    border: 1px solid #edd5df;
+    border-radius: 17px;
+    background: #fff;
+}
+.nyan-af-case-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    color: #7b2a4d;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+.nyan-af-risk {
+    border-radius: 999px;
+    padding: 5px 8px;
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.nyan-af-risk-high { background: #fce4e8; color: #a72a49; }
+.nyan-af-risk-medium { background: #fff2dc; color: #916321; }
+.nyan-af-meta { margin: 9px 0; color: #ad6684; font-size: 12px; }
+.nyan-af-reason { margin: 5px 0; color: #806171; font-size: 11px; line-height: 1.5; }
+.nyan-af-banned { color: #873552; font-size: 11px; font-weight: 700; }
+.nyan-af-open { margin-top: 11px; width: 100%; }
+.nyan-af-detail { margin-top: 14px; background: #fffdfd; overflow-wrap: anywhere; }
+.nyan-af-detail[hidden] { display: none; }
+.nyan-af-back {
+    padding: 7px 0 12px; border: 0; background: none;
+    color: #9c2d5c; font: inherit; font-size: 12px; cursor: pointer;
+}
+.nyan-af-heading { margin: 18px 0 9px; color: #872c53; font-size: 14px; }
+.nyan-af-line {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 9px; padding: 8px 0; border-bottom: 1px solid #f6e8ee;
+}
+.nyan-af-line strong { text-align: right; }
+.nyan-af-event {
+    padding: 9px 0; border-bottom: 1px solid #f4e3eb;
+    color: #82576a; font-size: 11px; line-height: 1.5;
+}
+.nyan-af-event strong { color: #74314e; }
+.nyan-af-caution, .nyan-af-error { color: #a34768; font-size: 12px; line-height: 1.5; }
+.nyan-af-actions { display: grid; gap: 7px; margin-top: 14px; }
+@media (max-width: 360px) {
+    .nyan-af-tools { grid-template-columns: 1fr; }
+    .nyan-af-totals { grid-template-columns: 1fr; }
+}
