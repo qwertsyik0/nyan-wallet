@@ -112,6 +112,33 @@
           stageButton.disabled = false;
         }
       });
+      if (item.status === "pending" || item.status === "interview") {
+        const sendButton = create("button", "button button-primary", "Отправить второй этап Насте");
+        sendButton.type = "button";
+        sendButton.style.width = "100%";
+        sendButton.style.marginBottom = "10px";
+        sendButton.addEventListener("click", async () => {
+          if (!window.confirm("Отправить @nasttchl личное приглашение на второй этап через Telegram?")) return;
+          sendButton.disabled = true;
+          sendButton.textContent = "Отправляем…";
+          try {
+            const result = await request(
+              "/api/owner/recruitment/finance/stage2/" + item.id + "/invite", "POST", {}
+            );
+            sendButton.textContent = result.already_sent ?
+              "Приглашение уже отправлено" : "Приглашение отправлено";
+            notice.textContent = result.already_sent ?
+              "Приглашение было отправлено ранее." : "Приглашение успешно отправлено через бота.";
+            tg?.HapticFeedback?.notificationOccurred?.("success");
+          } catch (err) {
+            sendButton.disabled = false;
+            sendButton.textContent = "Повторить отправку второго этапа";
+            notice.textContent = err?.message || "Не удалось отправить приглашение.";
+            tg?.HapticFeedback?.notificationOccurred?.("error");
+          }
+        });
+        reviewBox.prepend(sendButton);
+      }
       card.appendChild(reviewBox);
     }
     if (item.owner_note) {
