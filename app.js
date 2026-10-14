@@ -76,6 +76,14 @@ let initialLoadFinished = false;
 let walletLoadAttempt = 0;
 let walletLoadController = null;
 const WALLET_BOOT_TIMEOUT_MS = 9000;
+const WALLET_RETRY_DELAYS_MS = [2500, 4000, 6500, 10000, 15000];
+const loadingStatusEl = document.getElementById("loading-status");
+const loadingHintEl = document.getElementById("loading-hint");
+const loadingRetryEl = document.getElementById("loading-retry");
+let walletRetryTimer = null;
+let walletRetryTicker = null;
+let walletFailureCount = 0;
+window.__nyanBootRecovering = true;
 
 function giveawayDeepLinkId() {
     const candidates = [];
@@ -242,6 +250,9 @@ function hideAllAppViewsForSubscription() {
 }
 
 function showSubscriptionGate(message = "Для продолжения необходимо подписаться на информационный канал.") {
+    clearWalletRetrySchedule();
+    walletFailureCount = 0;
+    window.__nyanBootRecovering = false;
     window.__nyanSubscriptionBlocked = true;
     window.__nyanWalletReady = false;
     hideAllAppViewsForSubscription();
@@ -910,8 +921,61 @@ function applyUserState(user) {
     }
 }
 
+function clearWalletRetrySchedule() {
+    if (walletRetryTimer !== null) window.clearTimeout(walletRetryTimer);
+    if (walletRetryTicker !== null) window.clearInterval(walletRetryTicker);
+    walletRetryTimer = null;
+    walletRetryTicker = null;
+}
+
+function updateBootStatus(message, detail, allowManualRetry = false) {
+    if (loadingStatusEl) loadingStatusEl.textContent = message;
+    if (loadingHintEl) loadingHintEl.textContent = detail;
+    if (loadingRetryEl) loadingRetryEl.hidden = !allowManualRetry;
+    loadingView?.classList.toggle("is-waiting", allowManualRetry);
+}
+
+function scheduleWalletRetry() {
+    if (window.__nyanMaintenanceBlocked || window.__nyanSubscriptionBlocked) return;
+    clearWalletRetrySchedule();
+    walletFailureCount += 1;
+    const delay = WALLET_RETRY_DELAYS_MS[Math.min(walletFailureCount - 1, WALLET_RETRY_DELAYS_MS.length - 1)];
+    const retryAt = Date.now() + delay;
+    const showCountdown = () => {
+        const seconds = Math.max(0, Math.ceil((retryAt - Date.now()) / 1000));
+        const message = "соединение временно недоступно";
+        const detail = "автоматическая проверка через " + seconds + " с · попытка " + (walletFailureCount + 1);
+        if (!initialLoadFinished) {
+            updateBootStatus(message, detail, true);
+        } else {
+            showWalletLoadNotice("Данные могут быть неактуальны. " + detail + ". Можно повторить вручную.");
+        }
+    };
+    if (!initialLoadFinished) {
+        loadingView?.classList.remove("hidden");
+        walletView?.classList.add("hidden");
+    }
+    showCountdown();
+    walletRetryTicker = window.setInterval(showCountdown, 1000);
+    walletRetryTimer = window.setTimeout(() => {
+        clearWalletRetrySchedule();
+        if (window.__nyanMaintenanceBlocked || window.__nyanSubscriptionBlocked) return;
+        void loadWallet();
+    }, delay);
+}
+
+function isTemporaryWalletError(error) {
+    return error?.name === "AbortError" ||
+        error?.name === "NyanNetworkError" ||
+        error instanceof TypeError ||
+        error?.retryable === true;
+}
+
 async function loadWallet() {
+    clearWalletRetrySchedule();
+
     if (!tg?.initData) {
+        window.__nyanBootRecovering = false;
         balanceEl.textContent = "—";
         currencyNameEl.textContent = "откройте через Telegram";
         finishInitialLoad();
@@ -923,10 +987,21 @@ async function loadWallet() {
     const controller = new AbortController();
     walletLoadController = controller;
     const timeout = window.setTimeout(() => controller.abort(), WALLET_BOOT_TIMEOUT_MS);
-    let blockedByMaintenance = false;
+    const isBoot = !initialLoadFinished;
+    let loadedSuccessfully = false;
+
+    if (isBoot && !window.__nyanMaintenanceBlocked && !window.__nyanSubscriptionBlocked) {
+        window.__nyanBootRecovering = true;
+        loadingView?.classList.remove("hidden");
+        if (walletFailureCount > 0) {
+            updateBootStatus("повторно подключаемся", "проверяем доступность кошелька · попытка " + (walletFailureCount + 1));
+        } else {
+            updateBootStatus("подключаемся к кошельку", "запрашиваем данные вашего кошелька");
+        }
+    }
 
     try {
-        const response = await fetch(`${API_BASE}/api/me`, {
+        const response = await fetch(API_BASE + "/api/me", {
             headers: authHeaders(),
             cache: "no-store",
             signal: controller.signal,
@@ -936,7 +1011,9 @@ async function loadWallet() {
         if (attempt !== walletLoadAttempt) return;
 
         if (response.status === 503 && data?.detail === "maintenance") {
-            blockedByMaintenance = true;
+            clearWalletRetrySchedule();
+            // A maintenance response is authoritative: do not show the
+            // offline retry screen instead of the dedicated maintenance UI.
             window.dispatchEvent(new CustomEvent("nyan-maintenance-required", {
                 detail: data.maintenance || {},
             }));
@@ -961,38 +1038,71 @@ async function loadWallet() {
 
         if (!response.ok) {
             const message = typeof apiDetail === "object" ? apiDetail?.message : apiDetail;
-            throw new Error(message || "Ошибка загрузки кошелька");
+            const error = new Error(message || "Не удалось загрузить кошелёк");
+            error.retryable = response.status >= 500 || response.status === 408 || response.status === 429;
+            throw error;
         }
 
+        if (!data?.user) {
+            const error = new Error("Сервер не вернул данные кошелька");
+            error.retryable = true;
+            throw error;
+        }
+
+        updateBootStatus("соединение восстановлено", "загружаем баланс и операции");
         applyUserState(data.user);
         renderTransactions(data.transactions || []);
         clearWalletLoadNotice();
-
+        walletFailureCount = 0;
+        window.__nyanBootRecovering = false;
         window.__nyanWalletReady = true;
+        loadedSuccessfully = true;
         window.dispatchEvent(new CustomEvent("nyan-wallet-ready", {
             detail: { user: data.user },
         }));
     } catch (error) {
         if (attempt !== walletLoadAttempt) return;
-
         console.error("Nyan Wallet API error:", error);
-        balanceEl.textContent = "—";
-        currencyNameEl.textContent = "данные временно недоступны";
-        const timedOut = error?.name === "AbortError";
-        showWalletLoadNotice(
-            timedOut
-                ? "Сервер отвечает слишком долго. Кошелёк открыт без данных — нажмите «Попробовать снова»."
-                : "Не удалось получить данные кошелька. Проверьте соединение и попробуйте снова."
-        );
+
+        const temporary = isTemporaryWalletError(error);
+        if (!currentUser) {
+            balanceEl.textContent = "—";
+            currencyNameEl.textContent = "данные временно недоступны";
+        }
+
+        if (temporary) {
+            scheduleWalletRetry();
+        } else {
+            walletFailureCount = 0;
+            if (isBoot) {
+                updateBootStatus(
+                    "не удалось открыть кошелёк",
+                    "Проверьте, что кошелёк открыт через Telegram, и попробуйте снова.",
+                    true
+                );
+            } else {
+                showWalletLoadNotice(error?.message || "Не удалось обновить кошелёк");
+            }
+        }
     } finally {
         window.clearTimeout(timeout);
         if (walletLoadController === controller) walletLoadController = null;
-        if (!blockedByMaintenance && !window.__nyanSubscriptionBlocked && attempt === walletLoadAttempt) {
+        if (loadedSuccessfully && attempt === walletLoadAttempt) {
             finishInitialLoad();
         }
     }
 }
 
+loadingRetryEl?.addEventListener("click", () => {
+    clearWalletRetrySchedule();
+    void loadWallet();
+});
+
+window.addEventListener("online", () => {
+    if (walletFailureCount > 0 && !window.__nyanMaintenanceBlocked && !window.__nyanSubscriptionBlocked) {
+        void loadWallet();
+    }
+});
 
 const SURVEY_TITLES = {
     useful: "Насколько полезен Nyan Wallet?",
