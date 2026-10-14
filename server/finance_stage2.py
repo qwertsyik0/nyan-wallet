@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import urllib.parse
+import urllib.error
 import urllib.request
 from datetime import datetime
 from typing import Literal
@@ -54,6 +55,17 @@ class FinanceStage2Response(core.Base):
     dispute: Mapped[str] = mapped_column(Text, nullable=False)
     internship: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class FinanceStage2Invitation(core.Base):
+    __tablename__ = "finance_stage2_invitations"
+
+    application_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("financial_admin_applications.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    telegram_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class Stage2Submit(BaseModel):
@@ -216,10 +228,87 @@ async def owner_stage2(
         return {"ok": True, "submitted": response is not None, "response": _serialize(response)}
 
 
+def _send_stage2_invitation() -> None:
+    """Only invoked after a verified owner clicks the send button."""
+    payload = {
+        "chat_id": str(TARGET_TELEGRAM_ID),
+        "text": (
+            "🐾 Nyan Wallet | Второй этап отбора\n\n"
+            "настя, твоя анкета на должность финансового администратора рассмотрена. "
+            "приглашаем тебя пройти дополнительные задания.\n\n"
+            "тебя ждут 7 вопросов по расчётам, безопасности и работе с пользователями. "
+            "отвечай внимательно и своими словами.\n\n"
+            "нажми кнопку, чтобы начать."
+        ),
+        "reply_markup": json.dumps({
+            "inline_keyboard": [[{
+                "text": "🐾 Пройти второй этап",
+                "web_app": {"url": "https://qwertsyik0.github.io/nyan-wallet/finance-stage2.html"},
+            }]]
+        }, ensure_ascii=False),
+    }
+    request = urllib.request.Request(
+        f"https://api.telegram.org/bot{core.BOT_TOKEN}/sendMessage",
+        data=urllib.parse.urlencode(payload).encode("utf-8"),
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=7) as response:
+            data = json.loads(response.read().decode("utf-8"))
+        if data.get("ok") is not True:
+            raise HTTPException(status_code=502, detail="Telegram не подтвердил отправку сообщения.")
+    except urllib.error.HTTPError as exc:
+        try:
+            err = json.loads(exc.read().decode("utf-8")).get("description", "")
+        except Exception:
+            err = ""
+        log.warning("stage2 invite failed http=%s", exc.code)
+        raise HTTPException(
+            status_code=502,
+            detail="Telegram отклонил отправку: " + (str(err)[:160] or "ошибка бота"),
+        ) from exc
+    except urllib.error.URLError as exc:
+        raise HTTPException(status_code=503, detail="Telegram временно недоступен.") from exc
+
+
+@router.post("/api/owner/recruitment/finance/stage2/{application_id}/invite")
+async def invite_stage2_by_owner(
+    application_id: int,
+    x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
+):
+    import asyncio
+    tg_user = core.verify_init_data(x_telegram_init_data or "")
+    core.require_owner(tg_user)
+    if application_id != TARGET_APPLICATION_ID:
+        raise HTTPException(status_code=404, detail="Для этой заявки приглашение не предусмотрено.")
+    with core.SessionLocal() as session:
+        with session.begin():
+            application = _get_application(session)
+            existing = session.get(FinanceStage2Invitation, application.id)
+            if existing is not None:
+                return {"ok": True, "already_sent": True, "sent_at": existing.sent_at.isoformat()}
+            submitted = session.scalar(
+                select(FinanceStage2Response.id).where(
+                    FinanceStage2Response.application_id == application.id
+                )
+            )
+            if submitted:
+                raise HTTPException(status_code=409, detail="Кандидат уже прошёл второй этап.")
+            await asyncio.to_thread(_send_stage2_invitation)
+            timestamp = core.now_utc()
+            session.add(FinanceStage2Invitation(
+                application_id=application.id,
+                telegram_id=application.telegram_id,
+                sent_at=timestamp,
+            ))
+    return {"ok": True, "already_sent": False, "sent_at": timestamp.isoformat()}
+
+
 def register_finance_stage2(app) -> None:
     global _REGISTERED
     if _REGISTERED:
         return
     FinanceStage2Response.__table__.create(bind=core.engine, checkfirst=True)
+    FinanceStage2Invitation.__table__.create(bind=core.engine, checkfirst=True)
     app.include_router(router)
     _REGISTERED = True
