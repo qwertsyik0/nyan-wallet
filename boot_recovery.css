@@ -1,0 +1,43 @@
+/* Nyan Wallet bootstrap recovery: clean pastel screen, no fake percentage. */
+#loading-view .loading-hint {
+    max-width: 300px;
+    min-height: 36px;
+    margin-top: 13px;
+    color: #a06f84;
+    font-size: 12px;
+    line-height: 1.55;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+#loading-view .loading-retry {
+    min-width: 185px;
+    margin-top: 8px;
+    padding: 12px 20px;
+    border: 1px solid #a03861;
+    border-radius: 14px;
+    background: #942c57;
+    color: #fff;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+#loading-view .loading-retry:focus-visible {
+    outline: 3px solid rgba(148,44,87,.3);
+    outline-offset: 3px;
+}
+#loading-view .loading-retry[hidden] { display: none; }
+#loading-view .loading-note {
+    max-width: 300px;
+    margin-top: 20px;
+    color: #b98c9e;
+    font-size: 11px;
+    line-height: 1.5;
+}
+#loading-view.is-waiting .loading-spinner {
+    animation-duration: 2s;
+    opacity: .72;
+}
+@media (prefers-reduced-motion: reduce) {
+    #loading-view .loading-spinner { animation: none; }
+}
