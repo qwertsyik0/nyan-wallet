@@ -114,3 +114,47 @@
     .nyan-af-tools { grid-template-columns: 1fr; }
     .nyan-af-totals { grid-template-columns: 1fr; }
 }
+
+.nyan-af-lookup {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid #f1dce4;
+    border-radius: 14px;
+    background: #fff;
+}
+.nyan-af-lookup > strong {
+    display: block;
+    margin-bottom: 9px;
+    color: #853655;
+    font-size: 12px;
+}
+.nyan-af-lookup-inputs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 8px;
+}
+.nyan-af-lookup input {
+    width: 100%;
+    min-width: 0;
+    padding: 11px 9px;
+    border: 1px solid #eed4df;
+    border-radius: 11px;
+    background: #fffafc;
+    color: #79334e;
+    font-size: 11px;
+}
+.nyan-af-lookup button {
+    width: 100%;
+    min-height: 40px;
+    margin-top: 9px;
+    border: 0;
+    border-radius: 11px;
+    background: #922954;
+    color: white;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+}
+@media (max-width: 390px) {
+    .nyan-af-lookup-inputs { grid-template-columns: 1fr; }
+}
