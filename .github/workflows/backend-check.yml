@@ -405,6 +405,50 @@ jobs:
           assert "achievements.js?v=20261006-1" in html
           print("achievements subsystem static audit OK")
           PY
+      - name: Audit owner antifraud and risk scoring
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          api = Path("server/antifraud.py").read_text(encoding="utf-8")
+          tree = ast.parse(api)
+          assert 'core.require_owner(tg)' in api, "Antifraud must be owner-only"
+          assert '@router.get("/api/owner/antifraud/cases")' in api
+          assert '@router.get("/api/owner/antifraud/pair/{sender_id}/{recipient_id}")' in api
+          assert '@router.get("/api/owner/antifraud/lookup")' in api
+          assert 'SCAN_LIMIT = 1500' in api
+          assert 'select(WalletTransfer)' in api
+          assert 'select(Referral)' in api
+          assert 'core.PromoRedemption' in api
+          assert 'BlockedUser.telegram_id' in api
+          assert not any(danger in api for danger in [
+              'session.add(', 'session.delete(', 'session.commit(', 'session.flush(',
+              '.balance +=', '.balance -=',
+          ]), "Antifraud must be read-only"
+
+          risk = next(node for node in tree.body
+                      if isinstance(node, ast.FunctionDef) and node.name == "risk_for")
+          scope = {}
+          exec(compile(ast.Module(body=[risk], type_ignores=[]), "risk_for", "exec"), scope)
+          classify = scope["risk_for"]
+          assert classify(linked=True, promo_count=5, amount=700, senders_to_recipient=1) == (7, "high")
+          assert classify(linked=True, promo_count=0, amount=20, senders_to_recipient=1) == (4, "medium")
+          assert classify(linked=False, promo_count=1, amount=700, senders_to_recipient=1)[1] == "low"
+
+          app = Path("server/__init__.py").read_text(encoding="utf-8")
+          assert "register_antifraud(backend_app.app)" in app
+          assert app.index("register_transfers(backend_app.app)") < app.index("register_antifraud(backend_app.app)")
+          html = Path("index.html").read_text(encoding="utf-8")
+          assert "antifraud.css?v=20261014-1" in html
+          assert "antifraud.js?v=20261014-1" in html
+          assert html.index("app.js?v=") < html.index("antifraud.js?v=")
+          ui = Path("antifraud.js").read_text(encoding="utf-8")
+          for item in ("nyan-owner-state", "antifraud/cases", "antifraud/lookup",
+                       "nyan-af-detail", "Никаких автоматических"):
+              assert item in ui, item
+          print("Owner-only antifraud scan, pair lookup, safe scoring and UI OK")
+          PY
       - name: Check browser JavaScript syntax
         run: |
           for file in ./*.js; do
