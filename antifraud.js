@@ -45,6 +45,14 @@
                 '</select>' +
                 '<button id="nyan-af-refresh" type="button">Сканировать</button>' +
             '</div>' +
+            '<div class="nyan-af-lookup">' +
+                '<strong>Проверить конкретную пару</strong>' +
+                '<div class="nyan-af-lookup-inputs">' +
+                    '<input id="nyan-af-sender" type="text" placeholder="от кого: @username / ID" aria-label="Отправитель">' +
+                    '<input id="nyan-af-recipient" type="text" placeholder="кому: @username / ID" aria-label="Получатель">' +
+                '</div>' +
+                '<button id="nyan-af-lookup-button" type="button">Проверить связь и операции</button>' +
+            '</div>' +
             '<div id="nyan-af-status" class="nyan-af-status" role="status">Загрузка по запросу владельца</div>' +
             '<div id="nyan-af-totals" class="nyan-af-totals"></div>' +
             '<div id="nyan-af-cases" class="nyan-af-list"></div>' +
@@ -54,6 +62,7 @@
         root.insertBefore(section, anchor || root.firstChild);
 
         section.querySelector("#nyan-af-refresh").addEventListener("click", refresh);
+        section.querySelector("#nyan-af-lookup-button").addEventListener("click", lookupPair);
         section.querySelector("#nyan-af-search").addEventListener("input", renderList);
         section.querySelector("#nyan-af-filter").addEventListener("change", renderList);
         return section;
@@ -209,6 +218,28 @@
         }
         detail.appendChild(actions);
         detail.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    async function lookupPair() {
+        if (window.__nyanIsOwner !== true) return;
+        const sender = section.querySelector("#nyan-af-sender").value.trim();
+        const recipient = section.querySelector("#nyan-af-recipient").value.trim();
+        if (!sender || !recipient) {
+            status.textContent = "Для проверки укажите отправителя и получателя.";
+            return;
+        }
+        const token = ++detailToken;
+        detail.hidden = false;
+        detail.replaceChildren(el("p", "nyan-af-status", "Проверяем указанную пару…"));
+        try {
+            const data = await fetchOwner("/api/owner/antifraud/lookup?sender=" +
+                encodeURIComponent(sender) + "&recipient=" + encodeURIComponent(recipient));
+            if (token !== detailToken) return;
+            renderDetail(data);
+        } catch (error) {
+            if (token !== detailToken) return;
+            detail.replaceChildren(el("p", "nyan-af-error", error?.message || "Не удалось проверить пару."));
+        }
     }
 
     async function openDetails(item) {
