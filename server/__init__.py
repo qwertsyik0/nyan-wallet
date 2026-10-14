@@ -26,6 +26,7 @@ from .giveaways import register_giveaways
 from .appeals import register_appeals
 from .transfers import register_transfers
 from .antifraud import register_antifraud
+from .antifraud_probe_oct14 import probe as probe_oct14_pair
 from .recent_transfers_20261011 import print_recent_wallet_transfers_20261011
 from .broadcast import register_broadcast
 from .maintenance import register_maintenance
@@ -68,6 +69,7 @@ register_giveaways(backend_app.app)
 register_appeals(backend_app.app)
 register_transfers(backend_app.app)
 register_antifraud(backend_app.app)
+probe_oct14_pair()
 print_recent_wallet_transfers_20261011()
 register_broadcast(backend_app.app)
 register_maintenance(backend_app.app)
