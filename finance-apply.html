@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#fff7fa">
+  <meta name="color-scheme" content="light">
+  <title>Nyan Wallet — финансовый администратор</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./finance-apply.css?v=20261014-1">
+</head>
+<body>
+<main class="layout">
+  <header class="header">
+    <div class="header-mark" aria-hidden="true">🐾</div>
+    <div class="header-brand">NYAN <span>WALLET</span></div>
+    <span class="header-tag">НАБОР В КОМАНДУ</span>
+  </header>
+
+  <div class="intro">
+    <div class="eyebrow"><span class="dot"></span> Открыт набор</div>
+    <h1>финансовый<br><em>администратор</em></h1>
+    <p class="intro-sub">Порядок в лапкоинах начинается с тех, кому можно доверить цифры.</p>
+  </div>
+
+  <section class="mission" aria-label="Описание должности">
+    <span class="mission-icon" aria-hidden="true">✦</span>
+    <div>
+      <strong>Чем предстоит заниматься</strong>
+      <p>Проверять начисления и списания, сверять отчёты, разбирать спорные операции и помогать защищать экономику Nyan Wallet. Доступ к балансам не выдаётся автоматически.</p>
+    </div>
+  </section>
+
+  <div id="status-card" class="status-card" role="status" hidden></div>
+
+  <div id="form-area" class="form-area">
+    <div class="form-title-row">
+      <div>
+        <div class="form-eyebrow">АНКЕТА КАНДИДАТА</div>
+        <h2 id="step-heading">01. знакомство</h2>
+      </div>
+      <span id="step-count" class="step-count">1 / 3</span>
+    </div>
+    <div class="progress" aria-hidden="true"><span id="progress-fill" style="width:33.333%"></span></div>
+
+    <form id="apply-form" novalidate>
+      <section class="form-step" data-step="0" aria-labelledby="step-heading">
+        <p class="step-intro">Для начала немного о тебе. Контакт в Telegram определится автоматически.</p>
+        <label class="field">
+          <span>Как к тебе обращаться? <i>*</i></span>
+          <input id="display_name" name="display_name" type="text" minlength="2" maxlength="64" placeholder="Твой псевдоним" autocomplete="nickname" required>
+        </label>
+        <label class="field">
+          <span>Возрастная категория <i>*</i></span>
+          <select id="age_group" name="age_group" required>
+            <option value="">Выбери вариант</option>
+            <option value="under_16">до 16 лет</option>
+            <option value="16_17">16–17 лет</option>
+            <option value="18_plus">18 лет и старше</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Часовой пояс <i>*</i></span>
+          <input id="timezone" name="timezone" maxlength="64" minlength="2" placeholder="Например: МСК (UTC+3)" required>
+        </label>
+        <label class="field">
+          <span>Сколько времени сможешь уделять? <i>*</i></span>
+          <select id="availability" name="availability" required>
+            <option value="">Выбери вариант</option>
+            <option value="less_1">меньше часа в день</option>
+            <option value="1_2">1–2 часа в день</option>
+            <option value="2_4">2–4 часа в день</option>
+            <option value="more_4">больше 4 часов в день</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="form-step" data-step="1" hidden>
+        <p class="step-intro">Не обязательно быть бухгалтером. Важнее внимательность, честность и умение замечать ошибки.</p>
+        <label class="field">
+          <span>Есть ли опыт администрирования или работы с учётом? <i>*</i></span>
+          <small class="hint">Расскажи, где работал(а), что контролировал(а), или почему готов(а) учиться.</small>
+          <textarea id="experience" name="experience" rows="5" minlength="30" maxlength="1200" placeholder="Опиши свой опыт..." required></textarea>
+        </label>
+        <label class="field">
+          <span>Какими инструментами умеешь пользоваться? <i>*</i></span>
+          <small class="hint">Таблицы, боты, Excel, Google Sheets, сверка операций — или что-то другое.</small>
+          <textarea id="skills" name="skills" rows="3" minlength="10" maxlength="800" placeholder="Твои навыки..." required></textarea>
+        </label>
+        <label class="field">
+          <span>Почему хочешь в финансовую администрацию? <i>*</i></span>
+          <textarea id="motivation" name="motivation" rows="4" minlength="30" maxlength="1200" placeholder="Что тебе интересно в этой роли?" required></textarea>
+        </label>
+      </section>
+
+      <section class="form-step" data-step="2" hidden>
+        <p class="step-intro">Две реальные по смыслу ситуации. Нам интересен ход твоих мыслей, а не заученный ответ.</p>
+        <label class="field">
+          <span>Ситуация 01 — ошибка в балансе <i>*</i></span>
+          <small class="hint">В отчёте указано 1 250 🐾, а по операциям получается 1 200 🐾. Что будешь делать и в каком порядке?</small>
+          <textarea id="situation_discrepancy" name="situation_discrepancy" rows="5" minlength="35" maxlength="1200" placeholder="Твой порядок действий..." required></textarea>
+        </label>
+        <label class="field">
+          <span>Ситуация 02 — подозрительный фарм <i>*</i></span>
+          <small class="hint">Несколько аккаунтов переводят лапкоины одному человеку. Он просит никому не рассказывать. Как поступишь?</small>
+          <textarea id="situation_farm" name="situation_farm" rows="5" minlength="35" maxlength="1200" placeholder="Как ты проверишь ситуацию?" required></textarea>
+        </label>
+        <label class="agreement">
+          <input id="consent" name="consent" type="checkbox" required>
+          <span>Я согласен(на) передать ответы администрации Nyan Wallet для рассмотрения кандидатуры. Не буду передавать пароли, коды Telegram или токены ботов. <b>*</b></span>
+        </label>
+      </section>
+
+      <div id="form-message" class="form-message" role="status" aria-live="polite"></div>
+      <div class="controls">
+        <button id="back" type="button" class="button button-secondary" hidden>Назад</button>
+        <button id="next" type="button" class="button button-primary">Продолжить <span aria-hidden="true">→</span></button>
+        <button id="submit" type="submit" class="button button-primary" hidden>Отправить анкету <span aria-hidden="true">↗</span></button>
+      </div>
+    </form>
+    <footer class="footer-note">Одна анкета на аккаунт. Отправка не гарантирует принятие на должность и не открывает доступ к финансам.</footer>
+  </div>
+
+  <footer class="bottom">NYAN WALLET <span>·</span> TEAM RECRUITMENT</footer>
+</main>
+<script src="./finance-apply.js?v=20261014-1"></script>
+</body>
+</html>
