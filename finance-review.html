@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#fff7fa">
+  <meta name="color-scheme" content="light">
+  <title>Nyan Wallet — рассмотрение анкет</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./finance-apply.css?v=20261014-1">
+  <link rel="stylesheet" href="./finance-review.css?v=20261014-1">
+</head>
+<body>
+<main class="layout">
+  <header class="header">
+    <div class="header-mark" aria-hidden="true">🐾</div>
+    <div class="header-brand">NYAN <span>WALLET</span></div>
+    <span class="header-tag">ТОЛЬКО ДЛЯ ВЛАДЕЛЬЦА</span>
+  </header>
+  <div class="intro intro-review">
+    <div class="eyebrow"><span class="dot"></span> Администрация</div>
+    <h1>анкеты<br><em>кандидатов</em></h1>
+    <p class="intro-sub">Отбор на должность финансового администратора. Решения не назначают сотрудников автоматически.</p>
+  </div>
+  <section class="review-tools">
+    <label for="filter">Показать заявки</label>
+    <div class="review-filter">
+      <select id="filter">
+        <option value="pending">На рассмотрении</option>
+        <option value="interview">Собеседование</option>
+        <option value="reserve">В резерве</option>
+        <option value="rejected">Отклонённые</option>
+        <option value="all">Все</option>
+      </select>
+      <button id="refresh" type="button" class="button button-primary">Обновить</button>
+    </div>
+  </section>
+  <div id="notice" class="review-notice" role="status" aria-live="polite">Загружаем анкеты…</div>
+  <section id="applications" class="applications" aria-label="Заявки"></section>
+  <footer class="bottom">NYAN WALLET <span>·</span> STAFF APPLICATIONS</footer>
+</main>
+<script src="./finance-review.js?v=20261014-1"></script>
+</body>
+</html>
