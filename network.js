@@ -6,8 +6,24 @@
     const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
     const RETRY_DELAYS_MS = [1500, 3000, 6500, 12000];
 
-    function wait(ms) {
-        return new Promise(resolve => window.setTimeout(resolve, ms));
+    function wait(ms, signal) {
+        return new Promise((resolve, reject) => {
+            if (signal?.aborted) {
+                reject(signal.reason || new DOMException("Aborted", "AbortError"));
+                return;
+            }
+            let timer = null;
+            const onAbort = () => {
+                window.clearTimeout(timer);
+                signal?.removeEventListener("abort", onAbort);
+                reject(signal.reason || new DOMException("Aborted", "AbortError"));
+            };
+            timer = window.setTimeout(() => {
+                signal?.removeEventListener("abort", onAbort);
+                resolve();
+            }, ms);
+            signal?.addEventListener("abort", onAbort, { once: true });
+        });
     }
 
     function requestUrl(input) {
@@ -49,7 +65,10 @@
         const method = requestMethod(input, init);
         const signal = requestSignal(input, init);
 
-        if (!url || url.origin !== API_ORIGIN || !SAFE_METHODS.has(method)) {
+        // The wallet bootstrap has its own bounded retry and status screen.
+        // Avoid nesting the generic retries inside the nine-second boot timeout.
+        if (!url || url.origin !== API_ORIGIN || !SAFE_METHODS.has(method) ||
+            (method === "GET" && url.pathname === "/api/me")) {
             return nativeFetch(input, init);
         }
 
@@ -59,7 +78,7 @@
             if (attempt > 0) {
                 const delay = RETRY_DELAYS_MS[attempt - 1];
                 if (signal?.aborted) throw signal.reason || new DOMException("Aborted", "AbortError");
-                await wait(delay);
+                await wait(delay, signal);
             }
 
             try {
