@@ -67,6 +67,53 @@
       if (key === "availability") value = hourLabels[value] || value;
       card.appendChild(answer(label, value));
     }
+    // The second-stage exercise is accessible only to the owner and only
+    // to the individual application assigned that exercise.
+    if (item.id === 2) {
+      const reviewBox = create("div", "owner-note");
+      const stageButton = create("button", "button button-secondary", "Показать второй этап");
+      stageButton.type = "button";
+      stageButton.style.margin = "0 0 8px";
+      stageButton.style.width = "100%";
+      const resultBox = create("div");
+      reviewBox.append(stageButton, resultBox);
+      stageButton.addEventListener("click", async () => {
+        stageButton.disabled = true;
+        resultBox.textContent = "Загружаем ответы…";
+        try {
+          const data = await request("/api/owner/recruitment/finance/stage2/" + item.id);
+          resultBox.replaceChildren();
+          if (!data.submitted || !data.response) {
+            resultBox.textContent = "Кандидат ещё не отправил ответы на второй этап.";
+          } else {
+            const labels = {
+              balance: "01 · Расчёт баланса",
+              duplicate: "02 · Дублирование бонуса",
+              audit: "03 · Финансовый отчёт",
+              fraud: "04 · Антифрод",
+              access: "05 · Тайное начисление",
+              dispute: "06 · Жалоба на списание",
+              internship: "07 · Первые задачи стажировки"
+            };
+            const choices = {
+              duplicate: {debit:"Сразу списать", verify:"Проверить логи и сообщить владельцу",ignore:"Игнорировать"},
+              access: {do:"Начислить",report:"Отказать и сообщить владельцу",deal:"Согласиться под обещание вернуть"}
+            };
+            resultBox.appendChild(create("div","answer-label","Ответы сохранены: " +
+              new Date(data.response.created_at).toLocaleString("ru-RU")));
+            for (const key of ["balance","duplicate","audit","fraud","access","dispute","internship"]) {
+              const raw = data.response[key];
+              resultBox.appendChild(answer(labels[key], choices[key]?.[raw] || raw));
+            }
+          }
+        } catch (err) {
+          resultBox.textContent = err?.message || "Не удалось загрузить второй этап.";
+        } finally {
+          stageButton.disabled = false;
+        }
+      });
+      card.appendChild(reviewBox);
+    }
     if (item.owner_note) {
       card.appendChild(create("div", "owner-note", "Комментарий администрации: " + item.owner_note));
     }
