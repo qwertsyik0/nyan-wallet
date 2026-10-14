@@ -1,0 +1,29 @@
+.intro-review{margin-bottom:18px}
+.review-tools{padding:17px 18px;border:1px solid #efd8e2;border-radius:18px;background:rgba(255,255,255,.83);margin-bottom:13px}
+.review-tools>label{display:block;font-size:12px;font-weight:800;color:#8d526e;margin-bottom:9px}
+.review-filter{display:flex;gap:8px}
+.review-filter select{flex:1;min-width:0}
+.review-filter button{flex:0 0 auto;min-height:49px;box-shadow:none}
+.review-notice{padding:8px 4px 14px;color:#a07286;font-size:12px;line-height:1.6}
+.applications{display:grid;gap:12px}
+.candidate{background:#fff;border:1px solid #f0d9e3;border-radius:20px;padding:19px 18px;box-shadow:0 12px 36px rgba(141,71,97,.06)}
+.candidate-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+.candidate-title{font-size:16px;font-weight:850;color:#833453;overflow-wrap:anywhere}
+.candidate-num{font-size:11px;font-weight:750;color:#b08094}
+.candidate-meta{font-size:12px;color:#ad8293;line-height:1.7;margin-bottom:13px}
+.candidate-state{display:inline-block;border-radius:50px;background:#fff0f6;color:#a3446f;padding:6px 10px;font-size:10px;font-weight:800}
+.answer{padding:11px 0;border-top:1px solid #f5e5ed}
+.answer-label{display:block;font-size:11px;color:#b17c94;font-weight:700;margin-bottom:5px}
+.answer-body{font-size:13px;color:#784058;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65}
+.review-form{margin-top:15px;padding:12px 0 0;border-top:1px solid #eedbe3}
+.review-form label{display:block;font-size:12px;font-weight:750;margin-bottom:7px;color:#89516b}
+.review-form textarea{min-height:78px}
+.review-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.review-actions button{border:0;border-radius:11px;padding:11px 12px;min-height:43px;font-size:12px;font-weight:800;flex:1;min-width:100px}
+.review-interview{background:#9a3662;color:white}
+.review-reserve{background:#faedf3;color:#9f4771}
+.review-reject{background:#fff4f4;color:#a84863;border:1px solid #f4dae2!important}
+.review-actions button:disabled{opacity:.55}
+.owner-note{border-radius:12px;padding:12px;background:#fff6f9;color:#8b5770;line-height:1.5;font-size:12px;margin-top:10px}
+.empty-candidates{background:#fff;border:1px dashed #e8c9d8;border-radius:18px;padding:27px 18px;text-align:center;font-size:13px;color:#a67e90}
+@media(max-width:390px){.review-filter{flex-wrap:wrap}.review-filter button{width:100%}.candidate{padding:16px 13px}}
