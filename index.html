@@ -34,6 +34,13 @@
           return;
         }
 
+        if (startParam === "finance_stage2") {
+          const u = new URL("./finance-stage2.html", window.location.href);
+          if (window.location.hash) u.hash = window.location.hash;
+          window.location.replace(u.toString());
+          return;
+        }
+
         if (startParam === "finance_review") {
           const target = new URL("./finance-review.html", window.location.href);
           const current = new URL(window.location.href);
