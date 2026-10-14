@@ -372,6 +372,12 @@ ownerButton?.addEventListener("click", openOwnerView);
 ownerBack?.addEventListener("click", showWalletView);
 ownerSurveyOpen?.addEventListener("click", openOwnerSurveyView);
 ownerSurveyBack?.addEventListener("click", openOwnerView);
+document.getElementById("finance-applications-open")?.addEventListener("click", () => {
+    if (!currentUser?.is_owner) return;
+    const url = "https://t.me/nyancash_bot?startapp=finance_review";
+    if (tg?.openTelegramLink) tg.openTelegramLink(url);
+    else window.open(url, "_blank", "noopener,noreferrer");
+});
 
 if (tg?.BackButton?.onClick) {
     tg.BackButton.onClick(() => {
