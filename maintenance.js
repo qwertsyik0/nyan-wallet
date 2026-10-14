@@ -21,6 +21,9 @@
     }
 
     function revealWalletFallback(reason) {
+        // The bootstrap recovery screen owns connection failures and must
+        // never be replaced by a blank wallet during an automatic retry.
+        if (window.__nyanBootRecovering) return false;
         const loading = document.getElementById("loading-view");
         const wallet = document.getElementById("wallet-view");
         const currencyName = document.getElementById("currency-name");
@@ -165,9 +168,11 @@
                 return true;
             }
 
+            const resumeBoot = bootstrapMaintenanceRecoveryNeeded && !window.__nyanWalletReady;
             clearMaintenance();
+            if (resumeBoot) bootstrapMaintenanceRecoveryNeeded = false;
 
-            if (refreshWhenAvailable) {
+            if (refreshWhenAvailable || resumeBoot) {
                 await refreshWalletDataWithoutReload();
             }
             return false;
