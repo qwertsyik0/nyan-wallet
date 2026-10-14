@@ -248,6 +248,8 @@ jobs:
           v2 = Path("bot_addons/channel_publish_bot_v2.py").read_text(encoding="utf-8")
           compile(v2, "bot_addons/channel_publish_bot_v2.py", "exec")
           assert 'return "suggestion_300"' in v2, "suggestion-300 must map to Telegram Mini App start parameter"
+          assert 'return "finance_admin"' in v2, "finance-apply.html must open via Telegram Mini App"
+          assert 'return "finance_review"' in v2, "finance-review.html must open via Telegram Mini App"
           assert 'url=_mini_app_deep_link(spec.url, bot_username)' in v2, "Mini App must use Telegram link"
           main_html = Path("index.html").read_text(encoding="utf-8")
           assert 'startParam === "suggestion_300"' in main_html, "suggestion-300 app route missing"
@@ -264,6 +266,9 @@ jobs:
 
           channel = Path("bot_addons/channel_publish_bot.py").read_text(encoding="utf-8")
           compile(channel, "bot_addons/channel_publish_bot.py", "exec")
+          assert '"finance_admin"' in channel and '"finance_review"' in channel, "legacy channel publisher must support finance Mini App routes"
+          assert '"/finance-apply.html"' in channel, "legacy channel publisher form route missing"
+          assert '"/finance-review.html"' in channel, "legacy channel publisher review route missing"
           for marker in (
               'CommandHandler("channel_post"',
               'TELEGRAM_CHANNEL_ID',
