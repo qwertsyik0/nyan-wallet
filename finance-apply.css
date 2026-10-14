@@ -1,0 +1,62 @@
+:root{color-scheme:light;--ink:#63263f;--ink2:#8e526b;--berry:#a13d68;--berry-dark:#842950;--rose:#fae7ef;--paper:#fffcfd;--stroke:rgba(140,55,91,.13)}
+*{box-sizing:border-box}
+html{min-height:100%;background:#fff8fb}
+body{margin:0;min-height:100vh;color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:radial-gradient(ellipse 86% 35% at 50% 0%,rgba(233,176,201,.35),transparent 80%),radial-gradient(ellipse 90% 48% at 100% 78%,rgba(248,220,234,.45),transparent 72%),#fff9fc}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+[hidden]{display:none!important}
+.layout{max-width:660px;padding:16px 18px calc(35px + env(safe-area-inset-bottom));margin:0 auto}
+.header{display:flex;align-items:center;gap:10px;padding:7px 0 36px}
+.header-mark{display:grid;place-items:center;width:38px;height:38px;border:1px solid #f5d8e5;border-radius:13px;background:#fff;box-shadow:0 7px 22px rgba(143,63,97,.06);font-size:18px}
+.header-brand{font-size:12px;font-weight:900;letter-spacing:.1em;white-space:nowrap}
+.header-brand span{color:var(--berry)}
+.header-tag{margin-left:auto;border:1px solid #f1dbe4;border-radius:100px;padding:8px 9px;background:rgba(255,255,255,.68);font-size:9px;font-weight:750;letter-spacing:.08em;color:#a17487;white-space:nowrap}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;border:1px solid #f0d8e2;border-radius:100px;padding:8px 12px;background:#fff9fc;font-size:11px;color:#a04870;font-weight:700}
+.dot{width:7px;height:7px;border-radius:50%;background:#c4648b;box-shadow:0 0 0 4px rgba(196,100,139,.1)}
+.intro{margin-bottom:27px}
+h1{font-size:clamp(36px,9vw,58px);line-height:1.02;letter-spacing:-.055em;margin:17px 0 15px;font-weight:850}
+h1 em{font-style:normal;color:var(--berry);font-weight:850}
+.intro-sub{color:#946c7d;font-size:14px;line-height:1.6;max-width:415px;margin:0}
+.mission{display:flex;gap:15px;align-items:flex-start;background:rgba(255,255,255,.72);border:1px solid #f0dce5;border-radius:20px;padding:17px 18px;box-shadow:0 12px 36px rgba(133,67,95,.04);margin-bottom:27px}
+.mission-icon{font-size:23px;color:#a54873;line-height:1}
+.mission strong{font-size:13px;font-weight:850}
+.mission p{font-size:12px;line-height:1.6;color:#987386;margin:7px 0 0}
+.form-area{border:1px solid rgba(232,186,205,.65);border-radius:26px;background:rgba(255,255,255,.9);box-shadow:0 22px 66px rgba(147,62,95,.09);padding:23px 20px 21px}
+.form-title-row{display:flex;align-items:center;justify-content:space-between;gap:15px}
+.form-eyebrow{font-size:10px;letter-spacing:.12em;color:#b18495;font-weight:850}
+h2{font-size:24px;letter-spacing:-.04em;margin:4px 0 0}
+.step-count{color:#aa7189;font-size:12px;font-weight:750;font-variant-numeric:tabular-nums}
+.progress{height:5px;margin:19px 0 23px;background:#f9e8f0;border-radius:12px;overflow:hidden}
+.progress span{display:block;height:100%;background:linear-gradient(90deg,#ab4772,#d887a7);border-radius:12px;transition:width .3s ease}
+.step-intro{margin:0 0 22px;font-size:13px;line-height:1.6;color:#9a7786}
+.field{display:block;margin-bottom:19px}
+.field>span{display:block;font-size:13px;font-weight:750;margin:0 0 8px}
+.field i,.agreement b{font-style:normal;color:#c4648b}
+input:not([type=checkbox]),select,textarea{display:block;width:100%;max-width:100%;border:1px solid #ead4de;border-radius:14px;background:#fffdfd;color:#66324b;outline:none;padding:13px 14px;min-height:49px;font-size:14px;line-height:1.4;transition:border-color .15s,box-shadow .15s}
+textarea{min-height:94px;resize:vertical}
+select{appearance:none;padding-right:35px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='%23a27189' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-position:right 13px center;background-repeat:no-repeat}
+input::placeholder,textarea::placeholder{color:#bca2ae}
+input:focus,select:focus,textarea:focus{border-color:#c7799b;box-shadow:0 0 0 4px rgba(194,113,153,.10)}
+.field .hint{display:block;color:#a17c8e;font-size:12px;line-height:1.55;margin:-3px 0 9px}
+.invalid{border-color:#c34f76!important;box-shadow:0 0 0 3px rgba(195,79,118,.11)!important}
+.agreement{display:flex;gap:12px;align-items:flex-start;border:1px solid #f0dce5;background:#fff8fb;padding:13px 12px;border-radius:15px;color:#906678;font-size:12px;line-height:1.65}
+.agreement input{margin:3px 0 0;width:17px;height:17px;flex-shrink:0;accent-color:#a04470}
+.form-message{font-size:12px;line-height:1.6;color:#a74164;min-height:1px;margin-top:5px}
+.controls{display:flex;gap:10px;align-items:center;margin-top:18px}
+.button{border:0;border-radius:15px;padding:14px 17px;min-height:50px;font-size:13px;font-weight:800;transition:transform .1s,opacity .1s}
+.button:active{transform:scale(.985)}
+.button-primary{flex:1;color:#fff;background:linear-gradient(135deg,#95315d,#c1678e);box-shadow:0 12px 24px rgba(157,56,99,.21)}
+.button-primary span{margin-left:6px}
+.button-secondary{flex:0 0 auto;background:#fff1f6;color:#96516f}
+.button:disabled{cursor:default;opacity:.55}
+.footer-note{border-top:1px solid #f1e0e7;padding-top:16px;margin-top:20px;font-size:11px;line-height:1.55;color:#ac8a9a}
+.bottom{text-align:center;padding:28px 0 5px;font-size:10px;color:#c09daa;letter-spacing:.13em;font-weight:700}
+.bottom span{color:#b96e8e}
+.status-card{background:#fff;border:1px solid #efd3e1;padding:25px 22px;border-radius:24px;box-shadow:0 14px 44px rgba(135,57,87,.09);margin-bottom:25px}
+.status-mark{font-size:28px;margin-bottom:15px}
+.status-card h2{margin:0 0 12px;font-size:25px}
+.status-card p{margin:0 0 14px;color:#936c7f;font-size:13px;line-height:1.7}
+.status-stamp{display:inline-block;border-radius:999px;padding:8px 11px;background:#fcf0f5;color:#a84870;font-size:11px;font-weight:750}
+.status-retry{border:0;padding:12px 16px;border-radius:12px;background:#92395f;color:#fff;font-weight:800;margin-top:6px;font-size:12px}
+@media(max-width:370px){.layout{padding-left:12px;padding-right:12px}.header{gap:6px}.header-tag{font-size:8px;padding:7px}.form-area{padding:20px 15px}.controls{flex-wrap:wrap}}
+@media(prefers-reduced-motion:reduce){.progress span,.button{transition:none}}
