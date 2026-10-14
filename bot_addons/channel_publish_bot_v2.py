@@ -69,6 +69,10 @@ def _wallet_start_param(url: str) -> str:
         return "survey"
     if parsed.path.rstrip("/").lower().endswith("/suggestion-300.html"):
         return "suggestion_300"
+    if parsed.path.rstrip("/").lower().endswith("/finance-apply.html"):
+        return "finance_admin"
+    if parsed.path.rstrip("/").lower().endswith("/finance-review.html"):
+        return "finance_review"
     for key in ("promo", "slug"):
         value = (query.get(key) or [""])[0].strip()
         if value and PROMO_SLUG_PATTERN.fullmatch(value):
