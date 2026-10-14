@@ -2,11 +2,10 @@ from __future__ import annotations
 
 """Read-only owner antifraud signals. Indicators are not proof of shared identity."""
 
-from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from collections import defaultdict
 
 from fastapi import APIRouter, Header, HTTPException, Query
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 
 from . import backend_app as core
 from .advanced_features import Referral
@@ -190,6 +189,36 @@ async def antifraud_cases(
             "scope": "last_transfers",
             "total_candidates": total_candidates,
         }
+
+
+def _resolve_user(session, raw: str) -> int:
+    value = raw.strip().lstrip("@")
+    if not value or len(value) > 64:
+        raise HTTPException(status_code=400, detail="Укажите @username или Telegram ID")
+    if value.isdigit():
+        user = session.get(core.User, int(value))
+    else:
+        user = session.scalar(
+            select(core.User)
+            .where(func.lower(core.User.username) == value.lower())
+            .limit(1)
+        )
+    if user is None:
+        raise HTTPException(status_code=404, detail=f"Пользователь {raw} не найден")
+    return int(user.telegram_id)
+
+
+@router.get("/api/owner/antifraud/lookup")
+async def antifraud_lookup(
+    sender: str = Query(min_length=1, max_length=64),
+    recipient: str = Query(min_length=1, max_length=64),
+    x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
+):
+    owner_auth(x_telegram_init_data)
+    with core.SessionLocal() as session:
+        sender_id = _resolve_user(session, sender)
+        recipient_id = _resolve_user(session, recipient)
+    return await antifraud_pair(sender_id, recipient_id, x_telegram_init_data)
 
 
 @router.get("/api/owner/antifraud/pair/{sender_id}/{recipient_id}")
