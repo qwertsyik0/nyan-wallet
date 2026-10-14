@@ -286,8 +286,19 @@ def _start_param_for_url(url: str) -> str:
 
         # Survey has its own standalone page, but must still be opened through
         # Telegram's Mini App deep link so initData is available for the reward.
-        if parsed.path.rstrip("/").lower().endswith("/wallet-survey.html") or parsed.path.rstrip("/").lower().endswith("/survey.html"):
-            return "survey"
+        page = parsed.path.rstrip("/").lower()
+        # These standalone pages must be launched through the MAIN Mini App,
+        # so Telegram supplies signed initData for the recruitment/submission.
+        page_routes = {
+            "/wallet-survey.html": "survey",
+            "/survey.html": "survey",
+            "/suggestion-300.html": "suggestion_300",
+            "/finance-apply.html": "finance_admin",
+            "/finance-review.html": "finance_review",
+        }
+        for suffix, start_param in page_routes.items():
+            if page.endswith(suffix):
+                return start_param
 
         for key in ("promo", "slug"):
             value = (query.get(key) or [""])[0]
@@ -308,11 +319,10 @@ def _mini_app_deep_link(url: str, bot_username: str | None) -> str:
     raw_start_param = _start_param_for_url(url)
     start_param = urllib.parse.quote(raw_start_param, safe="_-")
 
-    # IMPORTANT: the configured named Mini App currently points at the legacy
-    # promo screen. Survey links must launch the bot's Main Mini App instead,
-    # where index.html routes startapp=survey to wallet-survey.html.
-    if raw_start_param == "survey":
-        return f"https://t.me/{bot_username}?startapp=survey"
+    # The configured named Mini App currently points at the legacy promo
+    # screen. Standalone forms/review screens require the Main Mini App.
+    if raw_start_param in {"survey", "suggestion_300", "finance_admin", "finance_review"}:
+        return f"https://t.me/{bot_username}?startapp={start_param}"
 
     short_name = (os.getenv("NYAN_MINI_APP_SHORT_NAME") or os.getenv("TELEGRAM_WEBAPP_SHORT_NAME") or "").strip()
     if short_name:
