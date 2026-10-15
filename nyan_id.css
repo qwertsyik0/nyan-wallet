@@ -1,0 +1,51 @@
+
+/* Nyan ID — entirely isolated from wallet balance-card customization. */
+.nyid-profile-entry{display:flex;align-items:center;gap:12px;width:100%;margin:0 0 14px;padding:15px 16px;text-align:left;border:1px solid #efd6e2;border-radius:20px;background:linear-gradient(120deg,#fff,#fff0f6);box-shadow:0 9px 25px rgba(130,36,77,.06);color:#742b50;cursor:pointer}
+.nyid-entry-icon{width:46px;height:46px;flex:none;display:grid;place-items:center;background:#fce1ec;border-radius:15px;font-size:23px;color:#9f3466}
+.nyid-entry-copy{flex:1;min-width:0}
+.nyid-entry-copy strong{display:block;font-size:14px;font-weight:850;line-height:1.3}
+.nyid-entry-copy small{display:block;margin-top:3px;color:#9d6c82;font-size:10px;line-height:1.4}
+.nyid-entry-arrow{font-size:21px;color:#b07591}
+.nyid-home-action{background:linear-gradient(140deg,#fff3f8,#ffe5f0)!important;border-color:#f1cadd!important;font-weight:850!important;color:#923c62!important}
+.nyid-layer{position:fixed;inset:0;z-index:20040;display:flex;align-items:flex-end;justify-content:center;padding:12px;background:rgba(48,17,34,.5);-webkit-backdrop-filter:blur(7px);backdrop-filter:blur(7px)}
+.nyid-layer[hidden]{display:none!important}
+.nyid-dialog{width:min(100%,480px);max-height:min(95dvh,840px);overflow-y:auto;overscroll-behavior:contain;padding:18px 16px calc(18px + env(safe-area-inset-bottom, 0px));border-radius:28px 28px 20px 20px;background:linear-gradient(180deg,#fff9fc 0%,#fff 100%);border:1px solid rgba(255,255,255,.9);box-shadow:0 24px 80px rgba(45,8,26,.25);color:#6f284d}
+.nyid-modal-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px}
+.nyid-modal-kicker{font-size:10px;font-weight:800;letter-spacing:.15em;color:#b86d92}
+.nyid-modal-title{font-size:23px;font-weight:900;letter-spacing:-.04em;line-height:1.18}
+.nyid-close{width:34px;height:34px;flex:none;border:1px solid #efd8e2;border-radius:12px;background:#fff;color:#8b4567;font-size:21px;display:grid;place-items:center;cursor:pointer}
+.nyid-card{--nyid-ink:#722849;--nyid-muted:#a46d83;--nyid-line:rgba(154,70,110,.16);position:relative;isolation:isolate;overflow:hidden;aspect-ratio:1.53;display:flex;flex-direction:column;justify-content:space-between;padding:clamp(17px,5vw,26px);border:1px solid #e8c6d6;border-radius:24px;background:radial-gradient(ellipse at 100% 0%,#f9cedf 0%,transparent 45%),radial-gradient(ellipse at 0% 100%,#ffe8f1 0%,transparent 40%),linear-gradient(130deg,#fffefd,#fff3f8 90%);box-shadow:0 17px 44px rgba(154,52,103,.15);color:var(--nyid-ink)}
+.nyid-card::after{content:"";position:absolute;z-index:-1;width:220px;height:220px;right:-115px;top:30px;border:31px solid rgba(184,65,117,.045);border-radius:50%}
+.nyid-card[data-theme="night"]{--nyid-ink:#fff4f8;--nyid-muted:#e9b5d0;--nyid-line:rgba(255,224,239,.27);background:radial-gradient(ellipse at 95% 0%,#8f3c69 0%,transparent 51%),linear-gradient(125deg,#361526,#6f294b 95%);border-color:#814765;box-shadow:0 20px 45px rgba(44,8,28,.25)}
+.nyid-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.nyid-brand{display:flex;align-items:center;gap:7px;font-size:clamp(12px,3.7vw,17px);font-weight:900;letter-spacing:-.03em;white-space:nowrap}
+.nyid-brand-mark{width:28px;height:28px;display:grid;place-items:center;border:1px solid var(--nyid-line);border-radius:9px;background:rgba(255,255,255,.16);font-size:15px}
+.nyid-edition{padding:6px 9px;border:1px solid var(--nyid-line);border-radius:99px;font-weight:800;font-size:clamp(7px,2.2vw,10px);letter-spacing:.045em;white-space:nowrap}
+.nyid-card-main{min-width:0;padding-top:8px}
+.nyid-label{font-size:clamp(7px,2.25vw,10px);letter-spacing:.11em;font-weight:850;color:var(--nyid-muted);text-transform:uppercase}
+.nyid-name{margin:6px 0 3px;font-size:clamp(17px,5.6vw,28px);font-weight:900;letter-spacing:-.045em;line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nyid-handle{font-size:clamp(9px,2.6vw,12px);color:var(--nyid-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nyid-card-number{margin:12px 0 12px;font-size:clamp(11px,3.2vw,15px);letter-spacing:.065em;font-variant-numeric:tabular-nums;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nyid-card-meta{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;padding-top:11px;border-top:1px solid var(--nyid-line)}
+.nyid-meta-label{font-size:clamp(7px,2vw,9px);color:var(--nyid-muted);font-weight:750;line-height:1.3}
+.nyid-meta-value{margin-top:3px;font-size:clamp(9px,2.8vw,13px);font-weight:850;line-height:1.2;overflow-wrap:anywhere}
+.nyid-card-foot{display:flex;justify-content:space-between;gap:6px;align-items:center;margin-top:10px;font-size:clamp(8px,2.2vw,10px);font-weight:800;color:var(--nyid-muted)}
+.nyid-card-foot b{color:var(--nyid-ink);max-width:72%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nyid-note{min-height:17px;margin:11px 0 4px;color:#93627b;font-size:11px;line-height:1.4;text-align:center}
+.nyid-note[data-error="true"]{color:#a92255}
+.nyid-themes{display:flex;gap:8px;justify-content:center;margin:8px 0 11px}
+.nyid-theme-button{display:flex;align-items:center;justify-content:center;gap:7px;width:auto;padding:9px 12px;border:1px solid #ebd2df;border-radius:12px;background:#fff;color:#98516f;font-weight:800;font-size:11px;cursor:pointer}
+.nyid-theme-button[aria-pressed="true"]{border-color:#b64f80;background:#fff0f6;color:#702647}
+.nyid-theme-dot{width:12px;height:12px;border-radius:50%;background:#f4cadb;border:1px solid #e2aac5}
+.nyid-theme-button[data-choice="night"] .nyid-theme-dot{background:#55223c;border-color:#55223c}
+.nyid-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.nyid-action{min-width:0;min-height:43px;padding:11px 10px;border:1px solid #edd2df;border-radius:14px;background:#fff;color:#823857;font-weight:850;font-size:11px;cursor:pointer;box-shadow:none}
+.nyid-action.primary{background:#8e315b;color:#fff;border-color:#8e315b}
+.nyid-action:disabled{opacity:.48;cursor:wait}
+.nyid-copy{grid-column:1/-1;background:#fff5f9}
+.nyid-detail-title{margin:13px 1px 7px;color:#773552;font-size:12px;font-weight:850}
+.nyid-achievements{display:flex;flex-wrap:wrap;gap:6px}
+.nyid-achievement{padding:7px 10px;border-radius:999px;border:1px solid #eed5e0;background:#fff4f8;color:#945072;font-weight:750;font-size:10px}
+.nyid-empty{font-size:11px;color:#a67a90}
+@media(max-width:365px){.nyid-dialog{padding:14px 12px 18px}.nyid-card{padding:15px;border-radius:19px}.nyid-modal-title{font-size:21px}.nyid-edition{padding:5px 6px}.nyid-card-number{font-size:10px;letter-spacing:.025em}}
+@media(prefers-reduced-motion:no-preference){.nyid-layer:not([hidden]) .nyid-dialog{animation:nyid-enter .19s ease-out}@keyframes nyid-enter{from{transform:translateY(14px);opacity:.65}to{transform:translateY(0);opacity:1}}}
