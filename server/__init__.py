@@ -28,6 +28,7 @@ from .transfers import register_transfers
 from .antifraud import register_antifraud
 from .recent_transfers_20261011 import print_recent_wallet_transfers_20261011
 from .broadcast import register_broadcast
+from .broadcast_audience_audit_20261015 import report_broadcast_audience
 from .maintenance import register_maintenance
 from .wallet_survey import register_wallet_survey
 from .suggestions import register_suggestions
@@ -72,6 +73,7 @@ register_transfers(backend_app.app)
 register_antifraud(backend_app.app)
 print_recent_wallet_transfers_20261011()
 register_broadcast(backend_app.app)
+report_broadcast_audience()
 register_maintenance(backend_app.app)
 register_wallet_survey(backend_app.app)
 register_suggestions(backend_app.app)
