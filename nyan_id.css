@@ -59,3 +59,11 @@
 #nyid-front-open .nyid-front-title small{font-size:10px;font-weight:600;line-height:1.3;color:#a16984}
 #nyid-front-open .nyid-front-chevron{flex:none;font-size:25px;color:#a7517d;line-height:1}
 #nyid-front-open:active{transform:scale(.992)}
+
+
+/* Telegram document delivery takes priority over WebView blob downloads. */
+#nyid-send.nyid-bot-send{grid-column:1/-1!important;min-height:48px;font-size:12px;font-weight:850;letter-spacing:0}
+#nyid-open-chat.nyid-chat-link{grid-column:1/-1;border-color:#e9cade;background:#fff5fa;color:#8d315a;font-weight:850}
+#nyid-open-chat[hidden]{display:none!important}
+#nyid-save,#nyid-share{min-height:44px}
+#nyid-notice{white-space:normal;overflow-wrap:anywhere}
