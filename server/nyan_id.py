@@ -117,7 +117,7 @@ def _validate_exported_png(data: bytes) -> None:
     """Validate canvas PNG structure, dimensions and checksums; bound memory usage."""
     if len(data) < 70 or len(data) > _MAX_PNG_BYTES:
         raise HTTPException(status_code=413, detail="Размер PNG должен быть не больше 3 МБ")
-    if not data.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+    if not data.startswith(b"\x89PNG\r\n\x1a\n"):
         raise HTTPException(status_code=415, detail="Нужен PNG-файл карточки")
 
     offset = 8
@@ -189,21 +189,21 @@ def _telegram_send_png(chat_id: int, number: str, data: bytes) -> int:
     """Deliver a downloadable image/png document, not a compressed Telegram photo."""
     boundary = "NyanID-" + secrets.token_hex(16)
     prefix = (
-        f"--{boundary}\\r\\n"
-        'Content-Disposition: form-data; name="chat_id"\\r\\n\\r\\n'
-        f"{chat_id}\\r\\n"
-        f"--{boundary}\\r\\n"
-        'Content-Disposition: form-data; name="caption"\\r\\n\\r\\n'
-        "🐾 Твой Nyan ID готов!\\n"
+        f"--{boundary}\r\n"
+        'Content-Disposition: form-data; name="chat_id"\r\n\r\n'
+        f"{chat_id}\r\n"
+        f"--{boundary}\r\n"
+        'Content-Disposition: form-data; name="caption"\r\n\r\n'
+        "🐾 Твой Nyan ID готов!\n"
         "Карточка приложена как PNG-файл в оригинальном качестве. "
-        "Открой документ и сохрани на устройство.\\n"
-        "Это карточка участника, не документ для подтверждения личности.\\r\\n"
-        f"--{boundary}\\r\\n"
+        "Открой документ и сохрани на устройство.\n"
+        "Это карточка участника, не документ для подтверждения личности.\r\n"
+        f"--{boundary}\r\n"
         'Content-Disposition: form-data; name="document"; '
-        f'filename="Nyan-ID-{number}.png"\\r\\n'
-        "Content-Type: image/png\\r\\n\\r\\n"
+        f'filename="Nyan-ID-{number}.png"\r\n'
+        "Content-Type: image/png\r\n\r\n"
     ).encode("utf-8")
-    body = prefix + data + f"\\r\\n--{boundary}--\\r\\n".encode("ascii")
+    body = prefix + data + f"\r\n--{boundary}--\r\n".encode("ascii")
     request = urllib.request.Request(
         f"https://api.telegram.org/bot{core.BOT_TOKEN}/sendDocument",
         data=body,
