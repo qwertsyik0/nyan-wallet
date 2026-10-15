@@ -350,7 +350,8 @@ def require_channel_subscription(telegram_id: int) -> dict:
     return result
 
 
-def verify_init_data(init_data: str, *, require_subscription: bool = True) -> dict:
+# Telegram signatures remain mandatory; joining the info channel is optional.
+def verify_init_data(init_data: str, *, require_subscription: bool = False) -> dict:
     if not init_data:
         raise HTTPException(status_code=401, detail="Telegram initData отсутствует")
 
