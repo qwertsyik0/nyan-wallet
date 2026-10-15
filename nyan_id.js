@@ -423,6 +423,9 @@
   }
 
   function start() {
+    // The primary Nyan ID button is permanently present in index.html.
+    // Attach directly rather than relying only on deferred DOM observers.
+    el("nyid-front-open")?.addEventListener("click", open);
     ensureEntryPoints();
     const observer = new MutationObserver(scheduleEntryPoints);
     observer.observe(document.body, {subtree:true, childList:true});
