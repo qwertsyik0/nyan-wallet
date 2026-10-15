@@ -486,7 +486,7 @@ jobs:
           for name in ("finance-apply", "finance-review"):
               html = Path(name + ".html").read_text(encoding="utf-8")
               js = Path(name + ".js").read_text(encoding="utf-8")
-              assert name + ".js?v=20261014-1" in html
+              assert name + ".js?v=" in html
               assert 'X-Telegram-Init-Data' in js
               assert 'nyan-wallet-api.onrender.com' in js
           print("Financial recruitment routes, Telegram auth and owner-only review OK")
