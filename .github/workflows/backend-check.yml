@@ -491,6 +491,28 @@ jobs:
               assert 'nyan-wallet-api.onrender.com' in js
           print("Financial recruitment routes, Telegram auth and owner-only review OK")
           PY
+      - name: Verify info-channel subscription is optional
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          source = Path("server/backend_app.py").read_text(encoding="utf-8")
+          tree = ast.parse(source)
+          check = next(node for node in ast.walk(tree)
+                       if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                       and node.name == "verify_init_data")
+          default = next((d.value for d in check.args.kw_defaults
+                          if isinstance(d, ast.Constant) and isinstance(d.value, bool)), None)
+          assert default is False, "Main API authentication should not require channel subscription"
+          assert 'if require_subscription:' in source, "Keep explicit subscription gate for opt-in use cases"
+          client = Path("app.js").read_text(encoding="utf-8")
+          html = Path("index.html").read_text(encoding="utf-8")
+          for forbidden in ("showSubscriptionGate", "checkRequiredSubscription", "__nyanSubscriptionBlocked"):
+              assert forbidden not in client, forbidden
+          assert 'id="subscription-view"' not in html
+          assert "app.js?v=20261015-no-subscribe" in html
+          print("Wallet opens without channel membership; Telegram signature verification retained")
+          PY
       - name: Check browser JavaScript syntax
         run: |
           for file in ./*.js; do
