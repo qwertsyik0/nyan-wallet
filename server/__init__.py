@@ -32,7 +32,6 @@ from .maintenance import register_maintenance
 from .wallet_survey import register_wallet_survey
 from .suggestions import register_suggestions
 from .finance_recruitment import register_finance_recruitment
-from .finance_audit_new_20261015 import audit_new_applications
 from .finance_stage2 import register_finance_stage2
 from .bot_menu import sync_bot_menu_buttons
 from .user_bans import register_user_bans
@@ -77,7 +76,6 @@ register_maintenance(backend_app.app)
 register_wallet_survey(backend_app.app)
 register_suggestions(backend_app.app)
 register_finance_recruitment(backend_app.app)
-audit_new_applications()
 register_finance_stage2(backend_app.app)
 send_survey_channel_followups_20261011()
 register_user_bans(backend_app.app)
