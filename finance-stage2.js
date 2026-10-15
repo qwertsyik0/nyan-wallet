@@ -105,7 +105,7 @@
       const value = textarea.value.replace(/\s+/g," ").trim();
       if (value.length < (mins[textarea.name] || 1)) {
         textarea.classList.add("error-field");
-        error.textContent = "Ответ слишком короткий. Напиши подробнее, как ты бы поступила.";
+        error.textContent = "Ответ слишком короткий. Напиши подробнее, как ты поступишь.";
         textarea.focus();
         return false;
       }
