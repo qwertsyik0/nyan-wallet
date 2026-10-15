@@ -67,9 +67,8 @@
       if (key === "availability") value = hourLabels[value] || value;
       card.appendChild(answer(label, value));
     }
-    // The second-stage exercise is accessible only to the owner and only
-    // to the individual application assigned that exercise.
-    if (item.id === 2) {
+    // Only the owner sees these controls. Server verifies the candidate on invite and submit.
+    if (item.id) {
       const reviewBox = create("div", "owner-note");
       const stageButton = create("button", "button button-secondary", "Показать второй этап");
       stageButton.type = "button";
@@ -113,12 +112,12 @@
         }
       });
       if (item.status === "pending" || item.status === "interview") {
-        const sendButton = create("button", "button button-primary", "Отправить второй этап Насте");
+        const sendButton = create("button", "button button-primary", "Отправить второй этап");
         sendButton.type = "button";
         sendButton.style.width = "100%";
         sendButton.style.marginBottom = "10px";
         sendButton.addEventListener("click", async () => {
-          if (!window.confirm("Отправить @nasttchl личное приглашение на второй этап через Telegram?")) return;
+          if (!window.confirm("Отправить " + name + " личное приглашение на второй этап через Telegram?")) return;
           sendButton.disabled = true;
           sendButton.textContent = "Отправляем…";
           try {
