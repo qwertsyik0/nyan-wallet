@@ -63,7 +63,7 @@ def png_chunk(kind: bytes, data: bytes) -> bytes:
 def sample_png(width: int = 1200, height: int = 780) -> bytes:
     png = bytes.fromhex("89504e470d0a1a0a")
     ihdr = struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)
-    rows = (b"\\x00" + b"\\xF0\\xDE\\xE8\\xFF" * width) * height
+    rows = (b"\x00" + b"\xF0\xDE\xE8\xFF" * width) * height
     return (
         png
         + png_chunk(b"IHDR", ihdr)
@@ -101,17 +101,17 @@ def test_telegram_multipart(namespace: dict, valid: bytes) -> None:
         assert timeout <= 20
         boundary = request.get_header("Content-type").split("boundary=", 1)[1]
         payload = request.data
-        assert payload.startswith(("--" + boundary + "\\r\\n").encode())
-        assert payload.endswith(("--" + boundary + "--\\r\\n").encode())
+        assert payload.startswith(("--" + boundary + "\r\n").encode())
+        assert payload.endswith(("--" + boundary + "--\r\n").encode())
         assert (
-            b'Content-Disposition: form-data; name="chat_id"\\r\\n\\r\\n12345\\r\\n'
+            b'Content-Disposition: form-data; name="chat_id"\r\n\r\n12345\r\n'
             in payload
         )
-        assert b'Content-Disposition: form-data; name="caption"\\r\\n\\r\\n' in payload
+        assert b'Content-Disposition: form-data; name="caption"\r\n\r\n' in payload
         assert (
             b'Content-Disposition: form-data; name="document"; '
-            b'filename="Nyan-ID-NW-ABCD-EFGH.png"\\r\\n'
-            b'Content-Type: image/png\\r\\n\\r\\n'
+            b'filename="Nyan-ID-NW-ABCD-EFGH.png"\r\n'
+            b'Content-Type: image/png\r\n\r\n'
             in payload
         )
         assert payload.count(valid) == 1
