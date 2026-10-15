@@ -93,11 +93,9 @@ def send_candidate_group_invites_once() -> None:
     if not invite_url:
         logger.info("%s not_configured", MARK)
         return
-    if not re.fullmatch(r"https://t\\.me/\\+[A-Za-z0-9_-]{8,80}", invite_url):
-        # Handle the intended regex as a raw-string pattern below, too.
-        if not re.fullmatch(r"https://t\.me/\+[A-Za-z0-9_-]{8,80}", invite_url):
-            logger.error("%s invalid_invite_url", MARK)
-            return
+    if not re.fullmatch(r"https://t\.me/\+[A-Za-z0-9_-]{8,80}", invite_url):
+        logger.error("%s invalid_invite_url", MARK)
+        return
     if not core.BOT_TOKEN:
         logger.error("%s bot_token_missing", MARK)
         return
