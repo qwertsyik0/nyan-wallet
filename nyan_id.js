@@ -75,7 +75,7 @@
         container.appendChild(badge);
       }
     }
-    for (const id of ["nyid-share", "nyid-save", "nyid-copy"]) {
+    for (const id of ["nyid-send", "nyid-share", "nyid-save", "nyid-copy"]) {
       const button = el(id);
       if (button) button.disabled = false;
     }
@@ -119,9 +119,11 @@
       '    <button type="button" class="nyid-theme-button" data-choice="night" aria-pressed="false"><span class="nyid-theme-dot"></span>Бордовый</button>',
       '  </div>',
       '  <div class="nyid-actions">',
-      '    <button id="nyid-save" class="nyid-action" type="button" disabled>Сохранить PNG</button>',
-      '    <button id="nyid-share" class="nyid-action primary" type="button" disabled>Поделиться</button>',
+      '    <button id="nyid-send" class="nyid-action primary nyid-bot-send" type="button" disabled>📩 Получить PNG в личные сообщения</button>',
+      '    <button id="nyid-save" class="nyid-action" type="button" disabled>Скачать PNG</button>',
+      '    <button id="nyid-share" class="nyid-action" type="button" disabled>Поделиться</button>',
       '    <button id="nyid-copy" class="nyid-action nyid-copy" type="button" disabled>Скопировать номер ID</button>',
+      '    <button id="nyid-open-chat" class="nyid-action nyid-chat-link" type="button" hidden>Открыть чат с ботом ↗</button>',
       '  </div>',
       '  <div class="nyid-detail-title">Недавние достижения</div>',
       '  <div id="nyid-achievements" class="nyid-achievements"><span class="nyid-empty">Загружаем...</span></div>',
@@ -138,6 +140,11 @@
         updateTheme();
         TELEGRAM?.HapticFeedback?.selectionChanged?.();
       });
+    });
+    el("nyid-send")?.addEventListener("click", sendCardToBot);
+    el("nyid-open-chat")?.addEventListener("click", () => {
+      if (typeof TELEGRAM?.openTelegramLink === "function") TELEGRAM.openTelegramLink("https://t.me/nyancash_bot");
+      else window.open("https://t.me/nyancash_bot", "_blank", "noopener,noreferrer");
     });
     el("nyid-save")?.addEventListener("click", saveCard);
     el("nyid-share")?.addEventListener("click", shareCard);
@@ -358,12 +365,83 @@
     anchor.remove();
     setTimeout(() => URL.revokeObjectURL(url), 30000);
   }
+  async function sendCardToBot() {
+    const button = el("nyid-send");
+    if (!button || button.disabled || !identity) return;
+    const originalLabel = button.textContent;
+    button.disabled = true;
+    button.textContent = "Отправляем PNG...";
+    say("Формируем файл и отправляем его в личные сообщения...");
+    try {
+      if (!TELEGRAM?.initData) {
+        throw new Error("Откройте Nyan ID через @nyancash_bot в Telegram.");
+      }
+      const blob = await cardBlob();
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 27000);
+      let response;
+      try {
+        response = await fetch(API + "/api/nyan-id/send-png", {
+          method: "POST",
+          headers: {
+            "X-Telegram-Init-Data": TELEGRAM.initData,
+            "Content-Type": "image/png"
+          },
+          body: blob,
+          signal: controller.signal,
+          cache: "no-store"
+        });
+      } finally {
+        clearTimeout(timer);
+      }
+      const answer = await response.json().catch(() => ({}));
+      if (!response.ok || answer.sent !== true) {
+        const detail = typeof answer.detail === "string" ? answer.detail : "Telegram не подтвердил отправку файла.";
+        throw new Error(detail);
+      }
+      say("Готово! PNG-документ отправлен в личные сообщения @nyancash_bot. Откройте чат и сохраните файл.");
+      const chat = el("nyid-open-chat");
+      if (chat) chat.hidden = false;
+      TELEGRAM?.HapticFeedback?.notificationOccurred?.("success");
+    } catch (error) {
+      const note = error?.name === "AbortError"
+        ? "Отправка заняла слишком долго. Проверьте чат с ботом перед повторной попыткой."
+        : (error?.message || "Не удалось отправить файл. Повторите попытку.");
+      say(note, true);
+      TELEGRAM?.HapticFeedback?.notificationOccurred?.("error");
+    } finally {
+      button.disabled = false;
+      button.textContent = originalLabel;
+    }
+  }
+
   async function saveCard() {
+    if (!identity) return;
     try {
       const blob = await cardBlob();
+      const filename = "Nyan-ID-" + identity.number.replace(/[^A-Za-z0-9-]/g, "") + ".png";
+      const file = new File([blob], filename, { type: "image/png" });
+      const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "");
+      if (mobile && typeof navigator.share === "function" &&
+          typeof navigator.canShare === "function" &&
+          navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: "Nyan ID" });
+          say("Открылось системное меню: выберите сохранение файла на устройство.");
+          return;
+        } catch (error) {
+          if (error?.name === "AbortError") {
+            say("Сохранение отменено. Можно попробовать ещё раз или отправить PNG через бота.");
+            return;
+          }
+          // Telegram clients without file sharing fall back to direct download.
+        }
+      }
       saveBlob(blob);
-      say("PNG подготовлен. Если Telegram не сохранил файл, используйте системный скриншот.");
-    } catch (error) { say(error.message || "Не удалось сохранить карточку.", true); }
+      say("Скачивание запрошено. Если Telegram не сохранил файл, нажмите «Получить PNG в личные сообщения».");
+    } catch (error) {
+      say(error?.message || "Не удалось подготовить PNG-файл.", true);
+    }
   }
   async function shareCard() {
     if (!identity) return;
