@@ -11,11 +11,6 @@ if (tg) {
 }
 
 const loadingView = document.getElementById("loading-view");
-const subscriptionView = document.getElementById("subscription-view");
-const subscriptionOpen = document.getElementById("subscription-open");
-const subscriptionCheck = document.getElementById("subscription-check");
-const subscriptionStatus = document.getElementById("subscription-status");
-const REQUIRED_CHANNEL_URL = "https://t.me/NyanWallet";
 const usernameEl = document.getElementById("username");
 const balanceEl = document.getElementById("balance");
 const currencyNameEl = document.getElementById("currency-name");
@@ -208,7 +203,6 @@ function finishInitialLoad() {
     loadingView?.classList.add("hidden");
     if (
         !window.__nyanMaintenanceBlocked &&
-        !window.__nyanSubscriptionBlocked &&
         !window.__nyanGiveawayDeepLinkActive &&
         !window.__nyanPaymentDeepLinkActive &&
         !window.__nyanPromoDeepLinkActive &&
@@ -222,7 +216,7 @@ function finishInitialLoad() {
 // module left only the loading screen visible, never trap the user there.
 window.addEventListener("nyan-wallet-ready", () => {
     window.setTimeout(() => {
-        if (window.__nyanMaintenanceBlocked || window.__nyanSubscriptionBlocked) return;
+        if (window.__nyanMaintenanceBlocked) return;
 
         const loadingVisible = loadingView && !loadingView.classList.contains("hidden");
         if (!loadingVisible) return;
@@ -242,80 +236,6 @@ window.addEventListener("nyan-wallet-ready", () => {
         walletView?.classList.remove("hidden");
     }, 1200);
 });
-
-function hideAllAppViewsForSubscription() {
-    document.querySelectorAll(".app > main").forEach((node) => {
-        if (node !== subscriptionView) node.classList.add("hidden");
-    });
-}
-
-function showSubscriptionGate(message = "Для продолжения необходимо подписаться на информационный канал.") {
-    clearWalletRetrySchedule();
-    walletFailureCount = 0;
-    window.__nyanBootRecovering = false;
-    window.__nyanSubscriptionBlocked = true;
-    window.__nyanWalletReady = false;
-    hideAllAppViewsForSubscription();
-    loadingView?.classList.add("hidden");
-    subscriptionView?.classList.remove("hidden");
-    if (subscriptionStatus) subscriptionStatus.textContent = message;
-    if (tg?.BackButton) tg.BackButton.hide();
-}
-
-async function checkRequiredSubscription() {
-    if (!tg?.initData) return false;
-
-    if (subscriptionCheck) {
-        subscriptionCheck.disabled = true;
-        subscriptionCheck.textContent = "Проверяем…";
-    }
-    if (subscriptionStatus) subscriptionStatus.textContent = "";
-
-    try {
-        const response = await fetch(`${API_BASE}/api/subscription/status`, {
-            headers: authHeaders(),
-            cache: "no-store",
-        });
-        const data = await readJson(response);
-        if (!response.ok) {
-            const detail = data?.detail;
-            const message = typeof detail === "object"
-                ? detail?.message
-                : detail;
-            throw new Error(message || "Не удалось проверить подписку");
-        }
-
-        if (!data?.subscribed) {
-            showSubscriptionGate("Подписка пока не найдена. Подпишитесь на канал и нажмите «Проверить подписку».");
-            return false;
-        }
-
-        window.__nyanSubscriptionBlocked = false;
-        subscriptionView?.classList.add("hidden");
-        if (subscriptionStatus) subscriptionStatus.textContent = "";
-        initialLoadFinished = false;
-        await loadWallet();
-        return true;
-    } catch (error) {
-        showSubscriptionGate(error?.message || "Не удалось проверить подписку. Попробуйте ещё раз.");
-        return false;
-    } finally {
-        if (subscriptionCheck) {
-            subscriptionCheck.disabled = false;
-            subscriptionCheck.textContent = "Проверить подписку";
-        }
-    }
-}
-
-subscriptionOpen?.addEventListener("click", () => {
-    if (tg?.openTelegramLink) tg.openTelegramLink(REQUIRED_CHANNEL_URL);
-    else window.open(REQUIRED_CHANNEL_URL, "_blank", "noopener,noreferrer");
-});
-
-subscriptionCheck?.addEventListener("click", () => {
-    void checkRequiredSubscription();
-});
-
 
 function showWalletView() {
     loadingView?.classList.add("hidden");
@@ -942,7 +862,7 @@ function updateBootStatus(message, detail, allowManualRetry = false) {
 }
 
 function scheduleWalletRetry() {
-    if (window.__nyanMaintenanceBlocked || window.__nyanSubscriptionBlocked) return;
+    if (window.__nyanMaintenanceBlocked) return;
     clearWalletRetrySchedule();
     walletFailureCount += 1;
     const delay = WALLET_RETRY_DELAYS_MS[Math.min(walletFailureCount - 1, WALLET_RETRY_DELAYS_MS.length - 1)];
@@ -965,7 +885,7 @@ function scheduleWalletRetry() {
     walletRetryTicker = window.setInterval(showCountdown, 1000);
     walletRetryTimer = window.setTimeout(() => {
         clearWalletRetrySchedule();
-        if (window.__nyanMaintenanceBlocked || window.__nyanSubscriptionBlocked) return;
+        if (window.__nyanMaintenanceBlocked) return;
         void loadWallet();
     }, delay);
 }
@@ -996,7 +916,7 @@ async function loadWallet() {
     const isBoot = !initialLoadFinished;
     let loadedSuccessfully = false;
 
-    if (isBoot && !window.__nyanMaintenanceBlocked && !window.__nyanSubscriptionBlocked) {
+    if (isBoot && !window.__nyanMaintenanceBlocked) {
         window.__nyanBootRecovering = true;
         loadingView?.classList.remove("hidden");
         if (walletFailureCount > 0) {
@@ -1027,21 +947,6 @@ async function loadWallet() {
         }
 
         const apiDetail = data?.detail;
-        const apiCode = typeof apiDetail === "object" ? apiDetail?.code : null;
-        if (response.status === 403 && apiCode === "subscription_required") {
-            showSubscriptionGate(
-                apiDetail?.message || "Для продолжения необходимо подписаться на информационный канал."
-            );
-            return;
-        }
-
-        if (response.status === 503 && apiCode === "subscription_check_unavailable") {
-            showSubscriptionGate(
-                apiDetail?.message || "Не удалось проверить подписку. Попробуйте ещё раз."
-            );
-            return;
-        }
-
         if (!response.ok) {
             const message = typeof apiDetail === "object" ? apiDetail?.message : apiDetail;
             const error = new Error(message || "Не удалось загрузить кошелёк");
@@ -1105,7 +1010,7 @@ loadingRetryEl?.addEventListener("click", () => {
 });
 
 window.addEventListener("online", () => {
-    if (walletFailureCount > 0 && !window.__nyanMaintenanceBlocked && !window.__nyanSubscriptionBlocked) {
+    if (walletFailureCount > 0 && !window.__nyanMaintenanceBlocked) {
         void loadWallet();
     }
 });
