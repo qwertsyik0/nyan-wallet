@@ -1,4 +1,4 @@
-"""Private second-round written exercise for one verified finance administrator applicant.
+"""Private second-round written exercise for invited finance administrator applicants.
 
 This module never changes wallet balances, assigns administrator permissions, or
 sends invitations on import. The candidate must supply valid Telegram Mini App
@@ -28,8 +28,6 @@ log = logging.getLogger("nyan_wallet.finance_stage2")
 router = APIRouter()
 _REGISTERED = False
 
-TARGET_APPLICATION_ID = 2
-TARGET_TELEGRAM_ID = 1129986805
 REVIEW_URL = "https://qwertsyik0.github.io/nyan-wallet/finance-review.html"
 
 
@@ -78,19 +76,11 @@ class Stage2Submit(BaseModel):
     internship: str = Field(min_length=30, max_length=1600)
 
 
-def _check_candidate(tg_user: dict) -> None:
-    if tg_user["id"] != TARGET_TELEGRAM_ID:
-        # Never disclose the candidate's identity to other logged-in users.
-        raise HTTPException(status_code=403, detail="Это персональное испытание недоступно вашему аккаунту.")
-
-
-def _get_application(session) -> FinancialAdminApplication:
+def _get_application(session, telegram_id: int) -> FinancialAdminApplication:
+    """Look up the candidate by verified Telegram ID and require a sent invitation."""
     app = session.scalar(
         select(FinancialAdminApplication)
-        .where(
-            FinancialAdminApplication.id == TARGET_APPLICATION_ID,
-            FinancialAdminApplication.telegram_id == TARGET_TELEGRAM_ID,
-        )
+        .where(FinancialAdminApplication.telegram_id == telegram_id)
         .with_for_update()
     )
     if not app or app.status not in {"pending", "interview"}:
@@ -98,8 +88,13 @@ def _get_application(session) -> FinancialAdminApplication:
             status_code=403,
             detail="Второй этап отбора недоступен для текущего статуса заявки.",
         )
+    invitation = session.get(FinanceStage2Invitation, app.id)
+    if invitation is None or invitation.telegram_id != telegram_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Это персональное испытание недоступно вашему аккаунту.",
+        )
     return app
-
 
 def _serialize(item: FinanceStage2Response | None) -> dict | None:
     if not item:
@@ -147,12 +142,11 @@ async def get_stage2_me(
     x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
 ):
     tg_user = core.verify_init_data(x_telegram_init_data or "")
-    _check_candidate(tg_user)
     with core.SessionLocal() as session:
-        _get_application(session)
+        app = _get_application(session, tg_user["id"])
         response = session.scalar(
             select(FinanceStage2Response)
-            .where(FinanceStage2Response.application_id == TARGET_APPLICATION_ID)
+            .where(FinanceStage2Response.application_id == app.id)
         )
         return {
             "ok": True,
@@ -169,7 +163,6 @@ async def submit_stage2(
     x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
 ):
     tg_user = core.verify_init_data(x_telegram_init_data or "")
-    _check_candidate(tg_user)
     keys = ("balance", "audit", "fraud", "dispute", "internship")
     data = payload.model_dump()
     for key in keys:
@@ -181,7 +174,7 @@ async def submit_stage2(
     try:
         with core.SessionLocal() as session:
             with session.begin():
-                app = _get_application(session)
+                app = _get_application(session, tg_user["id"])
                 existing = session.scalar(
                     select(FinanceStage2Response.id).where(
                         FinanceStage2Response.application_id == app.id
@@ -199,13 +192,15 @@ async def submit_stage2(
                 session.add(item)
                 session.flush()
                 result = _serialize(item)
+                candidate_ref = app.display_name
+                application_ref = app.id
     except IntegrityError as exc:
         raise HTTPException(status_code=409, detail="Ответы на второй этап уже отправлены.") from exc
 
     background_tasks.add_task(
         _message_owner,
         f"🐾 Nyan Wallet | Второй этап пройден\n\n"
-        f"Кандидат: @nasttchl\nЗаявка №{TARGET_APPLICATION_ID}\n"
+        f"Кандидат: {candidate_ref}\nЗаявка №{application_ref}\n"
         f"Ответы сохранены. Открой рассмотрение анкет.",
     )
     return {"ok": True, "submitted": True, "created_at": result["created_at"]}
@@ -218,8 +213,6 @@ async def owner_stage2(
 ):
     tg_user = core.verify_init_data(x_telegram_init_data or "")
     core.require_owner(tg_user)
-    if application_id != TARGET_APPLICATION_ID:
-        raise HTTPException(status_code=404, detail="Для этой заявки второй этап не назначен.")
     with core.SessionLocal() as session:
         response = session.scalar(
             select(FinanceStage2Response)
@@ -228,13 +221,13 @@ async def owner_stage2(
         return {"ok": True, "submitted": response is not None, "response": _serialize(response)}
 
 
-def _send_stage2_invitation() -> None:
+def _send_stage2_invitation(application: FinancialAdminApplication) -> None:
     """Only invoked after a verified owner clicks the send button."""
     payload = {
-        "chat_id": str(TARGET_TELEGRAM_ID),
+        "chat_id": str(application.telegram_id),
         "text": (
             "🐾 Nyan Wallet | Второй этап отбора\n\n"
-            "настя, твоя анкета на должность финансового администратора рассмотрена. "
+            "твоя анкета на должность финансового администратора рассмотрена. "
             "приглашаем тебя пройти дополнительные задания.\n\n"
             "тебя ждут 7 вопросов по расчётам, безопасности и работе с пользователями. "
             "отвечай внимательно и своими словами.\n\n"
@@ -279,11 +272,17 @@ async def invite_stage2_by_owner(
     import asyncio
     tg_user = core.verify_init_data(x_telegram_init_data or "")
     core.require_owner(tg_user)
-    if application_id != TARGET_APPLICATION_ID:
-        raise HTTPException(status_code=404, detail="Для этой заявки приглашение не предусмотрено.")
     with core.SessionLocal() as session:
         with session.begin():
-            application = _get_application(session)
+            application = session.scalar(
+                select(FinancialAdminApplication)
+                .where(FinancialAdminApplication.id == application_id)
+                .with_for_update()
+            )
+            if not application:
+                raise HTTPException(status_code=404, detail="Заявка не найдена.")
+            if application.status not in {"pending", "interview"}:
+                raise HTTPException(status_code=409, detail="Текущий статус заявки не допускает приглашение.")
             existing = session.get(FinanceStage2Invitation, application.id)
             if existing is not None:
                 return {"ok": True, "already_sent": True, "sent_at": existing.sent_at.isoformat()}
@@ -294,7 +293,7 @@ async def invite_stage2_by_owner(
             )
             if submitted:
                 raise HTTPException(status_code=409, detail="Кандидат уже прошёл второй этап.")
-            await asyncio.to_thread(_send_stage2_invitation)
+            await asyncio.to_thread(_send_stage2_invitation, application)
             timestamp = core.now_utc()
             session.add(FinanceStage2Invitation(
                 application_id=application.id,
