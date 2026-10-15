@@ -49,3 +49,13 @@
 .nyid-empty{font-size:11px;color:#a67a90}
 @media(max-width:365px){.nyid-dialog{padding:14px 12px 18px}.nyid-card{padding:15px;border-radius:19px}.nyid-modal-title{font-size:21px}.nyid-edition{padding:5px 6px}.nyid-card-number{font-size:10px;letter-spacing:.025em}}
 @media(prefers-reduced-motion:no-preference){.nyid-layer:not([hidden]) .nyid-dialog{animation:nyid-enter .19s ease-out}@keyframes nyid-enter{from{transform:translateY(14px);opacity:.65}to{transform:translateY(0);opacity:1}}}
+
+
+/* Prominent always-present entry, before the balance card. */
+#nyid-front-open.nyid-front-entry{display:flex!important;align-items:center!important;gap:11px!important;width:100%!important;min-height:63px!important;margin:0 0 12px!important;padding:10px 13px!important;border:1px solid #eac8d8!important;border-radius:20px!important;box-shadow:0 7px 22px rgba(120,34,73,.09)!important;background:linear-gradient(105deg,#fff4f9,#ffe3ef)!important;color:#79264d!important;text-align:left!important;cursor:pointer!important;box-sizing:border-box!important}
+#nyid-front-open .nyid-front-symbol{display:grid;place-items:center;flex:none;width:42px;height:42px;border-radius:14px;background:#fff;color:#a23466;font-size:27px;font-weight:800;box-shadow:0 4px 14px rgba(120,34,73,.07)}
+#nyid-front-open .nyid-front-title{display:flex;flex:1;flex-direction:column;min-width:0;gap:3px}
+#nyid-front-open .nyid-front-title strong{font-size:15px;font-weight:900;letter-spacing:-.025em;line-height:1.15}
+#nyid-front-open .nyid-front-title small{font-size:10px;font-weight:600;line-height:1.3;color:#a16984}
+#nyid-front-open .nyid-front-chevron{flex:none;font-size:25px;color:#a7517d;line-height:1}
+#nyid-front-open:active{transform:scale(.992)}
