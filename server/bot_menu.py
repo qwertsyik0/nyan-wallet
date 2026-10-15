@@ -5,12 +5,24 @@ import logging
 import os
 import urllib.error
 import urllib.request
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from . import backend_app as core
 
 logger = logging.getLogger("nyan_wallet.bot_menu")
 
 MINI_APP_URL = os.getenv("MINI_APP_URL", "https://qwertsyik0.github.io/nyan-wallet/").strip() or "https://qwertsyik0.github.io/nyan-wallet/"
+
+# Telegram WebViews may cache the old index even after GitHub Pages is updated.
+# Synchronize a versioned menu URL so opening the bot loads the latest release.
+def _menu_app_url(url: str) -> str:
+    parsed = urlsplit(url)
+    query = [(k, v) for k, v in parse_qsl(parsed.query, keep_blank_values=True) if k != "nyan_build"]
+    query.append(("nyan_build", "20261015-nyanid2"))
+    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(query), parsed.fragment))
+
+
+MENU_APP_URL = _menu_app_url(MINI_APP_URL)
 
 
 def _set_chat_menu_button(*, chat_id: int | None, text: str, url: str) -> None:
@@ -43,12 +55,12 @@ def sync_bot_menu_buttons() -> None:
     """Keep the public bot menu non-admin; reserve Manage for the owner only."""
 
     try:
-        _set_chat_menu_button(chat_id=None, text="Nyan Wallet", url=MINI_APP_URL)
+        _set_chat_menu_button(chat_id=None, text="Nyan Wallet", url=MENU_APP_URL)
         if core.OWNER_TELEGRAM_ID is not None:
             _set_chat_menu_button(
                 chat_id=int(core.OWNER_TELEGRAM_ID),
                 text="Управлять",
-                url=MINI_APP_URL,
+                url=MENU_APP_URL,
             )
         print("[bot_menu] public=Nyan Wallet owner=Управлять synchronized")
     except (urllib.error.URLError, TimeoutError, RuntimeError, ValueError) as exc:
