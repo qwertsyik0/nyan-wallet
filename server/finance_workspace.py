@@ -575,6 +575,13 @@ async def decide_request(
                     session.add(transaction)
                     session.flush()
                     record.transaction_id = transaction.id
+                    session.add(FinanceTelegramDelivery(
+                        request_id=record.id,
+                        recipient_id=target.telegram_id,
+                        status="pending",
+                        attempts=0,
+                        updated_at=core.now_utc(),
+                    ))
                 elif record.action != "investigate":
                     raise HTTPException(status_code=422, detail="Неподдерживаемый тип заявки")
             record.status = "approved" if payload.decision == "approve" else "rejected"
@@ -588,7 +595,10 @@ async def decide_request(
                 f"Заявка №{record.id}, стажёр {record.trainee_id}, "
                 f"{record.action}, {record.amount} 🐾, транзакция {record.transaction_id or 'нет'}",
             )
+            session.flush()
             response = _serialize(record, session, include_trainee=True)
+    if payload.decision == "approve" and response["transaction_id"]:
+        background_tasks.add_task(_send_approved_finance_notice, request_id)
     verdict = "одобрена" if payload.decision == "approve" else "отклонена"
     detail = (
         "Начисление/списание проведено после подтверждения владельца."
