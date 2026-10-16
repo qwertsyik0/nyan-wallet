@@ -770,24 +770,31 @@ async def retry_financial_notification(
             )
             if not record:
                 raise HTTPException(status_code=404, detail="Заявка не найдена")
-            if record.status != "approved" or record.action not in {"grant", "debit"}:
-                raise HTTPException(status_code=409, detail="Нет подтверждённой денежной операции")
-            tx = session.get(core.Transaction, record.transaction_id) if record.transaction_id else None
-            expected_amount = record.amount if record.action == "grant" else -record.amount
-            if tx is None or tx.telegram_id != record.target_id or tx.amount != expected_amount:
-                raise HTTPException(status_code=409, detail="Запись транзакции не совпадает с заявкой")
+            if record.status != "approved" or record.action not in {"grant", "debit", "investigate"}:
+                raise HTTPException(status_code=409, detail="Нет одобренного решения по заявке")
+            if record.action in {"grant", "debit"}:
+                tx = session.get(core.Transaction, record.transaction_id) if record.transaction_id else None
+                expected_amount = record.amount if record.action == "grant" else -record.amount
+                if tx is None or tx.telegram_id != record.target_id or tx.amount != expected_amount:
+                    raise HTTPException(status_code=409, detail="Запись транзакции не совпадает с заявкой")
+                recipient_id = record.target_id
+            else:
+                _staff_or_forbidden(session, record.trainee_id)
+                recipient_id = record.trainee_id
             delivery = session.scalar(select(FinanceTelegramDelivery).where(
                 FinanceTelegramDelivery.request_id == request_id
             ).with_for_update())
             if delivery is None:
                 delivery = FinanceTelegramDelivery(
                     request_id=request_id,
-                    recipient_id=record.target_id,
+                    recipient_id=recipient_id,
                     status="pending",
                     attempts=0,
                     updated_at=core.now_utc(),
                 )
                 session.add(delivery)
+            elif delivery.recipient_id != recipient_id:
+                raise HTTPException(status_code=409, detail="Получатель уведомления не совпадает с заявкой")
             elif delivery.status == "sent":
                 raise HTTPException(status_code=409, detail="Уведомление уже отправлено")
             elif delivery.status == "sending":
@@ -862,7 +869,15 @@ async def decide_request(
                         attempts=0,
                         updated_at=core.now_utc(),
                     ))
-                elif record.action != "investigate":
+                elif record.action == "investigate":
+                    session.add(FinanceTelegramDelivery(
+                        request_id=record.id,
+                        recipient_id=record.trainee_id,
+                        status="pending",
+                        attempts=0,
+                        updated_at=core.now_utc(),
+                    ))
+                else:
                     raise HTTPException(status_code=422, detail="Неподдерживаемый тип заявки")
             record.status = "approved" if payload.decision == "approve" else "rejected"
             record.decided_at = core.now_utc()
@@ -877,7 +892,7 @@ async def decide_request(
             )
             session.flush()
             response = _serialize(record, session, include_trainee=True)
-    if payload.decision == "approve" and response["transaction_id"]:
+    if payload.decision == "approve" and record.action in {"grant", "debit", "investigate"}:
         background_tasks.add_task(_send_approved_finance_notice, request_id)
     verdict = "одобрена" if payload.decision == "approve" else "отклонена"
     detail = (
@@ -887,13 +902,16 @@ async def decide_request(
         if payload.decision == "approve" else
         "Баланс пользователя не изменился."
     )
-    background_tasks.add_task(
-        _send_notification, record.trainee_id,
-        f"🐾 Nyan Wallet | Заявка №{request_id} {verdict}\n"
-        f"{detail}\n"
-        + (f"Комментарий владельца: {payload.note}" if payload.note else ""),
-        button=True,
-    )
+    # For investigations the full wallet report IS the approval notification.
+    # Do not send a redundant "approved" message without the actual data.
+    if not (payload.decision == "approve" and record.action == "investigate"):
+        background_tasks.add_task(
+            _send_notification, record.trainee_id,
+            f"🐾 Nyan Wallet | Заявка №{request_id} {verdict}\n"
+            f"{detail}\n"
+            + (f"Комментарий владельца: {payload.note}" if payload.note else ""),
+            button=True,
+        )
     return {"ok": True, "request": response}
 
 
