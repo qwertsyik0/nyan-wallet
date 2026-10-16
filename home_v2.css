@@ -27,7 +27,11 @@
   border-radius:30px;
   box-shadow:0 20px 48px rgba(131,38,77,.13);
 }
+/* Original buttons remain click proxies only. Also hide stale versions of home_v2.js. */
 #wallet-view>.actions,
+#wallet-view>.actions.nyan-actions-grid,
+#wallet-view .actions.nyan-actions-grid,
+#nyan-home-v2>.nyan-home-primary,
 #wallet-view>#activity-streak-card,
 #wallet-view>#daily-tasks-card,
 #wallet-view>#adv-level-card,
@@ -35,61 +39,12 @@
   display:none!important;
 }
 .nyan-home-v2{
-  margin-top:13px;
+  margin-top:12px;
   display:grid;
-  gap:11px;
+  gap:10px;
 }
 .nyan-home-v2 button span{
   margin-right:0;
-}
-.nyan-home-primary{
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:9px;
-}
-.nyan-home-action{
-  display:flex;
-  align-items:center;
-  justify-content:flex-start;
-  gap:9px;
-  min-width:0;
-  min-height:70px;
-  padding:11px;
-  border:1px solid #eed7e1;
-  border-radius:18px;
-  background:linear-gradient(145deg,#fff,#fff8fb);
-  color:var(--ny-text,#6e2147);
-  box-shadow:0 6px 18px rgba(114,34,70,.045);
-  text-align:left;
-}
-.nyan-home-action[data-home-key="earn"],
-.nyan-home-action[data-home-key="spend"]{
-  background:linear-gradient(135deg,#fff4f8,#fff);
-  border-color:#eecddd;
-}
-.nyan-home-action:active{
-  transform:scale(.98);
-}
-.nyan-home-action-icon{
-  width:35px;
-  height:35px;
-  flex:0 0 35px;
-  display:grid;
-  place-items:center;
-  border-radius:12px;
-  background:linear-gradient(145deg,#fff0f6,#ffe1ec);
-  color:#8f2955;
-  font-size:19px;
-  font-weight:900;
-}
-.nyan-home-action-label{
-  min-width:0;
-  display:block;
-  font-size:12px;
-  line-height:1.3;
-  font-weight:800;
-  white-space:normal;
-  overflow-wrap:anywhere;
 }
 .nyan-home-panel{
   padding:15px;
@@ -213,7 +168,6 @@
 }
 .nyan-home-more-button[hidden]{display:none!important}
 .nyan-home-more-button:active{background:#fff4f8;border-radius:12px}
-.nyan-home-action,
 .nyan-home-more-button,
 .nyan-home-today-card,
 .nyan-history-toggle,
@@ -226,7 +180,6 @@
 .nyan-home-owner:active{
   transform:scale(.99);
 }
-.nyan-home-action:focus-visible,
 .nyan-home-more-button:focus-visible,
 .nyan-home-today-card:focus-visible,
 .nyan-history-toggle:focus-visible,
@@ -235,7 +188,6 @@
   outline-offset:2px;
 }
 @media(prefers-reduced-motion:reduce){
-  .nyan-home-action,
   .nyan-home-more-button,
   .nyan-home-today-card,
   .nyan-history-toggle,
@@ -310,15 +262,12 @@
 }
 .nyan-home-owner[hidden]{display:none!important}
 @media(max-width:350px){
-  .nyan-home-action{gap:7px;padding:9px 7px;min-height:67px}
-  .nyan-home-action-icon{width:31px;height:31px;flex-basis:31px;font-size:17px}
-  .nyan-home-action-label{font-size:11px}
   .nyan-home-today{grid-template-columns:1fr}
   .nyan-home-today-card{min-height:92px}
   .nyan-home-more-button{font-size:11px;gap:5px}
 }
 @media(max-width:300px){
-  .nyan-home-primary,.nyan-home-more{grid-template-columns:1fr}
+  .nyan-home-more{grid-template-columns:1fr}
 }
 
 /* Strict mobile layout: the home screen never scrolls sideways. */
@@ -337,7 +286,6 @@ html,body{
 #wallet-view,
 .nyan-home-v2,
 .nyan-home-panel,
-.nyan-home-action,
 .nyan-home-today-card,
 .nyan-home-more-button,
 #wallet-view>.history{
