@@ -15,11 +15,11 @@ assert(page.includes('id="el-create" class="el-form" novalidate'),"Native valida
 assert(page.includes('id="el-form-feedback"'),"Missing visible error location");
 assert(page.includes('id="el-program-counter"'),"Missing live program counter");
 assert(style.includes(".el-form-feedback{"),"Missing error feedback style");
-assert(script.includes('await mutate(owned ? "/owner/parties/replace" : "/parties",payload);'),"Normal and owner replacement submissions must use correct endpoints");
-assert(script.includes('state.owned_party'),"Owner's current party must be recognized");
-assert(script.includes('el-replace-confirm'),"Owner replacement requires explicit confirmation");
-assert(page.includes('id="el-replace-warning"'),"Missing owner replacement warning");
-assert(page.includes('id="el-replace-confirm"'),"Missing replace confirmation input");
+assert(script.includes('await mutate("/parties",payload);'),"Regular party submissions must reach API");
+assert(script.includes('state.is_owner||'),"Owner must never see Create Party form");
+assert(script.includes('if(state?.is_owner)'),"Owner submit must be rejected even if form is forced visible");
+assert(!script.includes('"/owner/parties/replace"'),"Owner replacement entry point must be retired");
+assert(!page.includes('id="el-replace-warning"'),"Owner replacement controls must be removed");
 assert(script.includes('else submitParty(form);'),"Submit event not routed into validation");
 
 function validate(values,image=null) {
