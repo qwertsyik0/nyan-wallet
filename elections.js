@@ -9,12 +9,64 @@ tg?.ready?.(); tg?.expand?.();
 function make(tag,cls,value){const n=document.createElement(tag);if(cls)n.className=cls;if(value!==undefined)n.textContent=String(value);return n;}
 function reset(node){node.replaceChildren();}
 function alertUser(message){const n=$("el-alert");n.textContent=message||"";n.hidden=!message;}
+function formFeedback(message){
+  const box=$("el-form-feedback");
+  box.textContent=message||"";
+  box.hidden=!message;
+  if(message)box.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+function programCount(){
+  const text=$("el-create").elements.namedItem("program")?.value?.trim()||"";
+  const counter=$("el-program-counter");
+  const length=text.length;
+  counter.textContent=length>=30 ? length+" символов · достаточно для заявки" : length+" из 30 минимальных символов";
+  counter.dataset.valid=String(length>=30);
+}
+function validateParty(form){
+  const fields={
+    name:form.elements.namedItem("name"),
+    short_name:form.elements.namedItem("short_name"),
+    program:form.elements.namedItem("program"),
+  };
+  const name=fields.name.value.trim().replace(/\s+/g," ");
+  const abbreviation=fields.short_name.value.trim().replace(/\s+/g," ");
+  const program=fields.program.value.trim();
+  const errors=[
+    [!name,"name","Введите название партии."],
+    [name.length<3,"name","Название партии должно содержать не менее 3 символов."],
+    [name.length>80,"name","Название партии не должно превышать 80 символов."],
+    [!abbreviation,"short_name","Введите аббревиатуру партии."],
+    [abbreviation.length<2 || abbreviation.length>15,"short_name","Аббревиатура должна содержать от 2 до 15 символов."],
+    [abbreviation.length>=2 && !/^[A-Za-zА-Яа-яЁё0-9 -]+$/.test(abbreviation),"short_name","Аббревиатура может содержать только буквы, цифры, пробелы и дефисы."],
+    [program.length<30,"program","Напишите программу партии: минимум 30 символов (сейчас "+program.length+")."],
+    [program.length>3000,"program","Программа партии не должна превышать 3000 символов."],
+  ];
+  for(const [failed,field,message] of errors){
+    if(failed){formFeedback(message);fields[field].focus();return null;}
+  }
+  if(selectedEmblem && (!["image/png","image/jpeg","image/webp"].includes(selectedEmblem.type)||selectedEmblem.size>2*1024*1024||!selectedEmblem.size)){
+    formFeedback("Для эмблемы выберите PNG, JPG или WebP до 2 МБ.");
+    $("el-emblem-input").focus();
+    return null;
+  }
+  formFeedback("");
+  return {name,short_name:abbreviation,program};
+}
 function button(label,action,id,secondary=false){const n=make("button","el-button"+(secondary?" secondary":""),label);n.type="button";n.dataset.action=action;if(id!==undefined)n.dataset.id=String(id);return n;}
 async function request(path="",payload){
   if(!tg?.initData)throw Error("Откройте выборы через кнопку в Telegram.");
   const r=await fetch(API+path,{method:payload===undefined?"GET":"POST",headers:{"X-Telegram-Init-Data":tg.initData,...(payload===undefined?{}:{"Content-Type":"application/json"})},body:payload===undefined?undefined:JSON.stringify(payload),cache:"no-store"});
   let data=null;try{data=await r.json();}catch(_){}
-  if(!r.ok)throw Error(typeof data?.detail==="string"?data.detail:"Не удалось выполнить действие. Повторите позже.");
+  if(!r.ok){
+    const detail=data?.detail;
+    if(r.status===503 && (detail==="maintenance" || data?.maintenance))throw Error("Сейчас включены технические работы. Попробуйте после их завершения.");
+    if(r.status===413)throw Error("Изображение слишком большое. Максимум 2 МБ.");
+    if(Array.isArray(detail)){
+      const messages=detail.slice(0,3).map(item=>item?.msg||"Недопустимое значение");
+      throw Error("Проверьте данные заявки: "+messages.join("; "));
+    }
+    throw Error(typeof detail==="string"?detail:"Не удалось отправить заявку (HTTP "+r.status+").");
+  }
   return data;
 }
 function partyCard(p){
@@ -138,18 +190,28 @@ function fileToDataUrl(file){
 async function submitParty(form){
   if(busy||readingImage)return;
   readingImage=true;
-  const data=Object.fromEntries(new FormData(form));
-  const payload={name:data.name,short_name:data.short_name,program:data.program};
+  const payload=validateParty(form);
+  if(!payload){readingImage=false;return;}
+  const sendButton=$("el-party-submit");
+  const defaultText=sendButton.textContent;
+  sendButton.disabled=true;
+  sendButton.textContent="Отправляем заявку…";
   try{
     if(selectedEmblem)payload.emblem_data=await fileToDataUrl(selectedEmblem);
+    await mutate("/parties",payload);
   }catch(e){
-    alertUser(e.message);
+    formFeedback(e.message||"Не удалось прочитать изображение");
+  }finally{
     readingImage=false;
-    return;
+    sendButton.disabled=false;
+    sendButton.textContent=defaultText;
   }
-  readingImage=false;
-  await mutate("/parties",payload);
 }
+$("el-create").addEventListener("input",()=>{
+  formFeedback("");
+  programCount();
+});
+programCount();
 $("el-emblem-input").addEventListener("change",event=>{
   showEmblem(event.target.files?.[0]||null);
 });
@@ -170,7 +232,12 @@ async function mutate(path,payload={}){
   if(busy)return;busy=true;
   document.querySelectorAll("#el-main button").forEach(n=>n.disabled=true);
   try{await request(path,payload);await reload("Изменения сохранены.");}
-  catch(e){alertUser(e.message);if(state)render();}
+  catch(e){
+    const message=e?.name==="TypeError" ? "Не удалось подключиться к серверу. Проверьте соединение и повторите." : e.message;
+    if(path==="/parties")formFeedback(message);
+    else alertUser(message);
+    if(state)render();
+  }
   finally{busy=false;}
 }
 document.addEventListener("click",event=>{
@@ -183,10 +250,12 @@ document.addEventListener("click",event=>{
 });
 document.addEventListener("submit",event=>{
   const form=event.target;if(!["el-create","el-season-form"].includes(form.id))return;
-  event.preventDefault();if(!form.reportValidity())return;
-  const data=Object.fromEntries(new FormData(form));
-  if(form.id==="el-season-form")mutate("/owner/seasons",{title:data.title});
-  else submitParty(form);
+  event.preventDefault();
+  if(form.id==="el-season-form"){
+    if(!form.reportValidity())return;
+    const data=Object.fromEntries(new FormData(form));
+    mutate("/owner/seasons",{title:data.title});
+  }else submitParty(form);
 });
 $("el-back").addEventListener("click",()=>{
   if(history.length>1)history.back();
