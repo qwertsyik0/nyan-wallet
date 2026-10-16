@@ -6,14 +6,19 @@ starting ballots and awarding governing privileges require later, separately tes
 
 from __future__ import annotations
 
+import base64
+import binascii
+import io
+import logging
 import re
 from datetime import datetime, timezone
+from PIL import Image, ImageOps, UnidentifiedImageError
 from typing import Literal
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func, select
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -22,6 +27,10 @@ from .user_bans import BlockedUser
 
 router = APIRouter(prefix="/api/elections", tags=["elections"])
 _REGISTERED = False
+logger = logging.getLogger("nyan_wallet.elections")
+MAX_IMAGE_INPUT_BYTES = 2 * 1024 * 1024
+MAX_IMAGE_PIXELS = 10_000_000
+FIRST_RELEASE_UTC = datetime(2026, 10, 16, 20, 0, tzinfo=timezone.utc)
 
 ACTIVE_PHASES = ("registration", "recruitment", "campaign")
 JOIN_PHASES = ("recruitment", "campaign")
@@ -71,6 +80,27 @@ class ElectionParty(core.Base):
     decision_note: Mapped[str | None] = mapped_column(String(300), nullable=True)
 
 
+class ElectionPartyEmblem(core.Base):
+    """Sanitized emblem bytes stored with the application data, not on ephemeral disk."""
+
+    __tablename__ = "election_party_emblems"
+    party_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("election_parties.id", ondelete="CASCADE"), primary_key=True
+    )
+    image_data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    mime_type: Mapped[str] = mapped_column(String(40), nullable=False, default="image/webp")
+
+
+class ElectionInitialRollback(core.Base):
+    """One-off audit prevents later legitimate seasons being removed at restart."""
+
+    __tablename__ = "election_initial_rollback_20261016"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    season_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    status: Mapped[str] = mapped_column(String(60), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class ElectionMembership(core.Base):
     """Database-level guarantee: at most one party per person within a season."""
 
@@ -109,6 +139,7 @@ class CreateParty(BaseModel):
     short_name: str = Field(min_length=2, max_length=15)
     program: str = Field(min_length=30, max_length=3000)
     emblem_url: str | None = Field(default=None, max_length=500)
+    emblem_data: str | None = Field(default=None, max_length=2_900_000)
 
     @field_validator("name", "short_name")
     @classmethod
@@ -144,6 +175,40 @@ class CreateParty(BaseModel):
         if url.scheme != "https" or not url.netloc or url.username or url.password:
             raise ValueError("Эмблема должна быть доступна по HTTPS")
         return value
+
+
+def sanitize_emblem(raw: str | None) -> bytes | None:
+    if not raw:
+        return None
+    if not raw.startswith("data:image/") or ";base64," not in raw:
+        raise HTTPException(status_code=422, detail="Загрузите файл изображения из галереи")
+    content_type, encoded = raw.split(";base64,", 1)
+    if content_type not in {"data:image/png", "data:image/jpeg", "data:image/webp"}:
+        raise HTTPException(status_code=422, detail="Разрешены PNG, JPEG и WebP")
+    if len(encoded) > ((MAX_IMAGE_INPUT_BYTES + 2) // 3) * 4:
+        raise HTTPException(status_code=413, detail="Максимальный размер изображения — 2 МБ")
+    try:
+        payload = base64.b64decode(encoded, validate=True)
+    except (ValueError, binascii.Error) as exc:
+        raise HTTPException(status_code=422, detail="Изображение повреждено") from exc
+    if not payload or len(payload) > MAX_IMAGE_INPUT_BYTES:
+        raise HTTPException(status_code=413, detail="Максимальный размер изображения — 2 МБ")
+    try:
+        with Image.open(io.BytesIO(payload)) as source:
+            if source.format not in {"PNG", "JPEG", "WEBP"}:
+                raise ValueError("Unsupported image")
+            if source.width * source.height > MAX_IMAGE_PIXELS:
+                raise ValueError("Too many pixels")
+            source.load()
+            # Strip EXIF, author/device metadata and animations by re-encoding.
+            with ImageOps.exif_transpose(source) as image:
+                image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+                converted = image.convert("RGBA" if "A" in image.getbands() else "RGB")
+                buffer = io.BytesIO()
+                converted.save(buffer, format="WEBP", quality=83, method=4)
+                return buffer.getvalue()
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as exc:
+        raise HTTPException(status_code=422, detail="Не удалось обработать изображение") from exc
 
 
 class ReviewParty(BaseModel):
@@ -200,7 +265,11 @@ def party_data(party: ElectionParty, session, *, include_private: bool = False) 
         "name": party.name,
         "short_name": party.short_name,
         "program": party.program,
-        "emblem_url": party.emblem_url,
+        "emblem_url": (
+            f"/api/elections/parties/{party.id}/emblem"
+            if session.get(ElectionPartyEmblem, party.id) is not None
+            else party.emblem_url
+        ),
         "chair_label": ("@" + chair.username) if chair and chair.username else (
             chair.first_name if chair else "пользователь"
         ),
@@ -269,12 +338,27 @@ async def owner_create_season(
     return {"ok": True, "season_id": season_id, "phase": "registration"}
 
 
+@router.get("/parties/{party_id}/emblem")
+async def serve_party_emblem(party_id: int):
+    with core.SessionLocal() as session:
+        party = session.get(ElectionParty, party_id)
+        image = session.get(ElectionPartyEmblem, party_id) if party else None
+        if not image:
+            raise HTTPException(status_code=404, detail="Эмблема не найдена")
+        return Response(
+            content=image.image_data,
+            media_type="image/webp",
+            headers={"Cache-Control": "public, max-age=300", "X-Content-Type-Options": "nosniff"},
+        )
+
+
 @router.post("/parties")
 async def create_party(
     payload: CreateParty,
     x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
 ):
     uid = auth(x_telegram_init_data)
+    sanitized_image = sanitize_emblem(payload.emblem_data)
     with core.SessionLocal() as session:
         try:
             with session.begin():
@@ -296,6 +380,10 @@ async def create_party(
                 session.add(party)
                 session.flush()
                 party_id = party.id
+                if sanitized_image is not None:
+                    session.add(ElectionPartyEmblem(
+                        party_id=party_id, image_data=sanitized_image, mime_type="image/webp"
+                    ))
         except IntegrityError as exc:
             raise HTTPException(status_code=409, detail="Название или аббревиатура уже заняты") from exc
     return {"ok": True, "party_id": party_id, "status": "pending"}
@@ -446,6 +534,43 @@ async def leave_party(x_telegram_init_data: str | None = Header(default=None, al
     return {"ok": True}
 
 
+def rollback_first_empty_season_once() -> str:
+    """User-requested cancellation of the initially created season.
+
+    Delete ONLY the one first season after feature activation and only if no
+    parties or memberships exist. Persist the outcome so later restarts cannot
+    remove new user-created seasons. Never change balances or user accounts.
+    """
+    with core.SessionLocal() as session:
+        with session.begin():
+            if session.get(ElectionInitialRollback, 1) is not None:
+                return "already_processed"
+            season = latest_season(session, lock=True)
+            season_id = season.id if season else None
+            count = session.scalar(select(func.count(ElectionSeason.id))) or 0
+            status = "no_initial_season"
+            if season is not None:
+                created = season.created_at
+                if created.tzinfo is None:
+                    created = created.replace(tzinfo=timezone.utc)
+                if (count != 1 or season.id != 1 or season.phase != "registration"
+                        or created < FIRST_RELEASE_UTC):
+                    status = "skipped_not_initial_registration"
+                else:
+                    has_parties = session.scalar(select(ElectionParty.id).where(ElectionParty.season_id == season.id).limit(1))
+                    has_members = session.scalar(select(ElectionMembership.id).where(ElectionMembership.season_id == season.id).limit(1))
+                    if has_parties is not None or has_members is not None:
+                        status = "skipped_contains_party_data"
+                    else:
+                        session.delete(season)
+                        status = "empty_initial_season_rolled_back"
+            session.add(ElectionInitialRollback(
+                id=1, season_id=season_id, status=status, created_at=timestamp()
+            ))
+    logger.warning("election_initial_rollback season_id=%s result=%s", season_id, status)
+    return status
+
+
 def register_elections(app) -> None:
     global _REGISTERED
     if _REGISTERED:
@@ -453,5 +578,8 @@ def register_elections(app) -> None:
     ElectionSeason.__table__.create(bind=core.engine, checkfirst=True)
     ElectionParty.__table__.create(bind=core.engine, checkfirst=True)
     ElectionMembership.__table__.create(bind=core.engine, checkfirst=True)
+    ElectionPartyEmblem.__table__.create(bind=core.engine, checkfirst=True)
+    ElectionInitialRollback.__table__.create(bind=core.engine, checkfirst=True)
+    rollback_first_empty_season_once()
     app.include_router(router)
     _REGISTERED = True
