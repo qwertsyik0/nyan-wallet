@@ -2,7 +2,7 @@ name: Backend and client syntax check
 
 on:
   push:
-    branches: [main, 'feature/nsn-member-private-letters-20261017']
+    branches: [main]
     paths:
       - "server/**/*.py"
       - "*.js"
