@@ -189,7 +189,7 @@
     const actionName = decision === "approve" ? "ОДОБРИТЬ" : "ОТКЛОНИТЬ";
     if (decision === "reject" && !note.trim()) return notify("Для отказа укажите причину", true);
     const statement = item.action === "investigate" ?
-      "Подтверждение только зафиксирует решение без изменения баланса" :
+      "После одобрения бот отправит стажёру личный отчёт по кошельку. Баланс не изменится" :
       "При одобрении баланс пользователя будет изменён на " + item.amount + " 🐾";
     if (!window.confirm(
       actionName + " заявку №" + item.id + "?\n" +
@@ -208,7 +208,7 @@
       notify(decision === "approve"
         ? (result.request.transaction_id
           ? "Заявка №" + item.id + " одобрена, транзакция №" + result.request.transaction_id + " проведена. Уведомление получателю отправляется отдельно"
-          : "Проверка по заявке №" + item.id + " согласована без изменения баланса")
+          : "Проверка по заявке №" + item.id + " согласована. Отчёт отправляется стажёру в Telegram")
         : "Заявка №" + item.id + " отклонена");
       await refreshOwner();
       tg?.HapticFeedback?.notificationOccurred?.("success");
@@ -222,7 +222,7 @@
   function ownerCard(item) {
     const card = cardHeading(item, true);
     if (item.status !== "pending") {
-      if (item.status === "approved" && ["grant", "debit"].includes(item.action)) {
+      if (item.status === "approved" && ["grant", "debit", "investigate"].includes(item.action)) {
         const delivery = item.telegram_notification;
         const notificationText = {
           pending: "Ожидает отправки",
@@ -231,7 +231,7 @@
           failed: "Не удалось отправить"
         };
         card.appendChild(create("div", "fw-card-meta",
-          "Сообщение Telegram: " +
+          (item.action === "investigate" ? "Отчёт стажёру: " : "Сообщение пользователю: ") +
           (delivery ? (notificationText[delivery.status] || delivery.status) :
             "Ранее не отслеживалось") +
           (delivery?.last_error ? " · " + delivery.last_error : "")
@@ -259,15 +259,18 @@
           } catch (error) { info.textContent = error.message || "Ошибка проверки"; }
           finally { verify.disabled = false; }
         });
-        buttons.append(verify);
+        if (item.action !== "investigate") buttons.append(verify);
         if (!delivery || delivery.status === "failed" || delivery.status === "pending") {
           const retry = create("button", "fw-small-button",
-            delivery ? "Повторить отправку" : "Отправить уведомление");
+            item.action === "investigate" ? "Отправить отчёт стажёру" :
+              (delivery ? "Повторить отправку" : "Отправить уведомление"));
           retry.type = "button";
           retry.addEventListener("click", async () => {
             if (!window.confirm(
-              "Отправить пользователю сообщение о заявке №" + item.id +
-              "?\nБаланс не изменится повторно"
+              (item.action === "investigate" ?
+                "Отправить стажёру данные кошелька по заявке №" + item.id :
+                "Отправить пользователю сообщение о заявке №" + item.id) +
+              "?\nБаланс не изменится"
             )) return;
             retry.disabled = true;
             try {
@@ -275,7 +278,7 @@
                 "/api/owner/finance/requests/" + item.id + "/retry-notification",
                 "POST", {}
               );
-              notify("Сообщение поставлено на отправку, операция с балансом не повторялась");
+              notify("Сообщение поставлено на отправку, баланс не изменялся");
               await refreshOwner();
             } catch (error) {
               notify(error.message || "Не удалось отправить уведомление", true);
