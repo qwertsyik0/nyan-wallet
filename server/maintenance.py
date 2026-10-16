@@ -24,6 +24,10 @@ _REGISTERED = False
 STATE_ID = 1
 SIGNATURE_MAX_AGE_SECONDS = 180
 
+# These accounts can test Nyan Wallet while maintenance mode is enabled.
+# This is not an administrator or owner permission.
+MAINTENANCE_TESTER_IDS = frozenset({8678350891, 8252951161, 8587776155})
+
 DEFAULT_TITLE = "Nyan Wallet становится лучше"
 DEFAULT_MESSAGE = (
     "Сейчас мы проводим технические работы: добавляем новые функции, "
@@ -68,6 +72,10 @@ class InternalMaintenancePayload(BaseModel):
             return None
         normalized = " ".join(value.split())
         return normalized or None
+
+
+def can_bypass_maintenance(telegram_id: int) -> bool:
+    return core.is_owner(telegram_id) or telegram_id in MAINTENANCE_TESTER_IDS
 
 
 def now_utc() -> datetime:
@@ -144,19 +152,23 @@ async def maintenance_status(
     x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
 ):
     is_owner = False
+    can_bypass = False
     if x_telegram_init_data:
         try:
             tg = core.verify_init_data(x_telegram_init_data)
-            is_owner = core.is_owner(int(tg["id"]))
-        except HTTPException:
-            is_owner = False
+            telegram_id = int(tg["id"])
+            is_owner = core.is_owner(telegram_id)
+            can_bypass = can_bypass_maintenance(telegram_id)
+        except (HTTPException, ValueError, TypeError, KeyError):
+            pass
 
     state = read_state()
     return {
         "ok": True,
         "maintenance": state,
         "owner_bypass": is_owner,
-        "blocked": bool(state["enabled"] and not is_owner),
+        "tester_bypass": bool(can_bypass and not is_owner),
+        "blocked": bool(state["enabled"] and not can_bypass),
     }
 
 
@@ -231,9 +243,9 @@ async def maintenance_guard(request: Request, call_next):
     if init_data:
         try:
             tg = core.verify_init_data(init_data)
-            if core.is_owner(int(tg["id"])):
+            if can_bypass_maintenance(int(tg["id"])):
                 return await call_next(request)
-        except HTTPException:
+        except (HTTPException, ValueError, TypeError, KeyError):
             pass
 
     return JSONResponse(
