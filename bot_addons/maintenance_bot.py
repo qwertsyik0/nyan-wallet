@@ -333,7 +333,7 @@ async def maintenance_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         await message.reply_text(
             "Технические работы включены.\n"
             "Обычные пользователи увидят страницу обслуживания.\n"
-            "Для владельца Mini App продолжает работать в штатном режиме.\n\n"
+            "Для владельца и трёх тестировщиков Mini App продолжает работать в штатном режиме.\n\n"
             f"{state['message']}"
         )
     else:
