@@ -10,6 +10,7 @@ import logging
 import re
 import urllib.parse
 import urllib.request
+import urllib.error
 from datetime import datetime, timedelta
 from typing import Literal
 
@@ -75,6 +76,22 @@ class FinanceDecisionRequest(core.Base):
     transaction_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
+class FinanceTelegramDelivery(core.Base):
+    """State of the Telegram user-message associated with an approved finance operation."""
+    __tablename__ = "finance_telegram_deliveries"
+
+    request_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("finance_decision_requests.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    recipient_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_error: Mapped[str | None] = mapped_column(String(250), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class ProposalPayload(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     target: str | None = Field(default=None, max_length=128)
@@ -132,6 +149,13 @@ def _serialize(item: FinanceDecisionRequest, session, *, include_trainee: bool =
         "transaction_id": item.transaction_id,
     }
     if include_trainee:
+        delivery = session.get(FinanceTelegramDelivery, item.id)
+        result["telegram_notification"] = (
+            {"status": delivery.status, "attempts": delivery.attempts,
+             "last_error": delivery.last_error,
+             "sent_at": delivery.sent_at.isoformat() if delivery.sent_at else None}
+            if delivery else None
+        )
         result["trainee_id"] = item.trainee_id
         result["trainee_label"] = _name(session.get(core.User, item.trainee_id))
     return result
@@ -500,6 +524,7 @@ def register_finance_workspace(app) -> None:
         return
     FinanceTrainee.__table__.create(bind=core.engine, checkfirst=True)
     FinanceDecisionRequest.__table__.create(bind=core.engine, checkfirst=True)
+    FinanceTelegramDelivery.__table__.create(bind=core.engine, checkfirst=True)
     # Backward-compatible migration for requests created before technical
     # investigations were allowed without a known wallet user.
     if core.engine.dialect.name == "postgresql":
