@@ -9,14 +9,17 @@ from __future__ import annotations
 import base64
 import binascii
 import io
+import json
 import logging
 import re
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from PIL import Image, ImageOps, UnidentifiedImageError
 from typing import Literal
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, Header, HTTPException, Response
+from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint, func, select
 from sqlalchemy.exc import IntegrityError
@@ -28,6 +31,7 @@ from .user_bans import BlockedUser
 router = APIRouter(prefix="/api/elections", tags=["elections"])
 _REGISTERED = False
 logger = logging.getLogger("nyan_wallet.elections")
+ELECTIONS_WEB_APP_URL = "https://qwertsyik0.github.io/nyan-wallet/elections.html"
 MAX_IMAGE_INPUT_BYTES = 2 * 1024 * 1024
 MAX_IMAGE_PIXELS = 10_000_000
 FIRST_RELEASE_UTC = datetime(2026, 10, 16, 20, 0, tzinfo=timezone.utc)
@@ -227,6 +231,52 @@ class SetPhase(BaseModel):
     next_phase: Literal["recruitment", "campaign"]
 
 
+def _store_election_notification(session, telegram_id: int | None, title: str, body: str) -> None:
+    """In-wallet fallback saved in the same transaction as the party change."""
+    if not telegram_id:
+        return
+    if session.get(core.User, int(telegram_id)) is None:
+        return
+    from .advanced_features import notify as wallet_notify
+    wallet_notify(session, int(telegram_id), "elections", title, body)
+
+
+def _send_party_telegram_notice(telegram_id: int | None, text: str, button_label: str) -> bool:
+    """Best-effort private Telegram message, after the DB transaction commits.
+
+    Delivery failure never changes the accepted/rejected status. User can still
+    read the authoritative decision and reason in Nyan Wallet.
+    """
+    if not telegram_id or not core.BOT_TOKEN:
+        return False
+    payload = {
+        "chat_id": int(telegram_id),
+        "text": text[:3500],
+        "reply_markup": {
+            "inline_keyboard": [[{
+                "text": button_label,
+                "web_app": {"url": ELECTIONS_WEB_APP_URL},
+            }]],
+        },
+    }
+    request = urllib.request.Request(
+        f"https://api.telegram.org/bot{core.BOT_TOKEN}/sendMessage",
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=8) as response:
+            answer = json.loads(response.read().decode("utf-8"))
+        if answer.get("ok") is True:
+            return True
+        logger.warning("Election Telegram message rejected chat_id=%s", telegram_id)
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        logger.warning("Election Telegram message not delivered chat_id=%s reason=%s",
+                       telegram_id, type(exc).__name__)
+    return False
+
+
 def timestamp() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -360,6 +410,7 @@ async def serve_party_emblem(party_id: int):
 @router.post("/parties")
 async def create_party(
     payload: CreateParty,
+    background_tasks: BackgroundTasks,
     x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
 ):
     uid = auth(x_telegram_init_data)
@@ -389,8 +440,26 @@ async def create_party(
                     session.add(ElectionPartyEmblem(
                         party_id=party_id, image_data=sanitized_image, mime_type="image/webp"
                     ))
+                _store_election_notification(
+                    session, uid, "Заявка на партию отправлена",
+                    f"«{party.name}» (№{party.id}) ожидает рассмотрения владельцем."
+                )
+                _store_election_notification(
+                    session, core.OWNER_TELEGRAM_ID, "Новая партия на рассмотрении",
+                    f"Партия «{party.name}» (№{party.id}). Председатель: @{session.get(core.User, uid).username or uid}. Откройте «Выборы» для решения."
+                )
         except IntegrityError as exc:
             raise HTTPException(status_code=409, detail="Название или аббревиатура уже заняты") from exc
+    background_tasks.add_task(
+        _send_party_telegram_notice,
+        core.OWNER_TELEGRAM_ID,
+        f"🗳 NYAN ELECTIONS | Новая заявка №{party_id}\n\n"
+        f"Название: {payload.name}\n"
+        f"Аббревиатура: {payload.short_name}\n"
+        f"Председатель: {uid}\n\n"
+        "Откройте раздел «Выборы», чтобы принять или отклонить партию.",
+        "🗳 Рассмотреть заявку",
+    )
     return {"ok": True, "party_id": party_id, "status": "pending"}
 
 
@@ -413,9 +482,12 @@ async def owner_pending(x_telegram_init_data: str | None = Header(default=None, 
 async def owner_review_party(
     party_id: int,
     payload: ReviewParty,
+    background_tasks: BackgroundTasks,
     x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
 ):
     uid = owner_auth(x_telegram_init_data)
+    if payload.decision == "reject" and not payload.note:
+        raise HTTPException(status_code=422, detail="При отклонении укажите причину для заявителя")
     with core.SessionLocal() as session:
         try:
             with session.begin():
@@ -445,8 +517,25 @@ async def owner_review_party(
                 party.decided_at = timestamp()
                 party.decided_by = uid
                 party.decision_note = payload.note
+                applicant_id = int(party.chair_id)
+                party_title = party.name
+                verdict = "одобрена" if payload.decision == "approve" else "отклонена"
+                decision_body = (
+                    f"Ваша партия «{party_title}» (№{party_id}) {verdict}."
+                    + (f" Причина: {payload.note}" if payload.note else "")
+                )
+                _store_election_notification(
+                    session, applicant_id,
+                    "Партия одобрена" if payload.decision == "approve" else "Партия отклонена",
+                    decision_body,
+                )
         except IntegrityError as exc:
             raise HTTPException(status_code=409, detail="Конфликт состава партии") from exc
+    background_tasks.add_task(
+        _send_party_telegram_notice, applicant_id,
+        f"🗳 NYAN ELECTIONS\n\n{decision_body}",
+        "🗳 Открыть мою партию",
+    )
     return {"ok": True, "party_id": party_id, "status": party.status}
 
 
