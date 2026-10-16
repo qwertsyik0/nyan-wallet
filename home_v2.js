@@ -82,6 +82,9 @@
               <div class="nyan-home-today-kicker">ежедневные задания</div>
               <div id="nyan-home-tasks-value" class="nyan-home-today-value">…</div>
               <div id="nyan-home-tasks-meta" class="nyan-home-today-meta">загружаем</div>
+              <div id="nyan-home-tasks-track" class="nyan-home-tasks-track" aria-hidden="true" hidden>
+                <span id="nyan-home-tasks-progress"></span>
+              </div>
             </button>
           </div>
         </section>
@@ -127,6 +130,8 @@
     const streakMeta = document.getElementById("nyan-home-streak-meta");
     const taskValue = document.getElementById("nyan-home-tasks-value");
     const taskMeta = document.getElementById("nyan-home-tasks-meta");
+    const taskTrack = document.getElementById("nyan-home-tasks-track");
+    const taskProgress = document.getElementById("nyan-home-tasks-progress");
 
     const streakCard = document.getElementById("activity-streak-card");
     const streakNumbers = streakCard?.querySelectorAll(".activity-streak-number");
@@ -142,8 +147,9 @@
 
     const summary = document.getElementById("daily-tasks-summary")?.textContent?.trim();
     const taskRows = Array.from(document.querySelectorAll("#daily-task-list .daily-task-row"));
-    const completed = taskRows.filter(row => row.querySelector(".daily-task-done")).length;
-    const total = taskRows.length;
+    const counts = summary?.match(/^(\d+)\s+из\s+(\d+)$/i);
+    const completed = counts ? Number(counts[1]) : taskRows.filter(row => row.querySelector(".daily-task-done")).length;
+    const total = counts ? Number(counts[2]) : taskRows.length;
 
     if (taskValue) {
       taskValue.textContent = summary || (total ? `${completed} из ${total}` : "0 из 0");
@@ -153,6 +159,13 @@
       if (!total) taskMeta.textContent = "заданий пока нет";
       else if (completed >= total) taskMeta.textContent = "всё выполнено";
       else taskMeta.textContent = `осталось ${Math.max(0, total - completed)}`;
+    }
+
+    // Read the real task summary; never invent progress while tasks are unavailable.
+    if (taskTrack && taskTrack.hidden !== (total <= 0)) taskTrack.hidden = total <= 0;
+    if (taskProgress && total > 0) {
+      const percent = Math.round((Math.min(Math.max(completed, 0), total) / total) * 100);
+      taskProgress.style.width = `${percent}%`;
     }
   }
 
