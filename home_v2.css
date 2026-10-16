@@ -39,6 +39,9 @@
   display:grid;
   gap:11px;
 }
+.nyan-home-v2 button span{
+  margin-right:0;
+}
 .nyan-home-primary{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
