@@ -523,6 +523,109 @@ async def owner_requests(
         ]}
 
 
+
+@router.get("/api/owner/finance/requests/{request_id}/verify")
+async def owner_verify_financial_result(
+    request_id: int,
+    x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
+):
+    """Read-only owner audit of a proposal, actual ledger entry and in-app notification."""
+    from .advanced_features import WalletNotification
+
+    tg_user = core.verify_init_data(x_telegram_init_data or "")
+    core.require_owner(tg_user)
+    with core.SessionLocal() as session:
+        record = session.get(FinanceDecisionRequest, request_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="Заявка не найдена")
+        tx = session.get(core.Transaction, record.transaction_id) if record.transaction_id else None
+        balance = session.get(core.User, record.target_id) if record.target_id else None
+        amount_matches = bool(
+            tx is not None
+            and tx.telegram_id == record.target_id
+            and tx.amount == (
+                record.amount if record.action == "grant" else -record.amount
+            )
+            and tx.operation_type == (
+                "owner_grant" if record.action == "grant" else "owner_debit"
+            )
+        ) if record.action in {"grant", "debit"} else None
+        in_app_notice = False
+        if tx:
+            in_app_notice = bool(session.scalar(
+                select(WalletNotification.id).where(
+                    WalletNotification.telegram_id == tx.telegram_id,
+                    WalletNotification.kind == tx.operation_type,
+                    WalletNotification.created_at >= tx.created_at - timedelta(seconds=1),
+                    WalletNotification.created_at <= tx.created_at + timedelta(seconds=1),
+                ).limit(1)
+            ))
+        delivery = session.get(FinanceTelegramDelivery, record.id)
+        return {
+            "ok": True,
+            "request_id": request_id,
+            "status": record.status,
+            "action": record.action,
+            "transaction_id": tx.id if tx else None,
+            "transaction_amount": tx.amount if tx else None,
+            "ledger_match": amount_matches,
+            "target_balance": balance.balance if balance else None,
+            "in_app_notification": in_app_notice,
+            "telegram_notification": (
+                {"status": delivery.status, "attempts": delivery.attempts,
+                 "last_error": delivery.last_error} if delivery else None
+            ),
+        }
+
+
+@router.post("/api/owner/finance/requests/{request_id}/retry-notification")
+async def retry_financial_notification(
+    request_id: int,
+    background_tasks: BackgroundTasks,
+    x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
+):
+    """Resend failed or previously untracked Telegram messages; never modify funds."""
+    tg_user = core.verify_init_data(x_telegram_init_data or "")
+    core.require_owner(tg_user)
+    with core.SessionLocal() as session:
+        with session.begin():
+            record = session.scalar(
+                select(FinanceDecisionRequest)
+                .where(FinanceDecisionRequest.id == request_id)
+                .with_for_update()
+            )
+            if not record:
+                raise HTTPException(status_code=404, detail="Заявка не найдена")
+            if record.status != "approved" or record.action not in {"grant", "debit"}:
+                raise HTTPException(status_code=409, detail="Нет подтверждённой денежной операции")
+            tx = session.get(core.Transaction, record.transaction_id) if record.transaction_id else None
+            expected_amount = record.amount if record.action == "grant" else -record.amount
+            if tx is None or tx.telegram_id != record.target_id or tx.amount != expected_amount:
+                raise HTTPException(status_code=409, detail="Запись транзакции не совпадает с заявкой")
+            delivery = session.scalar(select(FinanceTelegramDelivery).where(
+                FinanceTelegramDelivery.request_id == request_id
+            ).with_for_update())
+            if delivery is None:
+                delivery = FinanceTelegramDelivery(
+                    request_id=request_id,
+                    recipient_id=record.target_id,
+                    status="pending",
+                    attempts=0,
+                    updated_at=core.now_utc(),
+                )
+                session.add(delivery)
+            elif delivery.status == "sent":
+                raise HTTPException(status_code=409, detail="Уведомление уже отправлено")
+            elif delivery.status == "sending":
+                raise HTTPException(status_code=409, detail="Отправка уже выполняется")
+            else:
+                delivery.status = "pending"
+                delivery.updated_at = core.now_utc()
+            session.flush()
+    background_tasks.add_task(_send_approved_finance_notice, request_id)
+    return {"ok": True, "queued": True, "request_id": request_id}
+
+
 @router.post("/api/owner/finance/requests/{request_id}/decision")
 async def decide_request(
     request_id: int,
