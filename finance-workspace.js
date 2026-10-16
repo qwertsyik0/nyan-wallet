@@ -204,7 +204,73 @@
   }
   function ownerCard(item) {
     const card = cardHeading(item, true);
-    if (item.status !== "pending") return card;
+    if (item.status !== "pending") {
+      if (item.status === "approved" && ["grant", "debit"].includes(item.action)) {
+        const delivery = item.telegram_notification;
+        const notificationText = {
+          pending: "Ожидает отправки",
+          sending: "Отправляем",
+          sent: "Доставлено через Telegram API",
+          failed: "Не удалось отправить"
+        };
+        card.appendChild(create("div", "fw-card-meta",
+          "Сообщение Telegram: " +
+          (delivery ? (notificationText[delivery.status] || delivery.status) :
+            "Ранее не отслеживалось") +
+          (delivery?.last_error ? " · " + delivery.last_error : "")
+        ));
+        const info = create("div", "fw-card-meta");
+        const buttons = create("div", "fw-card-actions");
+        const verify = create("button", "fw-small-button", "Проверить баланс и уведомление");
+        verify.type = "button";
+        verify.addEventListener("click", async () => {
+          verify.disabled = true;
+          info.textContent = "Проверяем историю кошелька…";
+          try {
+            const res = await call("/api/owner/finance/requests/" + item.id + "/verify");
+            info.textContent = [
+              "Транзакция: " + (res.transaction_id ?? "не найдена"),
+              "Сумма: " + (res.transaction_amount ?? "—") + " 🐾",
+              "Совпадение с заявкой: " + (res.ledger_match ? "да" : "НЕТ"),
+              "Текущий баланс: " + (res.target_balance ?? "—") + " 🐾",
+              "Уведомление в приложении: " + (res.in_app_notification ? "создано" : "не найдено"),
+              "Telegram: " + (
+                res.telegram_notification?.status || "отправка ранее не отслеживалась"
+              )
+            ].join("\n");
+            info.style.whiteSpace = "pre-line";
+          } catch (error) { info.textContent = error.message || "Ошибка проверки"; }
+          finally { verify.disabled = false; }
+        });
+        buttons.append(verify);
+        if (!delivery || delivery.status === "failed" || delivery.status === "pending") {
+          const retry = create("button", "fw-small-button",
+            delivery ? "Повторить отправку" : "Отправить уведомление");
+          retry.type = "button";
+          retry.addEventListener("click", async () => {
+            if (!window.confirm(
+              "Отправить пользователю сообщение о заявке №" + item.id +
+              "?\nБаланс не изменится повторно"
+            )) return;
+            retry.disabled = true;
+            try {
+              await call(
+                "/api/owner/finance/requests/" + item.id + "/retry-notification",
+                "POST", {}
+              );
+              notify("Сообщение поставлено на отправку, операция с балансом не повторялась");
+              await refreshOwner();
+            } catch (error) {
+              notify(error.message || "Не удалось отправить уведомление", true);
+              retry.disabled = false;
+            }
+          });
+          buttons.append(retry);
+        }
+        card.append(buttons, info);
+      }
+      return card;
+    }
     const label = create("label", "fw-review-note", "Комментарий владельца (при отказе обязателен)");
     const note = create("textarea");
     note.maxLength = 400;
