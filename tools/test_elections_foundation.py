@@ -9,6 +9,8 @@ from __future__ import annotations
 import base64
 import importlib.util
 import io
+import json
+import os
 import sys
 import types
 from datetime import datetime, timezone
@@ -22,6 +24,11 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 ROOT = Path(__file__).resolve().parents[1]
+GROUP_1 = "https://t.me/+aBcDeFGh12345678"
+GROUP_2 = "https://t.me/+zyxwvuts12345678"
+os.environ["NYAN_ELECTIONS_GROUP_INVITES"] = json.dumps({
+    "Партия Лапы": GROUP_1, "Партия Звёзд": GROUP_2,
+}, ensure_ascii=False)
 
 engine = create_engine(
     "sqlite+pysqlite://",
@@ -159,6 +166,8 @@ assert season["phase"] == "registration"
 ok(post("/owner/seasons", 1, {"title": "Второй сезон"}), 409)
 
 p1 = ok(post("/parties", 2, party("Партия Лапы", "ПЛ")))["party_id"]
+assert ok(get("", 2))["my_party_group_url"] is None  # pending parties cannot get invite
+assert ok(get("", 4))["my_party_group_url"] is None
 image_buffer = io.BytesIO()
 Image.new("RGB", (128, 128), (200, 100, 140)).save(image_buffer, "PNG")
 image_data = "data:image/png;base64," + base64.b64encode(image_buffer.getvalue()).decode("ascii")
@@ -192,6 +201,16 @@ ok(post("/owner/phase", 1, {"next_phase": "recruitment"}), 409)
 ok(post(f"/owner/parties/{p1}/review", 2, {"decision": "approve"}), 403)
 ok(post(f"/owner/parties/{p1}/review", 1, {"decision": "approve"}))
 ok(post(f"/owner/parties/{p2}/review", 1, {"decision": "approve"}))
+assert ok(get("", 2))["my_party_group_url"] == GROUP_1
+assert ok(get("", 3))["my_party_group_url"] == GROUP_2
+assert ok(get("", 1))["my_party_group_url"] is None
+assert ok(get("", 4))["my_party_group_url"] is None
+assert all("my_party_group_url" not in item and "group_url" not in item for item in ok(get("", 4))["parties"])
+prior_mapping = os.environ["NYAN_ELECTIONS_GROUP_INVITES"]
+os.environ["NYAN_ELECTIONS_GROUP_INVITES"] = json.dumps({"Партия Лапы": "https://example.com/unsafe"})
+assert ok(get("", 2))["my_party_group_url"] is None
+os.environ["NYAN_ELECTIONS_GROUP_INVITES"] = prior_mapping
+
 p3 = ok(post("/parties", 4, party("Партия Города", "ПГ")))["party_id"]
 ok(post(f"/owner/parties/{p3}/review", 1, {"decision": "reject"}), 422)
 ok(post(f"/owner/parties/{p3}/review", 1, {"decision": "reject", "note": "Не хватает конкретных предложений"}))
@@ -224,10 +243,12 @@ ok(post(f"/parties/{p1}/join", 4))
 ok(post(f"/parties/{p1}/join", 4), 409)
 ok(post(f"/parties/{p2}/join", 4))
 assert ok(get("", 4))["my_party_id"] == p2
+assert ok(get("", 4))["my_party_group_url"] == GROUP_2
 ok(post(f"/parties/{p2}/join", 5), 403)
 ok(post(f"/parties/{p2}/join", 2), 409)  # chairs can't abandon their own party
 ok(post("/parties/leave", 3), 409)
 ok(post("/parties/leave", 4))
+assert ok(get("", 4))["my_party_group_url"] is None
 assert ok(get("", 4))["my_party_id"] is None
 ok(post("/parties/leave", 4), 404)
 ok(post("/owner/phase", 1, {"next_phase": "campaign"}))
