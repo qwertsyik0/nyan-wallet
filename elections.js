@@ -52,6 +52,11 @@ async function loadPending(){
 function renderOwner(){
   const section=$("el-owner-section");section.hidden=!state.is_owner;if(!state.is_owner)return;
   const area=$("el-owner-content");reset(area);reset($("el-owner-pending"));
+  if(state.initial_rollback==="empty_initial_season_rolled_back"){
+    area.append(make("p","el-muted","Предыдущий пустой сезон отменён. Можно создать новый."));
+  }else if(state.initial_rollback==="skipped_contains_party_data"){
+    area.append(make("p","el-muted","Автоматический откат остановлен: в сезоне уже есть партии или участники. Их данные не удалены."));
+  }
   if(!state.season){
     const form=make("form","el-form");form.id="el-season-form";
     const label=make("label","","Название сезона"),input=make("input");
