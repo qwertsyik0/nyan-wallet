@@ -402,6 +402,9 @@ def _menu_text(draft: BroadcastDraft) -> str:
 
 
 def _add_elections_button(draft: BroadcastDraft) -> bool:
+    # Never inherit arbitrary inline buttons from forwarded source messages:
+    # Telegram may reject the entire copied post with BUTTON_URL_INVALID.
+    draft.keep_source_markup = False
     if any(spec.kind == "web_app" and spec.url == ELECTIONS_MINI_APP_URL for spec in draft.buttons):
         return False
     draft.buttons.append(ButtonSpec(
