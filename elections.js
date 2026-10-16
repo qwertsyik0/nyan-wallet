@@ -151,19 +151,9 @@ function render(){
     body.append(make("p","el-muted","Заявка «"+p.name+"»: "+(p.status==="pending"?"на рассмотрении":"отклонена")+"."));
     if(p.decision_note)body.append(make("p","el-muted",p.decision_note));
   }
-  const owned = state.is_owner ? state.owned_party : null;
-  const hasOtherMembers = Boolean(owned && owned.member_count > (state.my_party_id === owned.id ? 1 : 0));
-  const canOpenNew = !state.applications?.length && !state.my_party_id;
-  const replaceArea=$("el-replace-warning");
-  replaceArea.hidden=!owned;
-  if(owned){
-    $("el-replace-description").textContent = hasOtherMembers
-      ? "В вашей партии «"+owned.name+"» уже есть другие участники. Замена заблокирована, чтобы не исключить их."
-      : "Новая заявка заменит прежнюю партию «"+owned.name+"» только после успешной отправки. Другие партии сохранятся.";
-  }
-  $("el-party-submit").textContent=owned ? "Заменить партию новой заявкой" : "Отправить на рассмотрение";
-  $("el-party-submit").disabled=hasOtherMembers;
-  $("el-create-section").hidden=!season||season.phase!=="registration"||(!canOpenNew && !owned);
+  // The owner moderates the election but never submits or replaces parties.
+  $("el-create-section").hidden=state.is_owner||!season||season.phase!=="registration"||
+    Boolean(state.applications?.length)||Boolean(state.my_party_id);
   renderOwner();
 }
 async function reload(message=""){
@@ -209,14 +199,8 @@ function fileToDataUrl(file){
 async function submitParty(form){
   if(busy||readingImage)return;
   readingImage=true;
-  const owned=state?.is_owner && state?.owned_party;
-  if(owned && owned.member_count > (state.my_party_id===owned.id ? 1 : 0)){
-    formFeedback("В прежней партии есть другие участники. Заменить её сейчас нельзя.");
-    readingImage=false;return;
-  }
-  if(owned && !$("el-replace-confirm").checked){
-    formFeedback("Подтвердите замену прежней партии, прежде чем отправить заявку.");
-    $("el-replace-confirm").focus();
+  if(state?.is_owner){
+    formFeedback("Владелец не может создавать партии; заявки можно рассматривать в разделе управления.");
     readingImage=false;return;
   }
   const payload=validateParty(form);
@@ -227,7 +211,7 @@ async function submitParty(form){
   sendButton.textContent="Отправляем заявку…";
   try{
     if(selectedEmblem)payload.emblem_data=await fileToDataUrl(selectedEmblem);
-    await mutate(owned ? "/owner/parties/replace" : "/parties",payload);
+    await mutate("/parties",payload);
   }catch(e){
     formFeedback(e.message||"Не удалось прочитать изображение");
   }finally{
@@ -263,7 +247,7 @@ async function mutate(path,payload={}){
   try{await request(path,payload);await reload("Изменения сохранены.");}
   catch(e){
     const message=e?.name==="TypeError" ? "Не удалось подключиться к серверу. Проверьте соединение и повторите." : e.message;
-    if(path==="/parties" || path==="/owner/parties/replace")formFeedback(message);
+    if(path==="/parties")formFeedback(message);
     else alertUser(message);
     if(state)render();
   }

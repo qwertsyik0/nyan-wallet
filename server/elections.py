@@ -416,51 +416,25 @@ def _submit_party(
     payload: CreateParty,
     background_tasks: BackgroundTasks,
     uid: int,
-    *,
-    replace_owner_party: bool = False,
 ):
-    """Atomic owner-only replacement: never remove the old party if creating
-    its successor fails. Users cannot replace parties or evict participants.
-    """
+    """Ordinary users may submit one party; owners only moderate elections."""
+    if core.is_owner(uid):
+        raise HTTPException(status_code=403, detail="Владелец управляет выборами и не может создавать партии")
     sanitized_image = sanitize_emblem(payload.emblem_data)
-    previous_id: int | None = None
     with core.SessionLocal() as session:
         try:
             with session.begin():
                 require_account(session, uid)
                 season = latest_season(session, lock=True)
                 if not season or season.phase != "registration":
-                    raise HTTPException(status_code=409, detail="Создавать и заменять партии можно только во время регистрации")
-                previous = session.scalar(
-                    select(ElectionParty).where(
+                    raise HTTPException(status_code=409, detail="Создавать партии можно только во время регистрации")
+                existing = session.scalar(
+                    select(ElectionParty.id).where(
                         ElectionParty.season_id == season.id,
                         ElectionParty.chair_id == uid,
-                    ).with_for_update()
+                    )
                 )
-                if replace_owner_party:
-                    if not core.is_owner(uid):
-                        raise HTTPException(status_code=403, detail="Замена партии доступна только владельцу")
-                    if previous is None:
-                        raise HTTPException(status_code=409, detail="У вас нет прежней партии для замены")
-                    members = session.scalars(
-                        select(ElectionMembership).where(
-                            ElectionMembership.party_id == previous.id
-                        ).with_for_update()
-                    ).all()
-                    if any(int(m.telegram_id) != uid for m in members):
-                        raise HTTPException(
-                            status_code=409,
-                            detail="В старой партии есть участники. Нельзя заменить её, пока они состоят в ней."
-                        )
-                    previous_id = previous.id
-                    for m in members:
-                        session.delete(m)
-                    old_emblem = session.get(ElectionPartyEmblem, previous.id)
-                    if old_emblem:
-                        session.delete(old_emblem)
-                    session.delete(previous)
-                    session.flush()
-                elif previous is not None:
+                if existing:
                     raise HTTPException(status_code=409, detail="Заявка на партию уже существует")
                 party = ElectionParty(
                     season_id=season.id, chair_id=uid, name=payload.name,
@@ -478,7 +452,6 @@ def _submit_party(
                 _store_election_notification(
                     session, uid, "Заявка на партию отправлена",
                     f"«{party.name}» (№{party.id}) ожидает рассмотрения владельцем."
-                    + (f" Предыдущая партия №{previous_id} заменена." if previous_id else "")
                 )
                 _store_election_notification(
                     session, core.OWNER_TELEGRAM_ID, "Новая партия на рассмотрении",
@@ -487,10 +460,7 @@ def _submit_party(
                     "Откройте «Выборы» для решения."
                 )
         except IntegrityError as exc:
-            raise HTTPException(
-                status_code=409,
-                detail="Название или аббревиатура уже заняты; прежняя партия сохранена."
-            ) from exc
+            raise HTTPException(status_code=409, detail="Название или аббревиатура уже заняты") from exc
     background_tasks.add_task(
         _send_party_telegram_notice,
         core.OWNER_TELEGRAM_ID,
@@ -501,8 +471,7 @@ def _submit_party(
         "Откройте раздел «Выборы», чтобы принять или отклонить партию.",
         "🗳 Рассмотреть заявку",
     )
-    return {"ok": True, "party_id": party_id, "status": "pending",
-            "replaced_party_id": previous_id}
+    return {"ok": True, "party_id": party_id, "status": "pending"}
 
 
 @router.post("/parties")
@@ -517,12 +486,13 @@ async def create_party(
 
 @router.post("/owner/parties/replace")
 async def owner_replace_party(
-    payload: CreateParty,
-    background_tasks: BackgroundTasks,
     x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
 ):
-    uid = owner_auth(x_telegram_init_data)
-    return _submit_party(payload, background_tasks, uid, replace_owner_party=True)
+    owner_auth(x_telegram_init_data)
+    raise HTTPException(
+        status_code=403,
+        detail="Создание и замена партий для владельца отключены. Рассматривать заявки по-прежнему можно.",
+    )
 
 
 @router.get("/owner/pending")

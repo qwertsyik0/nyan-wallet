@@ -244,57 +244,25 @@ with SessionLocal() as session:
     assert {p.telegram_id for p in people} == {2, 3, 4}
     assert {p.party_id for p in people} == {p1, p2}
 
-# The owner can replace their party during registration but not erase
-# third-party membership. Replacement must be atomic if the new name clashes.
+# Owner is a neutral moderator: no creating or replacing party, including
+# when a season is open for everyone else.
 with SessionLocal.begin() as session:
     session.get(elections.ElectionSeason, 1).phase = "registration"
-ok(post("/owner/parties/replace", 1, party("Не существует", "НС")), 409)
-old = ok(post("/parties", 1, party("Старая партия", "СП")))["party_id"]
-ok(post("/parties", 1, party("Лишняя партия", "ЛП")), 409)
+with SessionLocal() as session:
+    existing_parties = {p.id for p in session.scalars(select(elections.ElectionParty)).all()}
+    existing_notifications = session.query(WalletNotification).count()
+    existing_members = session.query(elections.ElectionMembership).count()
+    old_delivery_count = len(delivered)
+ok(post("/parties", 1, party("Партия Владельца", "ПВ")), 403)
+ok(post("/owner/parties/replace", 1, party("Замена Владельца", "ЗВ")), 403)
 ok(post("/owner/parties/replace", 2, party("Чужая замена", "ЧЗ")), 403)
-assert ok(get("", 1))["owned_party"]["id"] == old
-ok(post(f"/owner/parties/{old}/review", 1, {"decision": "approve"}))
+assert ok(get("", 1))["is_owner"] is True
+assert ok(get("/owner/pending", 1))["parties"] == []
 with SessionLocal() as session:
-    assert session.scalar(select(elections.ElectionMembership).where(
-        elections.ElectionMembership.party_id == old,
-        elections.ElectionMembership.telegram_id == 1,
-    )) is not None
-ok(post("/owner/parties/replace", 1, party("Партия Лапы", "СП")), 409)
-assert ok(get("", 1))["owned_party"]["id"] == old
-with SessionLocal.begin() as session:
-    session.add(elections.ElectionMembership(
-        season_id=1, party_id=old, telegram_id=5,
-        joined_at=datetime.now(timezone.utc),
-    ))
-blocked = post("/owner/parties/replace", 1, party("Новый Союз", "НС"))
-assert blocked.status_code == 409 and "участники" in blocked.json()["detail"]
-assert ok(get("", 1))["owned_party"]["id"] == old
-with SessionLocal.begin() as session:
-    outsider = session.scalar(select(elections.ElectionMembership).where(
-        elections.ElectionMembership.party_id == old,
-        elections.ElectionMembership.telegram_id == 5,
-    ))
-    session.delete(outsider)
-replacement = ok(post("/owner/parties/replace", 1, {
-    **party("Новый Союз", "НС"), "emblem_data": image_data,
-}))
-new_party = replacement["party_id"]
-assert replacement["replaced_party_id"] == old and new_party != old
-assert ok(get("", 1))["owned_party"]["id"] == new_party
-assert ok(get("", 1))["owned_party"]["status"] == "pending"
-with SessionLocal() as session:
-    assert session.get(elections.ElectionParty, old) is None
-    assert session.get(elections.ElectionParty, new_party) is not None
-    assert session.get(elections.ElectionPartyEmblem, new_party) is not None
-    assert session.scalar(select(elections.ElectionMembership).where(
-        elections.ElectionMembership.party_id == old
-    )) is None
-    assert session.get(elections.ElectionParty, p1) is not None
-    assert session.get(elections.ElectionParty, p2) is not None
-ok(post(f"/owner/parties/{new_party}/review", 1, {
-    "decision":"reject", "note":"Тест успешной замены завершён."
-}))
-assert ok(get("", 1))["owned_party"]["status"] == "rejected"
+    assert {p.id for p in session.scalars(select(elections.ElectionParty)).all()} == existing_parties
+    assert session.query(WalletNotification).count() == existing_notifications
+    assert session.query(elections.ElectionMembership).count() == existing_members
+assert len(delivered) == old_delivery_count
 
 # One-off production rollback must refuse any season containing party records.
 with SessionLocal.begin() as session:
