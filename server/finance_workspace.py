@@ -915,6 +915,55 @@ async def decide_request(
     return {"ok": True, "request": response}
 
 
+def _scrub_legacy_public_finance_messages() -> None:
+    """Hide old trainee/internal justifications already copied into user history.
+
+    Original evidence remains in finance_decision_requests.reason for the owner.
+    Only descriptions created by this feature with the exact legacy marker are
+    modified; financial balances and ledger amounts are never touched.
+    """
+    from .advanced_features import WalletNotification
+
+    changed = 0
+    with core.SessionLocal() as session:
+        with session.begin():
+            rows = session.scalars(
+                select(FinanceDecisionRequest).where(
+                    FinanceDecisionRequest.status == "approved",
+                    FinanceDecisionRequest.action.in_(["grant", "debit"]),
+                    FinanceDecisionRequest.transaction_id.is_not(None),
+                ).order_by(FinanceDecisionRequest.id).limit(5000)
+            ).all()
+            for request in rows:
+                tx = session.get(core.Transaction, request.transaction_id)
+                if tx is None or tx.telegram_id != request.target_id:
+                    continue
+                marker = f"(стажёрская заявка №{request.id})"
+                if marker not in (tx.description or ""):
+                    continue
+                public = request.public_reason or (
+                    "Начисление лапкоинов" if request.action == "grant"
+                    else "Корректировка баланса"
+                )
+                tx.description = public
+                notices = session.scalars(
+                    select(WalletNotification).where(
+                        WalletNotification.telegram_id == tx.telegram_id,
+                        WalletNotification.kind == tx.operation_type,
+                        WalletNotification.body.contains(marker),
+                    )
+                ).all()
+                for notice in notices:
+                    notice.body = (
+                        (f"+{tx.amount} 🐾" if tx.amount > 0
+                         else f"Списано {abs(tx.amount)} 🐾")
+                        + f"\n{public}"
+                    )
+                changed += 1
+    if changed:
+        LOG.warning("FINANCE_PRIVACY scrubbed_legacy_user_descriptions=%s", changed)
+
+
 def register_finance_workspace(app) -> None:
     global _REGISTERED
     if _REGISTERED:
@@ -935,5 +984,6 @@ def register_finance_workspace(app) -> None:
             connection.exec_driver_sql(
                 "ALTER TABLE finance_decision_requests ADD COLUMN IF NOT EXISTS public_reason VARCHAR(200)"
             )
+    _scrub_legacy_public_finance_messages()
     app.include_router(router)
     _REGISTERED = True
