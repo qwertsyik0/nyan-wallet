@@ -2,7 +2,7 @@ name: Backend and client syntax check
 
 on:
   push:
-    branches: [main, 'feature/party-emblem-upload-season-rollback-20261016']
+    branches: [main]
     paths:
       - "server/**/*.py"
       - "*.js"
