@@ -17,7 +17,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from PIL import Image
 from fastapi.testclient import TestClient
-from sqlalchemy import BigInteger, DateTime, ForeignKey, String, create_engine, select
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -80,7 +80,7 @@ sys.modules["server.user_bans"] = bans
 
 class WalletNotification(Base):
     __tablename__ = "wallet_notifications"
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     telegram_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id"), nullable=False)
     kind: Mapped[str] = mapped_column(String(40), nullable=False)
     title: Mapped[str] = mapped_column(String(120), nullable=False)
