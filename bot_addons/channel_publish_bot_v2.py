@@ -40,6 +40,7 @@ CHANNEL_STATE_PATH = Path(
     )
 )
 HTTPS_PATTERN = re.compile(r"^https://", re.IGNORECASE)
+ELECTIONS_MINI_APP_URL = "https://qwertsyik0.github.io/nyan-wallet/elections.html"
 
 
 PROMO_SLUG_PATTERN = re.compile(r"^[a-z0-9_-]{2,48}$", re.IGNORECASE)
@@ -73,6 +74,8 @@ def _wallet_start_param(url: str) -> str:
         return "finance_admin"
     if parsed.path.rstrip("/").lower().endswith("/finance-review.html"):
         return "finance_review"
+    if parsed.path.rstrip("/").lower().endswith("/elections.html"):
+        return "elections"
     for key in ("promo", "slug"):
         value = (query.get(key) or [""])[0].strip()
         if value and PROMO_SLUG_PATTERN.fullmatch(value):
@@ -300,6 +303,16 @@ def _channel_picker(channels: list[dict[str, object]]) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(rows)
 
 
+def _add_elections_button(draft: Draft) -> bool:
+    if any(item.kind == "web_app" and item.url == ELECTIONS_MINI_APP_URL for item in draft.buttons):
+        return False
+    draft.buttons.append(ButtonSpec(
+        text="🗳 Выборы", url=ELECTIONS_MINI_APP_URL,
+        kind="web_app", row=draft.button_row,
+    ))
+    return True
+
+
 def _menu(draft: Draft) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
@@ -307,6 +320,7 @@ def _menu(draft: Draft) -> InlineKeyboardMarkup:
                 InlineKeyboardButton("🌐 URL", callback_data="cp2:add_url"),
                 InlineKeyboardButton("📱 Mini App", callback_data="cp2:add_webapp"),
             ],
+            [InlineKeyboardButton("🗳 Выборы", callback_data="cp2:add_elections")],
             [
                 InlineKeyboardButton("↩️ Новая строка", callback_data="cp2:new_row"),
                 InlineKeyboardButton("🗑 Очистить кнопки", callback_data="cp2:clear_buttons"),
@@ -574,6 +588,16 @@ async def channel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.edit_message_text(
             "Перешлите сообщение из нужного канала. "
             "Бот должен быть администратором с правом публикации."
+        )
+    elif action == "add_elections":
+        added = _add_elections_button(draft)
+        draft.mode = "editing"
+        await query.edit_message_text(
+            _menu_text(draft) + (
+                "\n\nКнопка «🗳 Выборы» добавлена."
+                if added else "\n\nКнопка «🗳 Выборы» уже в черновике."
+            ),
+            reply_markup=_menu(draft),
         )
     elif action == "add_url":
         draft.mode = "awaiting_button_url"
