@@ -46,6 +46,58 @@
 .nyan-home-v2 button span{
   margin-right:0;
 }
+/* Dedicated compact Elections destination, visible without scrolling through actions. */
+.nyan-home-elections{
+  display:flex;
+  align-items:center;
+  gap:11px;
+  width:100%;
+  min-width:0;
+  min-height:60px;
+  padding:11px 13px;
+  border:1px solid #ebcbdc;
+  border-radius:18px;
+  background:linear-gradient(120deg,#fff1f7,#fffbfd);
+  box-shadow:0 8px 22px rgba(114,34,70,.055);
+  color:#782449;
+  text-align:left;
+  cursor:pointer;
+}
+.nyan-home-elections-icon{
+  flex:0 0 35px;
+  display:grid;
+  place-items:center;
+  width:35px;
+  height:35px;
+  border-radius:12px;
+  background:#ffe2ee;
+  font-size:18px;
+}
+.nyan-home-elections-content{
+  flex:1;
+  min-width:0;
+  display:grid;
+  gap:3px;
+}
+.nyan-home-elections-content strong{
+  font-size:14px;
+  line-height:1.1;
+  font-weight:900;
+  letter-spacing:-.02em;
+}
+.nyan-home-elections-content small{
+  font-size:10px;
+  color:#9e6580;
+  line-height:1.25;
+}
+.nyan-home-elections-arrow{
+  flex:0 0 auto;
+  color:#a75d80;
+  font-size:23px;
+  line-height:1;
+}
+.nyan-home-elections:active{transform:scale(.99)}
+.nyan-home-elections:focus-visible{outline:2px solid #a83a66;outline-offset:2px}
 .nyan-home-panel{
   padding:15px;
   border:1px solid #efd8e2;
@@ -286,6 +338,7 @@ html,body{
 #wallet-view,
 .nyan-home-v2,
 .nyan-home-panel,
+.nyan-home-elections,
 .nyan-home-today-card,
 .nyan-home-more-button,
 #wallet-view>.history{
