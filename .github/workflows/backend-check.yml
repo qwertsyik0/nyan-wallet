@@ -18,6 +18,13 @@ on:
       - "home_v2.css"
       - "interface_shell.css"
       - "tools/test_home_nav_cascade.py"
+      - "tools/test_elections_foundation.py"
+      - "tools/test_elections_buttons.py"
+      - "elections.html"
+      - "elections.css"
+      - "bot_addons/broadcast_bot.py"
+      - "bot_addons/channel_publish_bot.py"
+      - "bot_addons/channel_publish_bot_v2.py"
       - "bot_addons/ban_bot.py"
       - "tools/install_broadcast_bot.py"
       - "tools/install_channel_publish_bot.py"
@@ -525,6 +532,14 @@ jobs:
           PY
       - name: Check wallet home navigation CSS cascade
         run: python tools/test_home_nav_cascade.py
+      - name: Test Nyan Elections party registration and authorization
+        run: |
+          python -m pip install httpx
+          python tools/test_elections_foundation.py
+      - name: Test Elections buttons for broadcasts and channels
+        run: |
+          python tools/test_elections_buttons.py
+          node --check elections.js
       - name: Check browser JavaScript syntax
         run: |
           for file in ./*.js; do

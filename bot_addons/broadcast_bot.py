@@ -40,6 +40,7 @@ from telegram.ext import (
 logger = logging.getLogger("nyan_wallet.broadcast_bot")
 
 DEFAULT_API_BASE = "https://nyan-wallet-api.onrender.com"
+ELECTIONS_MINI_APP_URL = "https://qwertsyik0.github.io/nyan-wallet/elections.html"
 DEFAULT_OWNER_ID = 6289461565
 PAGE_SIZE = 500
 HTTP_TIMEOUT_SECONDS = 12.0
@@ -604,6 +605,17 @@ def _menu_text(draft: BroadcastDraft) -> str:
     )
 
 
+def _add_elections_button(draft: BroadcastDraft) -> bool:
+    """Add the actual Mini App destination, not a plain link to the bot chat."""
+    if any(item.kind == "web_app" and item.url == ELECTIONS_MINI_APP_URL for item in draft.buttons):
+        return False
+    draft.buttons.append(ButtonSpec(
+        text="🗳 Выборы", url=ELECTIONS_MINI_APP_URL,
+        kind="web_app", row=draft.current_row,
+    ))
+    return True
+
+
 def _menu_markup(draft: BroadcastDraft) -> InlineKeyboardMarkup:
     source_count = _source_button_count(draft.source_markup)
     source_state = "вкл" if draft.keep_source_markup else "выкл"
@@ -613,6 +625,7 @@ def _menu_markup(draft: BroadcastDraft) -> InlineKeyboardMarkup:
                 InlineKeyboardButton("🌐 URL-кнопка", callback_data="bc:add_url"),
                 InlineKeyboardButton("📱 Mini App", callback_data="bc:add_webapp"),
             ],
+            [InlineKeyboardButton("🗳 Выборы", callback_data="bc:add_elections")],
             [
                 InlineKeyboardButton("↩️ Новая строка", callback_data="bc:new_row"),
                 InlineKeyboardButton("🗑 Мои кнопки", callback_data="bc:clear_buttons"),
@@ -1359,7 +1372,17 @@ async def broadcast_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.edit_message_text("Черновик уже закрыт. Используйте /broadcast.")
         raise ApplicationHandlerStop
 
-    if action == "add_url":
+    if action == "add_elections":
+        added = _add_elections_button(draft)
+        draft.mode = "ready"
+        await query.edit_message_text(
+            _menu_text(draft) + (
+                "\n\nКнопка «🗳 Выборы» добавлена."
+                if added else "\n\nКнопка «🗳 Выборы» уже в черновике."
+            ),
+            reply_markup=_menu_markup(draft),
+        )
+    elif action == "add_url":
         draft.mode = "awaiting_button_url"
         await context.bot.send_message(
             chat_id=user.id,

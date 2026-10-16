@@ -1,28 +1,19 @@
 (() => {
   "use strict";
 
-  const PRIMARY = [
-    ["transfer", "↗", "Перевести", "transfer-button"],
-    ["receive", "▣", "Получить", "wallet-qr-button"],
+  // Only one visible navigation block: the compact "Ещё" menu.
+  // Existing hidden action buttons remain click targets for their original handlers.
+  const MORE_ACTIONS = [
     ["earn", "＋", "Заработать", "earn-button"],
     ["spend", "🐾", "Потратить", "spend-button"],
+    ["transfer", "↗", "Перевести", "transfer-button"],
+    ["receive", "▣", "QR / Получить", "wallet-qr-button"],
+    ["profile", "◇", "Профиль", "adv-profile-button"],
+    ["notifications", "◌", "Уведомления", "adv-notifications-button"],
+    ["giveaways", "✦", "Розыгрыши", "nyg-my-button"],
+    ["purchases", "▤", "Покупки", "nyg-my-purchases-button"],
+    ["appeals", "✉", "Обращения", "appeals-button"],
   ];
-
-  const SECONDARY = [
-    ["profile", "Профиль", "adv-profile-button"],
-    ["giveaways", "Розыгрыши", "nyg-my-button"],
-    ["purchases", "Покупки", "nyg-my-purchases-button"],
-    ["notifications", "Уведомления", "adv-notifications-button"],
-    ["appeals", "Обращения", "appeals-button"],
-  ];
-
-  const SECONDARY_ICONS = Object.freeze({
-    profile: "◇",
-    giveaways: "✦",
-    purchases: "▣",
-    notifications: "◌",
-    appeals: "✉",
-  });
 
   let scheduled = false;
 
@@ -60,20 +51,28 @@
     const card = document.getElementById("wallet-card");
     if (!wallet || !card) return null;
 
+    // Some earlier style bundles forced the old grid back to display:grid!important.
+    // Keep those original buttons accessible to proxyClick without rendering them.
+    const legacyActions = wallet.querySelector(":scope > .actions");
+    if (legacyActions) {
+      if (!legacyActions.hidden) legacyActions.hidden = true;
+      if (legacyActions.style.getPropertyValue("display") !== "none" ||
+          legacyActions.style.getPropertyPriority("display") !== "important") {
+        legacyActions.style.setProperty("display", "none", "important");
+      }
+    }
+
     let home = document.getElementById("nyan-home-v2");
     if (!home) {
       home = document.createElement("section");
       home.id = "nyan-home-v2";
       home.className = "nyan-home-v2";
       home.innerHTML = `
-        <div class="nyan-home-primary">
-          ${PRIMARY.map(([key, icon, label, target]) => `
-            <button type="button" class="nyan-home-action" data-home-target="${escapeHtml(target)}" data-home-key="${escapeHtml(key)}">
-              <span class="nyan-home-action-icon">${icon}</span>
-              <span class="nyan-home-action-label">${escapeHtml(label)}</span>
-            </button>
-          `).join("")}
-        </div>
+        <button id="nyan-home-elections" class="nyan-home-elections" type="button" data-nyan-elections-link aria-label="Открыть раздел выборов">
+          <span class="nyan-home-elections-icon" aria-hidden="true">🗳</span>
+          <span class="nyan-home-elections-content"><strong>Выборы</strong><small>партии, программы и участие</small></span>
+          <span class="nyan-home-elections-arrow" aria-hidden="true">›</span>
+        </button>
 
         <section class="nyan-home-panel">
           <div class="nyan-home-panel-head">
@@ -103,18 +102,27 @@
             <div class="nyan-home-panel-note">разделы Nyan Wallet</div>
           </div>
           <div class="nyan-home-more">
-            ${SECONDARY.map(([key, label, target]) => `
-              <button type="button" class="nyan-home-more-button" data-home-target="${escapeHtml(target)}" data-home-secondary="${escapeHtml(key)}"><span class="nyan-home-more-icon" aria-hidden="true">${escapeHtml(SECONDARY_ICONS[key] || "•")}</span><span class="nyan-home-more-label">${escapeHtml(label)}</span></button>
+            ${MORE_ACTIONS.map(([key, icon, label, target]) => `
+              <button type="button" class="nyan-home-more-button" data-home-target="${escapeHtml(target)}" data-home-secondary="${escapeHtml(key)}"><span class="nyan-home-more-icon" aria-hidden="true">${escapeHtml(icon)}</span><span class="nyan-home-more-label">${escapeHtml(label)}</span></button>
             `).join("")}
+            <button id="nyan-home-owner" class="nyan-home-more-button" type="button" data-home-target="owner-button" hidden>
+              <span class="nyan-home-more-icon" aria-hidden="true">⚙</span><span class="nyan-home-more-label">Управление</span>
+            </button>
           </div>
         </section>
-
-        <button id="nyan-home-owner" class="nyan-home-owner" type="button" data-home-target="owner-button" hidden>
-          Управление Nyan Wallet
-        </button>
       `;
 
       home.addEventListener("click", (event) => {
+        const elections = event.target.closest("[data-nyan-elections-link]");
+        if (elections) {
+          // Keep signed Telegram launch data and any active Mini App query/hash.
+          const current = new URL(window.location.href);
+          const destination = new URL("./elections.html", current.href);
+          destination.search = current.search;
+          destination.hash = current.hash;
+          window.location.assign(destination.href);
+          return;
+        }
         const button = event.target.closest("[data-home-target]");
         if (!button) return;
         const target = button.dataset.homeTarget;
@@ -183,11 +191,13 @@
   }
 
   function syncSecondary() {
-    for (const [, , target] of SECONDARY) {
+    for (const [, , , target] of MORE_ACTIONS) {
       const proxy = document.getElementById(target);
-      const homeButton = document.querySelector(`[data-home-target="${target}"]`);
+      const homeButton = document.querySelector(`.nyan-home-more-button[data-home-target="${target}"]`);
       if (!homeButton) continue;
-      homeButton.hidden = proxy ? Boolean(proxy.hidden) : false;
+      // Never offer a dead action before its original handler exists.
+      const hide = !proxy || proxy.hidden || proxy.disabled;
+      if (homeButton.hidden !== Boolean(hide)) homeButton.hidden = Boolean(hide);
     }
 
     const unreadSource = document.getElementById("adv-unread-badge");
@@ -205,7 +215,10 @@
 
     const ownerProxy = document.getElementById("owner-button");
     const owner = document.getElementById("nyan-home-owner");
-    if (owner) owner.hidden = !ownerProxy || ownerProxy.hidden || ownerProxy.disabled;
+    if (owner) {
+      const hide = !ownerProxy || ownerProxy.hidden || ownerProxy.disabled;
+      if (owner.hidden !== Boolean(hide)) owner.hidden = Boolean(hide);
+    }
   }
 
   function syncHistory() {

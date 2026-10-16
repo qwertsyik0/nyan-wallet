@@ -29,4 +29,33 @@ assert '<link rel="stylesheet" href="./home_v2.css?' in html
 assert '<link rel="stylesheet" href="./interface_shell.css?' in html
 assert html.index('home_v2.css?v=') < html.index('interface_shell.css?v='), "Unexpected stylesheet order"
 
+
+# Compact home keeps just one visible action area; every operation lives under "Ещё".
+import ast
+
+actions_match = re.search(r"const MORE_ACTIONS\s*=\s*\[(.*?)\];", client, re.S)
+assert actions_match, "Single compact More menu definition missing"
+menu = ast.literal_eval("[" + actions_match.group(1) + "]")
+targets = [row[3] for row in menu]
+assert targets == [
+    "earn-button",
+    "spend-button",
+    "transfer-button",
+    "wallet-qr-button",
+    "adv-profile-button",
+    "adv-notifications-button",
+    "nyg-my-button",
+    "nyg-my-purchases-button",
+    "appeals-button",
+], "An action is missing, duplicated or improperly routed in the More menu"
+assert len(set(targets)) == len(targets), "Duplicate actions in More"
+assert 'class="nyan-home-primary"' not in client, "Old big action tiles were recreated"
+assert 'MORE_ACTIONS.map(' in client and 'class="nyan-home-more-button"' in client
+assert '<section class="actions" hidden aria-hidden="true">' in html, "Original large action grid is visible in the document"
+assert 'legacyActions.style.setProperty("display", "none", "important");' in client, "Old cached CSS can resurrect original grid"
+assert '#nyan-home-v2>.nyan-home-primary' in home, "Outdated JS might recreate large action tiles"
+assert 'id="nyan-home-owner"' in client and 'ownerProxy.disabled' in client, "Owner menu access must remain conditional"
+assert '"nyan-home-badge"' in client, "Notification badge must remain available"
+print("OK: all nine actions are compact More entries; original large buttons cannot appear")
+
 print("OK: old action grid stays hidden; new home navigation keeps original click handlers")

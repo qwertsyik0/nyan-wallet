@@ -15,6 +15,7 @@ from telegram.ext import Application, ApplicationHandlerStop, CallbackQueryHandl
 from broadcast_bot import BroadcastBotError, BroadcastDraft, ButtonSpec, _owner_id
 
 DEFAULT_MINI_APP_URL = "https://qwertsyik0.github.io/nyan-wallet/"
+ELECTIONS_MINI_APP_URL = "https://qwertsyik0.github.io/nyan-wallet/elections.html"
 PROMO_SLUG_PATTERN = re.compile(r"^[a-z0-9_-]{2,48}$", re.IGNORECASE)
 _channel_drafts: dict[int, BroadcastDraft] = {}
 _channel_post_init_hook_installed = False
@@ -295,6 +296,7 @@ def _start_param_for_url(url: str) -> str:
             "/suggestion-300.html": "suggestion_300",
             "/finance-apply.html": "finance_admin",
             "/finance-review.html": "finance_review",
+            "/elections.html": "elections",
         }
         for suffix, start_param in page_routes.items():
             if page.endswith(suffix):
@@ -321,7 +323,7 @@ def _mini_app_deep_link(url: str, bot_username: str | None) -> str:
 
     # The configured named Mini App currently points at the legacy promo
     # screen. Standalone forms/review screens require the Main Mini App.
-    if raw_start_param in {"survey", "suggestion_300", "finance_admin", "finance_review"}:
+    if raw_start_param in {"survey", "suggestion_300", "finance_admin", "finance_review", "elections"}:
         return f"https://t.me/{bot_username}?startapp={start_param}"
 
     short_name = (os.getenv("NYAN_MINI_APP_SHORT_NAME") or os.getenv("TELEGRAM_WEBAPP_SHORT_NAME") or "").strip()
@@ -399,6 +401,19 @@ def _menu_text(draft: BroadcastDraft) -> str:
     )
 
 
+def _add_elections_button(draft: BroadcastDraft) -> bool:
+    # Never inherit arbitrary inline buttons from forwarded source messages:
+    # Telegram may reject the entire copied post with BUTTON_URL_INVALID.
+    draft.keep_source_markup = False
+    if any(spec.kind == "web_app" and spec.url == ELECTIONS_MINI_APP_URL for spec in draft.buttons):
+        return False
+    draft.buttons.append(ButtonSpec(
+        text="🗳 Выборы", url=ELECTIONS_MINI_APP_URL,
+        kind="web_app", row=draft.current_row,
+    ))
+    return True
+
+
 def _menu_markup(draft: BroadcastDraft) -> InlineKeyboardMarkup:
     source_count = _source_button_count(draft.source_markup)
     source_state = "вкл" if draft.keep_source_markup else "выкл"
@@ -408,6 +423,7 @@ def _menu_markup(draft: BroadcastDraft) -> InlineKeyboardMarkup:
                 InlineKeyboardButton("🌐 URL-кнопка", callback_data="ch:add_url"),
                 InlineKeyboardButton("📱 Mini App", callback_data="ch:add_webapp"),
             ],
+            [InlineKeyboardButton("🗳 Выборы", callback_data="ch:add_elections")],
             [
                 InlineKeyboardButton("↩️ Новая строка", callback_data="ch:new_row"),
                 InlineKeyboardButton("🗑 Мои кнопки", callback_data="ch:clear_buttons"),
@@ -733,7 +749,17 @@ async def channel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             )
         raise ApplicationHandlerStop
 
-    if action == "add_url":
+    if action == "add_elections":
+        added = _add_elections_button(draft)
+        draft.mode = "ready"
+        await query.edit_message_text(
+            _menu_text(draft) + (
+                "\n\nКнопка «🗳 Выборы» добавлена."
+                if added else "\n\nКнопка «🗳 Выборы» уже в черновике."
+            ),
+            reply_markup=_menu_markup(draft),
+        )
+    elif action == "add_url":
         draft.mode = "awaiting_button_url"
         await context.bot.send_message(chat_id=user.id, text="Пришлите кнопку в формате:\nОтзывы | https://example.com")
     elif action == "add_webapp":
