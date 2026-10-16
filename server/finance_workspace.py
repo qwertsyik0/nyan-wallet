@@ -66,6 +66,8 @@ class FinanceDecisionRequest(core.Base):
     action: Mapped[str] = mapped_column(String(16), nullable=False)
     amount: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     reason: Mapped[str] = mapped_column(Text, nullable=False)
+    # Confidential justification: owner review only; never user-facing.
+    public_reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
     evidence: Mapped[str | None] = mapped_column(Text, nullable=True)
     request_token: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending", index=True)
@@ -98,10 +100,11 @@ class ProposalPayload(BaseModel):
     action: Literal["grant", "debit", "investigate"]
     amount: int = Field(ge=0, le=MAX_AMOUNT)
     reason: str = Field(min_length=10, max_length=300)
+    public_reason: str | None = Field(default=None, max_length=200)
     evidence: str | None = Field(default=None, max_length=500)
     request_token: str = Field(min_length=12, max_length=64)
 
-    @field_validator("target", "reason", "evidence")
+    @field_validator("target", "reason", "public_reason", "evidence")
     @classmethod
     def normalize_text(cls, value: str | None) -> str | None:
         if value is None:
@@ -141,6 +144,7 @@ def _serialize(item: FinanceDecisionRequest, session, *, include_trainee: bool =
         "action": item.action,
         "amount": item.amount,
         "reason": item.reason,
+        "public_reason": item.public_reason,
         "evidence": item.evidence,
         "status": item.status,
         "created_at": item.created_at.isoformat(),
@@ -252,20 +256,21 @@ def _send_approved_finance_notice(request_id: int) -> None:
             delivery.attempts += 1
             delivery.updated_at = core.now_utc()
             chat_id = delivery.recipient_id
-            reason = decision.reason
+            reason = decision.public_reason or (
+                "Начисление лапкоинов" if decision.action == "grant"
+                else "Корректировка баланса"
+            )
             amount = decision.amount
             direction = decision.action
 
     if direction == "grant":
         msg = (f"🐾 Nyan Wallet | Начисление\n\n"
                f"На твой кошелёк начислено +{amount} 🐾\n"
-               f"Причина: {reason}\n\n"
-               f"Операция подтверждена владельцем · заявка №{request_id}")
+               f"Причина: {reason}")
     else:
         msg = (f"🐾 Nyan Wallet | Списание\n\n"
                f"С твоего кошелька списано {amount} 🐾\n"
-               f"Причина: {reason}\n\n"
-               f"Операция подтверждена владельцем · заявка №{request_id}")
+               f"Причина: {reason}")
     success, error = _telegram_finance_notice(chat_id, msg)
     with core.SessionLocal() as session:
         with session.begin():
@@ -329,7 +334,14 @@ async def submit_request(
     if not TOKEN_PATTERN.fullmatch(payload.request_token):
         raise HTTPException(status_code=422, detail="Некорректный идентификатор заявки")
     if len(payload.reason) < 10:
-        raise HTTPException(status_code=422, detail="Укажите причину не короче 10 символов")
+        raise HTTPException(status_code=422, detail="Укажите служебное обоснование не короче 10 символов")
+    if payload.action in {"grant", "debit"} and not (
+        payload.public_reason and len(payload.public_reason) >= 5
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="Укажите понятную пользователю причину (минимум 5 символов)",
+        )
     if payload.action == "investigate" and payload.amount != 0:
         raise HTTPException(status_code=422, detail="Для проверки операции сумма должна быть 0")
     if payload.action != "investigate" and payload.amount < 1:
@@ -359,6 +371,7 @@ async def submit_request(
                 )
                 if (not target_match or existing.action != payload.action
                         or existing.amount != payload.amount or existing.reason != payload.reason
+                        or (existing.public_reason or None) != (payload.public_reason or None)
                         or (existing.evidence or None) != (payload.evidence or None)):
                     raise HTTPException(status_code=409, detail="Идентификатор уже использован другой заявкой")
                 return {"ok": True, "request": _serialize(existing, session), "already_submitted": True}
@@ -393,6 +406,7 @@ async def submit_request(
                 action=payload.action,
                 amount=payload.amount,
                 reason=payload.reason,
+                public_reason=payload.public_reason if payload.action != "investigate" else None,
                 evidence=payload.evidence or None,
                 request_token=payload.request_token,
                 status="pending",
@@ -410,7 +424,9 @@ async def submit_request(
         f"Заявка №{response['id']}: {kinds[payload.action]}\n"
         f"Пользователь: {response['target_label']}\n"
         f"Сумма: {payload.amount} 🐾\n"
-        f"Основание: {payload.reason[:180]}\n\n"
+        f"Служебное обоснование: {payload.reason[:180]}\n"
+        + (f"Причина для пользователя: {payload.public_reason[:180]}\n" if payload.public_reason else "")
+        + "\n"
         "Баланс не изменён до решения владельца",
         button=True,
     )
@@ -672,7 +688,10 @@ async def decide_request(
                         telegram_id=target.telegram_id,
                         amount=delta,
                         operation_type="owner_grant" if delta > 0 else "owner_debit",
-                        description=f"{record.reason} (стажёрская заявка №{record.id})",
+                        description=record.public_reason or (
+                            "Начисление лапкоинов" if record.action == "grant"
+                            else "Корректировка баланса"
+                        ),
                         created_at=core.now_utc(),
                     )
                     session.add(transaction)
@@ -736,6 +755,9 @@ def register_finance_workspace(app) -> None:
             )
             connection.exec_driver_sql(
                 "ALTER TABLE finance_decision_requests ADD COLUMN IF NOT EXISTS target_reference VARCHAR(128)"
+            )
+            connection.exec_driver_sql(
+                "ALTER TABLE finance_decision_requests ADD COLUMN IF NOT EXISTS public_reason VARCHAR(200)"
             )
     app.include_router(router)
     _REGISTERED = True
