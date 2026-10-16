@@ -453,10 +453,10 @@ async def create_party(
     background_tasks.add_task(
         _send_party_telegram_notice,
         core.OWNER_TELEGRAM_ID,
-        f"🗳 NYAN ELECTIONS | Новая заявка №{party_id}\\n\\n"
-        f"Название: {payload.name}\\n"
-        f"Аббревиатура: {payload.short_name}\\n"
-        f"Председатель: {uid}\\n\\n"
+        f"🗳 NYAN ELECTIONS | Новая заявка №{party_id}\n\n"
+        f"Название: {payload.name}\n"
+        f"Аббревиатура: {payload.short_name}\n"
+        f"Председатель: {uid}\n\n"
         "Откройте раздел «Выборы», чтобы принять или отклонить партию.",
         "🗳 Рассмотреть заявку",
     )
@@ -533,7 +533,7 @@ async def owner_review_party(
             raise HTTPException(status_code=409, detail="Конфликт состава партии") from exc
     background_tasks.add_task(
         _send_party_telegram_notice, applicant_id,
-        f"🗳 NYAN ELECTIONS\\n\\n{decision_body}",
+        f"🗳 NYAN ELECTIONS\n\n{decision_body}",
         "🗳 Открыть мою партию",
     )
     return {"ok": True, "party_id": party_id, "status": party.status}
