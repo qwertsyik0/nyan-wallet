@@ -11,6 +11,7 @@ import binascii
 import io
 import json
 import logging
+import os
 import re
 import urllib.error
 import urllib.request
@@ -306,6 +307,38 @@ def latest_season(session, *, lock: bool = False) -> ElectionSeason | None:
     return session.scalar(stmt.with_for_update() if lock else stmt)
 
 
+def _party_group_invite(party: ElectionParty) -> str | None:
+    """Resolve private party invite from protected server configuration.
+
+    Invite links must never be included in public party listings or source code.
+    Telegram can still allow forwarded invites; administrators should use
+    join-request links for actual Telegram membership verification.
+    """
+    try:
+        mapping = json.loads(os.getenv("NYAN_ELECTIONS_GROUP_INVITES", "{}"))
+    except (TypeError, ValueError):
+        logger.warning("Elections group invite configuration is invalid")
+        return None
+    if not isinstance(mapping, dict):
+        return None
+    name = " ".join(party.name.split()).casefold()
+    for configured_name, configured_url in mapping.items():
+        if not isinstance(configured_name, str) or not isinstance(configured_url, str):
+            continue
+        if " ".join(configured_name.split()).casefold() != name:
+            continue
+        url = configured_url.strip()
+        parts = urlsplit(url)
+        # Allow only Telegram's private invite URLs. Disallow query strings,
+        # credentials and third-party links.
+        if (parts.scheme == "https" and parts.netloc == "t.me"
+                and re.fullmatch(r"/\+[A-Za-z0-9_-]{12,64}", parts.path)
+                and not parts.query and not parts.fragment and not parts.username):
+            return url
+        logger.warning("Invalid Elections group invite URL configured for %s", party.id)
+    return None
+
+
 def party_data(party: ElectionParty, session, *, include_private: bool = False) -> dict:
     chair = session.get(core.User, party.chair_id)
     member_count = session.scalar(
@@ -366,6 +399,11 @@ async def get_elections(x_telegram_init_data: str | None = Header(default=None, 
             "season": {"id": season.id, "title": season.title, "phase": season.phase},
             "parties": [party_data(p, session) for p in approved],
             "my_party_id": member.party_id if member else None,
+            "my_party_group_url": (
+                _party_group_invite(session.get(ElectionParty, member.party_id))
+                if member and session.get(ElectionParty, member.party_id)
+                else None
+            ),
             "owned_party": party_data(owned_party, session, include_private=True) if owned_party else None,
             "applications": [
                 party_data(p, session, include_private=True)

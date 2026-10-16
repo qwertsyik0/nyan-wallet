@@ -44,3 +44,6 @@ footer{text-align:center;margin:22px 0 0;font-size:10px;color:#ac8194}button:foc
 .el-owner-note-label{display:grid;gap:6px;margin-top:10px;font-size:12px;font-weight:750;color:#8c5c73}
 .el-owner-note{width:100%;min-height:66px;resize:vertical;line-height:1.4;padding:10px 12px;border:1px solid #ecd6e1;border-radius:12px;background:#fff;color:#6e2147;box-sizing:border-box}
 .el-owner-note:focus{outline:2px solid #ce8dad;outline-offset:1px}
+
+.el-party-chat{display:inline-flex;align-items:center;justify-content:center;max-width:100%;margin:4px 8px 12px 0;text-decoration:none;text-align:center}
+.el-party-chat:focus-visible{outline:2px solid #a33869;outline-offset:3px}

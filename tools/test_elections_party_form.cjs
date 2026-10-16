@@ -20,6 +20,11 @@ assert(script.includes('state.is_owner||'),"Owner must never see Create Party fo
 assert(script.includes('if(state?.is_owner)'),"Owner submit must be rejected even if form is forced visible");
 assert(!script.includes('"/owner/parties/replace"'),"Owner replacement entry point must be retired");
 assert(!page.includes('id="el-replace-warning"'),"Owner replacement controls must be removed");
+assert(script.includes("state.my_party_group_url"),"Member chat link must be part of My Party");
+assert(script.includes('make("a","el-button el-party-chat"'),"Missing invite link button");
+assert(script.includes('invite.hostname==="t.me"'),"Telegram-only invite check missing");
+assert(!page.includes("t.me/+"),"Do not bake private Telegram invites into public frontend");
+
 assert(script.includes('else submitParty(form);'),"Submit event not routed into validation");
 
 function validate(values,image=null) {
