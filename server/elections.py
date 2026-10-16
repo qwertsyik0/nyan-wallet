@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, select
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -97,7 +97,10 @@ class CreateSeason(BaseModel):
     @field_validator("title")
     @classmethod
     def normalize(cls, value: str) -> str:
-        return " ".join(value.split())
+        cleaned = " ".join(value.split())
+        if len(cleaned) < 4:
+            raise ValueError("Укажите название сезона")
+        return cleaned
 
 
 class CreateParty(BaseModel):
@@ -107,10 +110,22 @@ class CreateParty(BaseModel):
     program: str = Field(min_length=30, max_length=3000)
     emblem_url: str | None = Field(default=None, max_length=500)
 
-    @field_validator("name", "short_name", "program")
+    @field_validator("name", "short_name")
     @classmethod
     def trim(cls, value: str) -> str:
-        return " ".join(value.split())
+        cleaned = " ".join(value.split())
+        if not cleaned:
+            raise ValueError("Поле не может быть пустым")
+        return cleaned
+
+    @field_validator("program")
+    @classmethod
+    def clean_program(cls, value: str) -> str:
+        # Preserve paragraphs in party manifestos while rejecting blank filler.
+        cleaned = value.replace("\r\n", "\n").strip()
+        if len(cleaned) < 30 or not cleaned.strip():
+            raise ValueError("Программа должна содержать не менее 30 символов")
+        return cleaned
 
     @field_validator("short_name")
     @classmethod
@@ -177,9 +192,9 @@ def latest_season(session, *, lock: bool = False) -> ElectionSeason | None:
 
 def party_data(party: ElectionParty, session, *, include_private: bool = False) -> dict:
     chair = session.get(core.User, party.chair_id)
-    members = session.scalars(
-        select(ElectionMembership.id).where(ElectionMembership.party_id == party.id)
-    ).all()
+    member_count = session.scalar(
+        select(func.count(ElectionMembership.id)).where(ElectionMembership.party_id == party.id)
+    ) or 0
     result = {
         "id": party.id,
         "name": party.name,
@@ -189,7 +204,7 @@ def party_data(party: ElectionParty, session, *, include_private: bool = False) 
         "chair_label": ("@" + chair.username) if chair and chair.username else (
             chair.first_name if chair else "пользователь"
         ),
-        "member_count": len(members),
+        "member_count": int(member_count),
         "status": party.status,
     }
     if include_private:
