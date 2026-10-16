@@ -285,6 +285,37 @@ async def run_tests():
         assert session.get(User, 202).balance == 550
         assert len(session.scalars(select(Transaction)).all()) == 1
 
+    failed_delivery = await module.submit_request(
+        proposal("failed_notice_123", "grant", 10),
+        BackgroundTasks(), x_telegram_init_data="trainee"
+    )
+    failed_id = failed_delivery["request"]["id"]
+    await module.decide_request(
+        failed_id, module.DecisionPayload(decision="approve"),
+        BackgroundTasks(), x_telegram_init_data="owner"
+    )
+    module._telegram_finance_notice = lambda chat_id, message: (
+        False, "Forbidden: bot was blocked by the user"
+    )
+    module._send_approved_finance_notice(failed_id)
+    with SessionLocal() as session:
+        delivery = session.get(module.FinanceTelegramDelivery, failed_id)
+        assert delivery.status == "failed"
+        assert delivery.attempts == 1
+        assert session.get(User, 202).balance == 560
+    retry = await module.retry_financial_notification(
+        failed_id, BackgroundTasks(), x_telegram_init_data="owner"
+    )
+    assert retry["queued"] is True
+    module._telegram_finance_notice = lambda chat_id, message: (True, None)
+    module._send_approved_finance_notice(failed_id)
+    with SessionLocal() as session:
+        delivery = session.get(module.FinanceTelegramDelivery, failed_id)
+        assert delivery.status == "sent"
+        assert delivery.attempts == 2
+        assert session.get(User, 202).balance == 560
+        assert len(session.scalars(select(Transaction)).all()) == 2
+
     fourth = await module.submit_request(
         proposal("fourth_request123", "debit", 25),
         BackgroundTasks(), x_telegram_init_data="trainee"
@@ -301,7 +332,7 @@ async def run_tests():
         BackgroundTasks(), x_telegram_init_data="owner"
     ))
     with SessionLocal() as session:
-        assert session.get(User, 202).balance == 550
+        assert session.get(User, 202).balance == 560
     print("Finance internship integration: role gates, transaction ledger, in-app notice, Telegram delivery audit, technical investigations, no double execution, insufficient balance, rejection, revoke — OK")
 
 
