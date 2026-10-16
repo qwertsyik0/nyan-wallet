@@ -336,6 +336,59 @@ with SessionLocal() as session:
     audit = session.get(elections.ElectionPhaseUndo20261017, 1)
     assert audit.season_id == 2
     assert audit.status == "campaign_reverted_to_recruitment"
+# Personal NSN letters target current members only, include a clickable
+# profile and party group, and record each attempt to suppress duplicates.
+assert elections.dispatch_nsn_member_letters_20261017()["reason"] == "approved_nsn_party_not_found"
+with SessionLocal.begin() as session:
+    session.add(elections.ElectionParty(
+        id=102, season_id=2, chair_id=3,
+        name="Народный Союз Нян", name_key="народный союз нян", short_name="НСН",
+        short_key="нсн", program="Программа партии для проверки рассылки.",
+        status="approved", submitted_at=datetime.now(timezone.utc)
+    ))
+    for telegram_id in (3, 4):
+        session.add(elections.ElectionMembership(
+            season_id=2, party_id=102, telegram_id=telegram_id,
+            joined_at=datetime.now(timezone.utc)
+        ))
+prior_mapping = os.environ["NYAN_ELECTIONS_GROUP_INVITES"]
+os.environ["NYAN_ELECTIONS_GROUP_INVITES"] = json.dumps({
+    **json.loads(prior_mapping), "Народный Союз Нян": "https://t.me/+NsnGroupAbc123456",
+}, ensure_ascii=False)
+nsn_delivery = []
+def fake_nsn_letter(uid, username, firstname, party_name, invite):
+    nsn_delivery.append((uid, username, firstname, party_name, invite))
+    return uid == 3  # Simulate a blocked bot for one recipient.
+elections._send_nsn_member_letter = fake_nsn_letter
+counts = elections.dispatch_nsn_member_letters_20261017()
+assert counts["matched"] == 2 and counts["attempted"] == 2
+assert counts["sent"] == 1 and counts["failed"] == 1
+assert {x[0] for x in nsn_delivery} == {3, 4}
+assert all(x[3] == "Народный Союз Нян" for x in nsn_delivery)
+assert all(x[4] == "https://t.me/+NsnGroupAbc123456" for x in nsn_delivery)
+html_letter = elections._nsn_member_letter_text(3, "user3", "User 3", "Народный Союз Нян", "https://t.me/+NsnGroupAbc123456")
+assert '<a href="https://t.me/user3">@user3</a>' in html_letter
+assert '<a href="https://t.me/+NsnGroupAbc123456">' in html_letter
+assert 'tg://user?id=3' in elections._nsn_member_letter_text(
+    3, None, 'Пример', "Народный Союз Нян", "https://t.me/+NsnGroupAbc123456"
+)
+with SessionLocal() as session:
+    attempts = session.scalars(select(elections.ElectionNSNLetter20261017)).all()
+    assert len(attempts) == 2
+    assert {a.status for a in attempts} == {"sent", "failed"}
+    assert session.query(elections.ElectionMembership).count() == baseline_members + 2
+assert elections.dispatch_nsn_member_letters_20261017()["skipped"] == 2
+assert len(nsn_delivery) == 2, "Resending must not duplicate successful or failed DMs"
+with SessionLocal.begin() as session:
+    moved = session.scalar(select(elections.ElectionMembership).where(
+        elections.ElectionMembership.season_id == 2,
+        elections.ElectionMembership.telegram_id == 4,
+    ))
+    moved.party_id = 101
+assert elections.dispatch_nsn_member_letters_20261017()["matched"] == 1
+assert len(nsn_delivery) == 2
+os.environ["NYAN_ELECTIONS_GROUP_INVITES"] = prior_mapping
+
 with SessionLocal.begin() as session:
     session.get(elections.ElectionSeason, 2).phase = "campaign"
 assert elections.undo_accidental_campaign_20261017_once() == "already_processed"
