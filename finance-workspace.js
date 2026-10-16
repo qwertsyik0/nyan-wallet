@@ -110,6 +110,9 @@
     const investigate = $("fw-action").value === "investigate";
     $("fw-amount-group").hidden = investigate;
     $("fw-amount").required = !investigate;
+    // An invisible number input with value 0 and min 1 is still invalid.
+    // Disable its native constraint validation for investigations entirely.
+    $("fw-amount").disabled = investigate;
     $("fw-target").required = !investigate;
     $("fw-target-label").textContent = investigate
       ? "Кошелёк, номер перевода или объект проверки (необязательно)"
