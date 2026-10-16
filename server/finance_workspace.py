@@ -231,6 +231,140 @@ def _telegram_finance_notice(chat_id: int, message: str) -> tuple[bool, str | No
         return False, f"Ошибка отправки: {type(exc).__name__}"
 
 
+def _finance_report_time(value: datetime | None) -> str:
+    if value is None:
+        return "нет данных"
+    return value.strftime("%d.%m.%Y %H:%M") + " UTC"
+
+
+def _resolve_investigation_wallet_ids(session, record: FinanceDecisionRequest) -> list[int]:
+    """Resolve only exact wallet/transfer references, never guess from case text."""
+    from .transfers import WalletAddress, WalletAlias, WalletTransfer
+
+    if record.target_id is not None and session.get(core.User, record.target_id):
+        return [int(record.target_id)]
+    ref = (record.target_reference or "").strip()
+    if not ref:
+        return []
+    normalized = ref.replace(" ", "").upper()
+    if re.fullmatch(r"NWT[A-F0-9]{16}", normalized):
+        transfer = session.scalar(
+            select(WalletTransfer).where(WalletTransfer.public_id == normalized)
+        )
+        return ([int(transfer.sender_id), int(transfer.recipient_id)]
+                if transfer else [])
+    if re.fullmatch(r"TX-[0-9]{1,12}", normalized):
+        transaction = session.get(core.Transaction, int(normalized[3:]))
+        return [int(transaction.telegram_id)] if transaction else []
+    if re.fullmatch(r"NW[A-F0-9]{20}", normalized):
+        address = session.scalar(
+            select(WalletAddress).where(WalletAddress.public_id == normalized)
+        )
+        return [int(address.telegram_id)] if address else []
+    if re.fullmatch(r"NYAN[0-9]{12}", normalized):
+        alias = session.scalar(
+            select(WalletAlias).where(WalletAlias.alias == normalized)
+        )
+        return [int(alias.telegram_id)] if alias else []
+    # Numeric Telegram IDs and usernames are resolved by the same helper
+    # as the normal wallet forms. Do not interpret bare numbers as tx IDs.
+    if ref.startswith("@") or ref.isdigit() or re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{4,31}", ref):
+        user = core.find_target_user(session, ref)
+        return [int(user.telegram_id)] if user else []
+    return []
+
+
+def _build_finance_investigation_report(session, record: FinanceDecisionRequest) -> str:
+    """Bounded read-only wallet profile derived exclusively from stored facts.
+
+    No device/IP identity inference or automatic antifraud conclusions.
+    This report is only sent after the owner explicitly approves a case.
+    """
+    from sqlalchemy import or_
+    from .transfers import WalletTransfer, WalletAlias, format_wallet_alias
+    from .advanced_features import Referral
+
+    reference = (record.target_reference or "").strip() or "не указан"
+    lines = [
+        "🐾 Nyan Wallet | Финансовая проверка",
+        f"Заявка №{record.id}",
+        f"Запрос: {reference}",
+        "",
+    ]
+    ids = list(dict.fromkeys(_resolve_investigation_wallet_ids(session, record)))[:2]
+    if not ids:
+        lines.extend([
+            "Кошелёк по указанным данным не найден",
+            "Для подробного отчёта запросите проверку по Telegram ID,",
+            "@username, номеру кошелька NYAN, ID NWT-перевода или TX-ID операции",
+            "",
+            "Проверка не меняет баланс и не устанавливает факт нарушения",
+        ])
+        return "\n".join(lines)
+
+    for uid in ids:
+        user = session.get(core.User, uid)
+        if user is None:
+            continue
+        alias = session.get(WalletAlias, uid)
+        name = _name(user)
+        lines.extend([
+            f"Кошелёк: {name}",
+            f"Telegram ID: {uid}",
+            f"Номер кошелька: {format_wallet_alias(alias.alias) if alias else 'нет данных'}",
+            f"Баланс: {user.balance} 🐾",
+            f"Регистрация: {_finance_report_time(getattr(user, 'created_at', None))}",
+            f"Последняя активность: {_finance_report_time(getattr(user, 'last_seen_at', None))}",
+        ])
+        promo_count, promo_total = session.execute(
+            select(func.count(core.PromoRedemption.id),
+                   func.coalesce(func.sum(core.PromoRedemption.reward_amount), 0))
+            .where(core.PromoRedemption.telegram_id == uid)
+        ).one()
+        ref_count = session.scalar(
+            select(func.count(Referral.id)).where(Referral.inviter_id == uid)
+        ) or 0
+        lines.append(f"Промокоды: {promo_count}, получено {promo_total} 🐾")
+        lines.append(f"Приглашено по рефералам: {ref_count}")
+
+        rows = session.scalars(
+            select(core.Transaction).where(core.Transaction.telegram_id == uid)
+            .order_by(core.Transaction.id.desc()).limit(6)
+        ).all()
+        lines.append("Последние операции:")
+        if not rows:
+            lines.append("  нет операций")
+        for tx in rows:
+            sign = "+" if tx.amount > 0 else ""
+            lines.append(
+                f"  {_finance_report_time(tx.created_at)} · {sign}{tx.amount} 🐾 "
+                f"· {tx.operation_type} · TX-{tx.id}"
+            )
+
+        tr = session.scalars(
+            select(WalletTransfer).where(
+                or_(WalletTransfer.sender_id == uid, WalletTransfer.recipient_id == uid)
+            ).order_by(WalletTransfer.id.desc()).limit(6)
+        ).all()
+        lines.append("Последние переводы:")
+        if not tr:
+            lines.append("  нет переводов")
+        for item in tr:
+            incoming = item.recipient_id == uid
+            sign = "+" if incoming else "−"
+            other_id = item.sender_id if incoming else item.recipient_id
+            lines.append(
+                f"  {_finance_report_time(item.created_at)} · {sign}{item.amount} 🐾 "
+                f"· {'от' if incoming else 'кому'} ID {other_id} · {item.public_id}"
+            )
+        lines.append("")
+
+    lines.append("Это технические сведения, а не доказательство мошенничества")
+    lines.append("Самостоятельные списания и блокировки не разрешены")
+    # Telegram sendMessage limit is 4096 UTF-16 code units; stay well below it.
+    return "\n".join(lines)[:3400]
+
+
 def _send_approved_finance_notice(request_id: int) -> None:
     """Delivery is independent of the financial transaction: errors cannot undo a credit."""
     with core.SessionLocal() as session:
