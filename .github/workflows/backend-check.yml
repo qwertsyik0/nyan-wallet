@@ -2,7 +2,7 @@ name: Backend and client syntax check
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'fix/elections-party-form-feedback-20261016']
     paths:
       - "server/**/*.py"
       - "*.js"
@@ -20,6 +20,7 @@ on:
       - "tools/test_home_nav_cascade.py"
       - "tools/test_elections_foundation.py"
       - "tools/test_elections_buttons.py"
+      - "tools/test_elections_party_form.cjs"
       - "elections.html"
       - "elections.css"
       - "requirements.txt"
@@ -541,6 +542,8 @@ jobs:
         run: |
           python tools/test_elections_buttons.py
           node --check elections.js
+      - name: Check Elections party form validation
+        run: node tools/test_elections_party_form.cjs
       - name: Check browser JavaScript syntax
         run: |
           for file in ./*.js; do
