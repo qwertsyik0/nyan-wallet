@@ -36,6 +36,10 @@ jobs:
         run: python -m py_compile server/*.py tools/install_giveaway_bot.py tools/install_maintenance_bot.py tools/install_broadcast_bot.py tools/install_channel_publish_bot.py tools/install_ban_bot.py bot_addons/broadcast_bot.py bot_addons/channel_publish_bot.py bot_addons/channel_publish_bot_v2.py bot_addons/ban_bot.py tools/nyan_bot_autodeploy.py
       - name: Test Nyan ID PNG export and Telegram document upload
         run: python tools/test_nyan_id_png.py
+      - name: Test finance internship role and approval workflow
+        run: |
+          python -m pip install -r requirements.txt
+          python tools/test_finance_workspace.py
       - name: Check VPS auto-deploy entry point
         run: python tools/nyan_bot_autodeploy.py --help
       - name: Validate giveaway bot payload
