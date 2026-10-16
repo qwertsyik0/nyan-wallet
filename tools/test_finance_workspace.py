@@ -49,6 +49,41 @@ class WalletNotification(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class WalletTransfer(Base):
+    __tablename__ = "wallet_transfers"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    public_id: Mapped[str] = mapped_column(String(24), unique=True)
+    sender_id: Mapped[int] = mapped_column(BigInteger)
+    recipient_id: Mapped[int] = mapped_column(BigInteger)
+    amount: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class WalletAlias(Base):
+    __tablename__ = "wallet_aliases"
+    telegram_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    alias: Mapped[str] = mapped_column(String(16))
+
+
+class WalletAddress(Base):
+    __tablename__ = "wallet_addresses"
+    telegram_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    public_id: Mapped[str] = mapped_column(String(24), unique=True)
+
+
+class Referral(Base):
+    __tablename__ = "referrals"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    inviter_id: Mapped[int] = mapped_column(BigInteger)
+
+
+class PromoRedemption(Base):
+    __tablename__ = "promo_redemptions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger)
+    reward_amount: Mapped[int] = mapped_column(Integer)
+
+
 class FinancialAdminApplication(Base):
     __tablename__ = "financial_admin_applications"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -63,6 +98,7 @@ core = types.ModuleType("server.backend_app")
 core.Base = Base
 core.User = User
 core.Transaction = Transaction
+core.PromoRedemption = PromoRedemption
 core.SessionLocal = SessionLocal
 core.engine = engine
 core.OWNER_TELEGRAM_ID = 1
@@ -103,6 +139,12 @@ recruitment = types.ModuleType("server.finance_recruitment")
 recruitment.FinancialAdminApplication = FinancialAdminApplication
 advanced = types.ModuleType("server.advanced_features")
 advanced.WalletNotification = WalletNotification
+advanced.Referral = Referral
+transfers = types.ModuleType("server.transfers")
+transfers.WalletTransfer = WalletTransfer
+transfers.WalletAlias = WalletAlias
+transfers.WalletAddress = WalletAddress
+transfers.format_wallet_alias = lambda alias: alias
 
 def tx_notifier(mapper, connection, tx):
     if tx.operation_type not in {"owner_grant", "owner_debit"}:
@@ -111,7 +153,7 @@ def tx_notifier(mapper, connection, tx):
         telegram_id=tx.telegram_id,
         kind=tx.operation_type,
         title="Начисление" if tx.amount > 0 else "Списание",
-        body=str(tx.amount),
+        body=f"{tx.amount} 🐾\\n{tx.description}",
         is_read=False,
         created_at=tx.created_at,
     ))
@@ -124,6 +166,7 @@ sys.modules.update({
     "server.extended_features": extended,
     "server.finance_recruitment": recruitment,
     "server.advanced_features": advanced,
+    "server.transfers": transfers,
 })
 
 spec = importlib.util.spec_from_file_location("server.finance_workspace", "server/finance_workspace.py")
@@ -141,6 +184,13 @@ with SessionLocal() as session:
         User(telegram_id=202, username="customer", first_name="Customer", balance=500),
         User(telegram_id=303, username="stranger", first_name="Stranger", balance=0),
         FinancialAdminApplication(id=7, telegram_id=101, status="interview"),
+        PromoRedemption(telegram_id=202, reward_amount=100),
+        Referral(inviter_id=202),
+        WalletAlias(telegram_id=202, alias="NYAN123456789012"),
+        WalletTransfer(
+            public_id="NWT0123456789ABCDEF", sender_id=202, recipient_id=303,
+            amount=15, created_at=datetime.now(timezone.utc),
+        ),
     ])
     session.commit()
 
@@ -154,13 +204,16 @@ async def expect_http_error(expected, operation):
         raise AssertionError(f"Expected HTTP {expected} error")
 
 
-def proposal(token, action="grant", amount=50, target="202", reason="Кэшбэк за покупку 162 Stars"):
+def proposal(token, action="grant", amount=50, target="202",
+             reason="Служебная проверка расчёта, ссылка на платёж заказчика",
+             public_reason="Кэшбэк за покупку Telegram Stars"):
     return module.ProposalPayload(
         request_token=token,
         action=action,
         amount=amount,
         target=target,
         reason=reason,
+        public_reason=public_reason if action != "investigate" else None,
         evidence="Заявка на проверку",
     )
 
@@ -213,6 +266,10 @@ async def run_tests():
         assert session.get(User, 202).balance == 550
         transactions = session.scalars(select(Transaction)).all()
         assert len(transactions) == 1 and transactions[0].amount == 50
+        assert transactions[0].description == "Кэшбэк за покупку Telegram Stars"
+        assert "Служебная проверка" not in transactions[0].description
+        notices = session.scalars(select(WalletNotification)).all()
+        assert all("Служебная проверка" not in n.body for n in notices)
         delivery = session.get(module.FinanceTelegramDelivery, id_of_first)
         assert delivery and delivery.status == "pending"
         assert len(session.scalars(select(WalletNotification)).all()) == 1
@@ -223,8 +280,16 @@ async def run_tests():
         id_of_first, x_telegram_init_data="owner"
     ))["in_app_notification"] is True
     # Telegram API itself is mocked, no messages are sent outside this test.
-    module._telegram_finance_notice = lambda chat_id, message: (True, None)
+    delivered = []
+    module._telegram_finance_notice = lambda chat_id, message: (
+        delivered.append((chat_id, message)) or True, None
+    )
     module._send_approved_finance_notice(id_of_first)
+    assert delivered[0][0] == 202
+    assert "Кэшбэк за покупку Telegram Stars" in delivered[0][1]
+    assert not any(x in delivered[0][1].lower() for x in [
+        "стажёр", "владелец", "одобрена", "заявка", "служебная проверка"
+    ])
     with SessionLocal() as session:
         assert session.get(module.FinanceTelegramDelivery, id_of_first).status == "sent"
         assert session.get(module.FinanceTelegramDelivery, id_of_first).attempts == 1
