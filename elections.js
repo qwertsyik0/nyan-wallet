@@ -145,6 +145,18 @@ function render(){
   const party=state.parties?.find(p=>p.id===state.my_party_id);
   if(party){
     body.append(make("p","el-muted","Вы состоите в партии «"+party.name+"»."));
+    if(state.my_party_group_url){
+      try{
+        const invite=new URL(state.my_party_group_url);
+        if(invite.protocol==="https:"&&invite.hostname==="t.me"&&invite.pathname.startsWith("/+")){
+          const join=make("a","el-button el-party-chat","💬 Вступить в чат партии");
+          join.href=invite.href;
+          join.target="_blank";
+          join.rel="noopener noreferrer";
+          body.append(join);
+        }
+      }catch(_){}
+    }
     if(["recruitment","campaign"].includes(season?.phase))body.append(button("Покинуть партию","leave",undefined,true));
   }
   for(const p of state.applications||[]){
