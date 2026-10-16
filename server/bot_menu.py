@@ -18,7 +18,7 @@ MINI_APP_URL = os.getenv("MINI_APP_URL", "https://qwertsyik0.github.io/nyan-wall
 def _menu_app_url(url: str) -> str:
     parsed = urlsplit(url)
     query = [(k, v) for k, v in parse_qsl(parsed.query, keep_blank_values=True) if k != "nyan_build"]
-    build = "ui20261016v2-" + (os.getenv("NYAN_WALLET_UI_BUILD") or "20261015-nyanid2").strip()
+    build = "ui20261016v3-" + (os.getenv("NYAN_WALLET_UI_BUILD") or "20261015-nyanid2").strip()
     query.append(("nyan_build", build[:80]))
     return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(query), parsed.fragment))
 

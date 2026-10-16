@@ -15,6 +15,9 @@ on:
       - "bot_addons/channel_publish_bot.py"
       - "bot_addons/channel_publish_bot_v2.py"
       - "index.html"
+      - "home_v2.css"
+      - "interface_shell.css"
+      - "tools/test_home_nav_cascade.py"
       - "bot_addons/ban_bot.py"
       - "tools/install_broadcast_bot.py"
       - "tools/install_channel_publish_bot.py"
@@ -520,6 +523,8 @@ jobs:
           assert "app.js?v=20261015-no-subscribe" in html
           print("Wallet opens without channel membership; Telegram signature verification retained")
           PY
+      - name: Check wallet home navigation CSS cascade
+        run: python tools/test_home_nav_cascade.py
       - name: Check browser JavaScript syntax
         run: |
           for file in ./*.js; do

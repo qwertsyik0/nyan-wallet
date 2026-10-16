@@ -24,8 +24,10 @@
     display: none !important;
 }
 
+/* Keep the legacy buttons in the DOM as click targets for home_v2.js.
+   The visible home navigation is rendered by #nyan-home-v2 instead. */
 #wallet-view .actions.nyan-actions-grid {
-    display: grid !important;
+    display: none !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 10px !important;
     margin: 14px 0 18px !important;
