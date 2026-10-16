@@ -107,6 +107,16 @@ class ElectionInitialRollback(core.Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class ElectionPhaseUndo20261017(core.Base):
+    """Audited one-shot rollback of an accidentally opened campaign in season 2."""
+
+    __tablename__ = "election_phase_undo_20261017"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    season_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    status: Mapped[str] = mapped_column(String(60), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class ElectionMembership(core.Base):
     """Database-level guarantee: at most one party per person within a season."""
 
@@ -735,6 +745,37 @@ def rollback_first_empty_season_once() -> str:
     return status
 
 
+def undo_accidental_campaign_20261017_once() -> str:
+    """Restore recruitment for the user's accidentally advanced first active election.
+
+    The operation is narrowly scoped to season #2 (created after the original
+    empty season #1 was rolled back). No parties, applications, or memberships
+    are updated. A persisted audit row prevents reversal of a future
+    intentional campaign after this one-time correction.
+    """
+    with core.SessionLocal() as session:
+        with session.begin():
+            if session.get(ElectionPhaseUndo20261017, 1) is not None:
+                return "already_processed"
+            season = latest_season(session, lock=True)
+            season_id = season.id if season else None
+            if season is None:
+                status = "skipped_no_season"
+            elif season.id != 2:
+                status = "skipped_unexpected_season"
+            elif season.phase != "campaign":
+                status = "skipped_not_campaign"
+            else:
+                season.phase = "recruitment"
+                season.updated_at = timestamp()
+                status = "campaign_reverted_to_recruitment"
+            session.add(ElectionPhaseUndo20261017(
+                id=1, season_id=season_id, status=status, created_at=timestamp()
+            ))
+    logger.warning("election_phase_undo_20261017 season_id=%s result=%s", season_id, status)
+    return status
+
+
 def register_elections(app) -> None:
     global _REGISTERED
     if _REGISTERED:
@@ -744,6 +785,8 @@ def register_elections(app) -> None:
     ElectionMembership.__table__.create(bind=core.engine, checkfirst=True)
     ElectionPartyEmblem.__table__.create(bind=core.engine, checkfirst=True)
     ElectionInitialRollback.__table__.create(bind=core.engine, checkfirst=True)
+    ElectionPhaseUndo20261017.__table__.create(bind=core.engine, checkfirst=True)
     rollback_first_empty_season_once()
+    undo_accidental_campaign_20261017_once()
     app.include_router(router)
     _REGISTERED = True
