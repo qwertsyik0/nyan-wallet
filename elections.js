@@ -3,7 +3,7 @@
 const tg=window.Telegram?.WebApp;
 const API="https://nyan-wallet-api.onrender.com/api/elections";
 const phaseLabels={registration:"Регистрация партий",recruitment:"Набор участников",campaign:"Предвыборная кампания",voting:"Голосование",results:"Итоги",closed:"Завершён"};
-let state=null,busy=false;
+let state=null,busy=false,readingImage=false,selectedEmblem=null,previewUrl=null;
 const $=id=>document.getElementById(id);
 tg?.ready?.(); tg?.expand?.();
 function make(tag,cls,value){const n=document.createElement(tag);if(cls)n.className=cls;if(value!==undefined)n.textContent=String(value);return n;}
@@ -21,6 +21,16 @@ function partyCard(p){
   const card=make("article","el-party"),head=make("div","el-party-head");
   head.append(make("div","el-party-title",p.name),make("span","el-party-short",p.short_name));card.append(head);
   card.append(make("div","el-party-meta","Председатель: "+p.chair_label+" · Участников: "+p.member_count));
+  if(p.emblem_url){
+    const img=make("img","el-party-emblem");
+    img.alt="Эмблема партии «"+p.name+"»";
+    img.loading="lazy";
+    try {
+      const candidate=new URL(p.emblem_url,new URL(API).origin);
+      if(candidate.protocol==="https:")img.src=candidate.href;
+    }catch(_){}
+    if(img.src)card.append(img);
+  }
   card.append(make("p","",p.program));
   if(["recruitment","campaign"].includes(state.season.phase)&&state.my_party_id!==p.id){
     const row=make("div","el-actions");
@@ -84,6 +94,73 @@ async function reload(message=""){
   try{state=await request();render();alertUser(message);}
   catch(e){$("el-main").hidden=true;$("el-loading").hidden=false;$("el-loading").textContent="Данные выборов временно недоступны.";alertUser(e.message);}
 }
+function showEmblem(file){
+  if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl=null;}
+  selectedEmblem=null;
+  const preview=$("el-emblem-preview");
+  const previewImg=$("el-emblem-img");
+  if(!file){
+    preview.hidden=true;
+    previewImg.removeAttribute("src");
+    return;
+  }
+  if(!["image/png","image/jpeg","image/webp"].includes(file.type)){
+    alertUser("Для эмблемы выберите PNG, JPG или WebP.");
+    $("el-emblem-input").value="";
+    preview.hidden=true;
+    return;
+  }
+  if(file.size>2*1024*1024||file.size===0){
+    alertUser("Размер изображения должен быть от 1 байта до 2 МБ.");
+    $("el-emblem-input").value="";
+    preview.hidden=true;
+    return;
+  }
+  selectedEmblem=file;
+  previewUrl=URL.createObjectURL(file);
+  previewImg.src=previewUrl;
+  preview.hidden=false;
+  alertUser("");
+}
+function fileToDataUrl(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(String(reader.result||""));
+    reader.onerror=()=>reject(Error("Не удалось прочитать изображение"));
+    reader.readAsDataURL(file);
+  });
+}
+async function submitParty(form){
+  if(busy||readingImage)return;
+  readingImage=true;
+  const data=Object.fromEntries(new FormData(form));
+  const payload={name:data.name,short_name:data.short_name,program:data.program};
+  try{
+    if(selectedEmblem)payload.emblem_data=await fileToDataUrl(selectedEmblem);
+  }catch(e){
+    alertUser(e.message);
+    readingImage=false;
+    return;
+  }
+  readingImage=false;
+  await mutate("/parties",payload);
+}
+$("el-emblem-input").addEventListener("change",event=>{
+  showEmblem(event.target.files?.[0]||null);
+});
+$("el-emblem-remove").addEventListener("click",()=>{
+  $("el-emblem-input").value="";
+  showEmblem(null);
+});
+document.addEventListener("paste",event=>{
+  if($("el-create-section").hidden)return;
+  const items=Array.from(event.clipboardData?.items||[]);
+  const entry=items.find(item=>item.kind==="file"&&item.type.startsWith("image/"));
+  if(entry){
+    const image=entry.getAsFile();
+    if(image){event.preventDefault();showEmblem(image);}
+  }
+});
 async function mutate(path,payload={}){
   if(busy)return;busy=true;
   document.querySelectorAll("#el-main button").forEach(n=>n.disabled=true);
@@ -104,7 +181,7 @@ document.addEventListener("submit",event=>{
   event.preventDefault();if(!form.reportValidity())return;
   const data=Object.fromEntries(new FormData(form));
   if(form.id==="el-season-form")mutate("/owner/seasons",{title:data.title});
-  else mutate("/parties",{name:data.name,short_name:data.short_name,program:data.program,emblem_url:data.emblem_url||null});
+  else submitParty(form);
 });
 $("el-back").addEventListener("click",()=>{
   if(history.length>1)history.back();
