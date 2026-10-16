@@ -117,9 +117,9 @@ with SessionLocal() as session:
     session.commit()
 
 
-def expect_http_error(expected, operation):
+async def expect_http_error(expected, operation):
     try:
-        asyncio.run(operation)
+        await operation
     except HTTPException as error:
         assert error.status_code == expected, (expected, error.status_code, error.detail)
     else:
@@ -173,7 +173,7 @@ async def run_tests():
     assert identical["request"]["id"] == first["request"]["id"]
 
     id_of_first = first["request"]["id"]
-    expect_http_error(403, module.decide_request(
+    await expect_http_error(403, module.decide_request(
         id_of_first, module.DecisionPayload(decision="approve"),
         BackgroundTasks(), x_telegram_init_data="stranger"
     ))
@@ -185,7 +185,7 @@ async def run_tests():
         assert session.get(User, 202).balance == 550
         transactions = session.scalars(select(Transaction)).all()
         assert len(transactions) == 1 and transactions[0].amount == 50
-    expect_http_error(409, module.decide_request(
+    await expect_http_error(409, module.decide_request(
         id_of_first, module.DecisionPayload(decision="approve"),
         BackgroundTasks(), x_telegram_init_data="owner"
     ))
@@ -194,7 +194,7 @@ async def run_tests():
         proposal("second_request12", "debit", 600),
         BackgroundTasks(), x_telegram_init_data="trainee"
     )
-    expect_http_error(409, module.decide_request(
+    await expect_http_error(409, module.decide_request(
         second["request"]["id"], module.DecisionPayload(decision="approve"),
         BackgroundTasks(), x_telegram_init_data="owner"
     ))
@@ -225,11 +225,11 @@ async def run_tests():
     await module.revoke_trainee(
         101, BackgroundTasks(), x_telegram_init_data="owner"
     )
-    expect_http_error(403, module.submit_request(
+    await expect_http_error(403, module.submit_request(
         proposal("fifth_request123"), BackgroundTasks(),
         x_telegram_init_data="trainee"
     ))
-    expect_http_error(403, module.decide_request(
+    await expect_http_error(403, module.decide_request(
         fourth["request"]["id"], module.DecisionPayload(decision="approve"),
         BackgroundTasks(), x_telegram_init_data="owner"
     ))
