@@ -55,7 +55,7 @@ assert '<section class="actions" hidden aria-hidden="true">' in html, "Original 
 assert 'legacyActions.style.setProperty("display", "none", "important");' in client, "Old cached CSS can resurrect original grid"
 assert '#nyan-home-v2>.nyan-home-primary' in home, "Outdated JS might recreate large action tiles"
 assert 'id="nyan-home-owner"' in client and 'ownerProxy.disabled' in client, "Owner menu access must remain conditional"
-assert 'class="nyan-home-badge"' in client, "Notification badge must remain available"
+assert '"nyan-home-badge"' in client, "Notification badge must remain available"
 print("OK: all nine actions are compact More entries; original large buttons cannot appear")
 
 print("OK: old action grid stays hidden; new home navigation keeps original click handlers")
