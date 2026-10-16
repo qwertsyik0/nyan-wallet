@@ -35,7 +35,6 @@ from .suggestions import register_suggestions
 from .finance_recruitment import register_finance_recruitment
 from .finance_stage2 import register_finance_stage2
 from .finance_workspace import register_finance_workspace
-from .one_time_finance_nastya_20261016 import appoint_verified_nastya_once
 from .bot_menu import sync_bot_menu_buttons
 from .user_bans import register_user_bans
 from .promo_delayed_fee import register_promo_delayed_fee
@@ -82,7 +81,6 @@ register_suggestions(backend_app.app)
 register_finance_recruitment(backend_app.app)
 register_finance_stage2(backend_app.app)
 register_finance_workspace(backend_app.app)
-appoint_verified_nastya_once()
 send_survey_channel_followups_20261011()
 register_user_bans(backend_app.app)
 register_promo_delayed_fee(backend_app.app)
