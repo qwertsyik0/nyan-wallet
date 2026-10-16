@@ -429,9 +429,31 @@ async def run_tests():
         proposal("fourth_request123", "debit", 25),
         BackgroundTasks(), x_telegram_init_data="trainee"
     )
+    revocation_case = await module.submit_request(
+        proposal("revoke_case_1234", "investigate", 0, "202"),
+        BackgroundTasks(), x_telegram_init_data="trainee"
+    )
+    await module.decide_request(
+        revocation_case["request"]["id"], module.DecisionPayload(decision="approve"),
+        BackgroundTasks(), x_telegram_init_data="owner"
+    )
+    deliveries_before = len(delivered)
     await module.revoke_trainee(
         101, BackgroundTasks(), x_telegram_init_data="owner"
     )
+    module._telegram_finance_notice = lambda chat_id, message: (
+        delivered.append((chat_id, message)) or True, None
+    )
+    module._send_approved_finance_notice(revocation_case["request"]["id"])
+    assert len(delivered) == deliveries_before
+    with SessionLocal() as session:
+        revoked_delivery = session.get(module.FinanceTelegramDelivery, revocation_case["request"]["id"])
+        assert revoked_delivery.status == "failed"
+        assert revoked_delivery.attempts == 0
+    await expect_http_error(403, module.retry_financial_notification(
+        revocation_case["request"]["id"], BackgroundTasks(),
+        x_telegram_init_data="owner"
+    ))
     await expect_http_error(403, module.submit_request(
         proposal("fifth_request123"), BackgroundTasks(),
         x_telegram_init_data="trainee"
