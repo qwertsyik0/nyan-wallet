@@ -47,6 +47,17 @@
           return;
         }
 
+        if (startParam === "finance_workspace" || startParam === "finance_work") {
+          const target = new URL("./finance-workspace.html", window.location.href);
+          const current = new URL(window.location.href);
+          for (const [key, value] of current.searchParams.entries()) {
+            if (!["startapp", "tgWebAppStartParam"].includes(key)) target.searchParams.set(key, value);
+          }
+          if (current.hash) target.hash = current.hash;
+          window.location.replace(target.toString());
+          return;
+        }
+
         if (startParam === "finance_stage2") {
           const u = new URL("./finance-stage2.html", window.location.href);
           if (window.location.hash) u.hash = window.location.hash;
@@ -209,6 +220,9 @@
         </button>
         <button id="finance-applications-open" class="owner-grant-button" type="button" style="width:100%;margin:0 0 14px">
             Анкеты финансового администратора
+        </button>
+        <button id="owner-finance-workspace" class="owner-grant-button" type="button" style="width:100%;margin:0 0 14px" hidden>
+            Управление финансами · согласование заявок
         </button>
 
         <section class="admin-section">
@@ -410,5 +424,6 @@
 <script src="./interface_shell.js?v=20261005-1"></script>
 <script src="./home_v2.js?v=20261010-1"></script>
 <script src="./nyan_id.js?v=20261015-png3"></script>
+<script src="./finance-workspace-entry.js?v=20261016-1"></script>
 </body>
 </html>
