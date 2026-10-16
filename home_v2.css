@@ -188,7 +188,7 @@
   outline-offset:2px;
 }
 @media(prefers-reduced-motion:reduce){
-    .nyan-home-more-button,
+  .nyan-home-more-button,
   .nyan-home-today-card,
   .nyan-history-toggle,
   .nyan-home-owner,
