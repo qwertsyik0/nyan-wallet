@@ -95,6 +95,13 @@ async function loadPending(){
     const data=await request("/owner/pending"),area=$("el-owner-pending");reset(area);
     for(const item of data.parties||[]){
       const card=partyCard(item),row=make("div","el-actions");
+      const noteLabel=make("label","el-owner-note-label","Комментарий владельца (обязателен при отказе)");
+      const note=make("textarea","el-owner-note");
+      note.dataset.partyId=String(item.id);
+      note.rows=2;note.maxLength=300;
+      note.placeholder="Укажите причину отказа или комментарий для председателя";
+      noteLabel.append(note);
+      card.append(noteLabel);
       row.append(button("Одобрить","approve",item.id),button("Отклонить","reject",item.id,true));
       card.append(row);area.append(card);
     }
@@ -246,7 +253,19 @@ document.addEventListener("click",event=>{
   if(action==="join")mutate("/parties/"+encodeURIComponent(id)+"/join");
   else if(action==="leave")mutate("/parties/leave");
   else if(action==="phase")mutate("/owner/phase",{next_phase:id});
-  else if(action==="approve"||action==="reject")mutate("/owner/parties/"+encodeURIComponent(id)+"/review",{decision:action==="approve"?"approve":"reject"});
+  else if(action==="approve"||action==="reject"){
+    const note=Array.from(document.querySelectorAll("#el-owner-pending textarea[data-party-id]"))
+      .find(el=>el.dataset.partyId===id)?.value.trim()||"";
+    if(action==="reject"&&!note){
+      alertUser("Чтобы отклонить партию, сначала укажите причину в поле заявки.");
+      document.querySelectorAll("#el-owner-pending textarea[data-party-id]").forEach(el=>{
+        if(el.dataset.partyId===id)el.focus();
+      });
+      return;
+    }
+    mutate("/owner/parties/"+encodeURIComponent(id)+"/review",
+      {decision:action==="approve"?"approve":"reject",note:note||null});
+  }
 });
 document.addEventListener("submit",event=>{
   const form=event.target;if(!["el-create","el-season-form"].includes(form.id))return;
