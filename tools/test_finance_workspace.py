@@ -11,7 +11,7 @@ import types
 from datetime import datetime, timezone
 
 from fastapi import BackgroundTasks, HTTPException
-from sqlalchemy import BigInteger, Integer, String, create_engine, select
+from sqlalchemy import BigInteger, Integer, String, Boolean, DateTime, event, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 
@@ -36,6 +36,17 @@ class Transaction(Base):
     operation_type: Mapped[str] = mapped_column(String(64))
     description: Mapped[str] = mapped_column(String(500))
     created_at: Mapped[datetime] = mapped_column()
+
+
+class WalletNotification(Base):
+    __tablename__ = "wallet_notifications"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger)
+    kind: Mapped[str] = mapped_column(String(50))
+    title: Mapped[str] = mapped_column(String(120))
+    body: Mapped[str] = mapped_column(String(500))
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class FinancialAdminApplication(Base):
@@ -90,12 +101,29 @@ audit_events = []
 extended.audit = lambda session, action, target, details: audit_events.append((action, target))
 recruitment = types.ModuleType("server.finance_recruitment")
 recruitment.FinancialAdminApplication = FinancialAdminApplication
+advanced = types.ModuleType("server.advanced_features")
+advanced.WalletNotification = WalletNotification
+
+def tx_notifier(mapper, connection, tx):
+    if tx.operation_type not in {"owner_grant", "owner_debit"}:
+        return
+    connection.execute(WalletNotification.__table__.insert().values(
+        telegram_id=tx.telegram_id,
+        kind=tx.operation_type,
+        title="Начисление" if tx.amount > 0 else "Списание",
+        body=str(tx.amount),
+        is_read=False,
+        created_at=tx.created_at,
+    ))
+
+event.listen(Transaction, "after_insert", tx_notifier)
 
 sys.modules.update({
     "server": package,
     "server.backend_app": core,
     "server.extended_features": extended,
     "server.finance_recruitment": recruitment,
+    "server.advanced_features": advanced,
 })
 
 spec = importlib.util.spec_from_file_location("server.finance_workspace", "server/finance_workspace.py")
@@ -185,6 +213,27 @@ async def run_tests():
         assert session.get(User, 202).balance == 550
         transactions = session.scalars(select(Transaction)).all()
         assert len(transactions) == 1 and transactions[0].amount == 50
+        delivery = session.get(module.FinanceTelegramDelivery, id_of_first)
+        assert delivery and delivery.status == "pending"
+        assert len(session.scalars(select(WalletNotification)).all()) == 1
+    assert (await module.owner_verify_financial_result(
+        id_of_first, x_telegram_init_data="owner"
+    ))["ledger_match"] is True
+    assert (await module.owner_verify_financial_result(
+        id_of_first, x_telegram_init_data="owner"
+    ))["in_app_notification"] is True
+    # Telegram API itself is mocked, no messages are sent outside this test.
+    module._telegram_finance_notice = lambda chat_id, message: (True, None)
+    module._send_approved_finance_notice(id_of_first)
+    with SessionLocal() as session:
+        assert session.get(module.FinanceTelegramDelivery, id_of_first).status == "sent"
+        assert session.get(module.FinanceTelegramDelivery, id_of_first).attempts == 1
+    module._send_approved_finance_notice(id_of_first)
+    with SessionLocal() as session:
+        assert session.get(module.FinanceTelegramDelivery, id_of_first).attempts == 1
+    await expect_http_error(409, module.retry_financial_notification(
+        id_of_first, BackgroundTasks(), x_telegram_init_data="owner"
+    ))
     await expect_http_error(409, module.decide_request(
         id_of_first, module.DecisionPayload(decision="approve"),
         BackgroundTasks(), x_telegram_init_data="owner"
@@ -206,10 +255,28 @@ async def run_tests():
     with SessionLocal() as session:
         assert session.get(User, 202).balance == 550
 
+    # Unknown transaction references are allowed for technical investigations.
     third = await module.submit_request(
-        proposal("third_request_123", "investigate", 0),
+        proposal("third_request_123", "investigate", 0, "TX-101"),
         BackgroundTasks(), x_telegram_init_data="trainee"
     )
+    assert third["request"]["target_id"] is None
+    assert third["request"]["target_reference"] == "TX-101"
+    await expect_http_error(404, module.submit_request(
+        proposal("bad_grant_user123", "grant", 5, "TX-101"),
+        BackgroundTasks(), x_telegram_init_data="trainee"
+    ))
+    owner_reference = await module.submit_request(
+        proposal("owner_inquiry_123", "investigate", 0, "1"),
+        BackgroundTasks(), x_telegram_init_data="trainee"
+    )
+    assert owner_reference["request"]["target_id"] == 1
+    no_reference = await module.submit_request(
+        proposal("no_reference_123", "investigate", 0, ""),
+        BackgroundTasks(), x_telegram_init_data="trainee"
+    )
+    assert no_reference["request"]["target_id"] is None
+    assert no_reference["request"]["target_label"] == "без указанного кошелька"
     await module.decide_request(
         third["request"]["id"], module.DecisionPayload(decision="approve"),
         BackgroundTasks(), x_telegram_init_data="owner"
@@ -235,7 +302,7 @@ async def run_tests():
     ))
     with SessionLocal() as session:
         assert session.get(User, 202).balance == 550
-    print("Finance internship integration: role gates, approval, no double execution, insufficient balance, rejection, revoke — OK")
+    print("Finance internship integration: role gates, transaction ledger, in-app notice, Telegram delivery audit, technical investigations, no double execution, insufficient balance, rejection, revoke — OK")
 
 
 if __name__ == "__main__":
