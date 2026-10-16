@@ -16,6 +16,14 @@
     ["appeals", "Обращения", "appeals-button"],
   ];
 
+  const SECONDARY_ICONS = Object.freeze({
+    profile: "◇",
+    giveaways: "✦",
+    purchases: "▣",
+    notifications: "◌",
+    appeals: "✉",
+  });
+
   let scheduled = false;
 
   function escapeHtml(value) {
@@ -96,7 +104,7 @@
           </div>
           <div class="nyan-home-more">
             ${SECONDARY.map(([key, label, target]) => `
-              <button type="button" class="nyan-home-more-button" data-home-target="${escapeHtml(target)}" data-home-secondary="${escapeHtml(key)}">${escapeHtml(label)}</button>
+              <button type="button" class="nyan-home-more-button" data-home-target="${escapeHtml(target)}" data-home-secondary="${escapeHtml(key)}"><span class="nyan-home-more-icon" aria-hidden="true">${escapeHtml(SECONDARY_ICONS[key] || "•")}</span><span class="nyan-home-more-label">${escapeHtml(label)}</span></button>
             `).join("")}
           </div>
         </section>
