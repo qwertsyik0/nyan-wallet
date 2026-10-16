@@ -2,7 +2,7 @@ name: Backend and client syntax check
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'feature/party-emblem-upload-season-rollback-20261016']
     paths:
       - "server/**/*.py"
       - "*.js"
@@ -22,6 +22,7 @@ on:
       - "tools/test_elections_buttons.py"
       - "elections.html"
       - "elections.css"
+      - "requirements.txt"
       - "bot_addons/broadcast_bot.py"
       - "bot_addons/channel_publish_bot.py"
       - "bot_addons/channel_publish_bot_v2.py"
