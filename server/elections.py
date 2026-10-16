@@ -427,7 +427,7 @@ def _submit_party(
                 require_account(session, uid)
                 season = latest_season(session, lock=True)
                 if not season or season.phase != "registration":
-                    raise HTTPException(status_code=409, detail="Создавать и заменять партии можно только во время регистрации")
+                    raise HTTPException(status_code=409, detail="Создавать партии можно только во время регистрации")
                 existing = session.scalar(
                     select(ElectionParty.id).where(
                         ElectionParty.season_id == season.id,
@@ -486,8 +486,6 @@ async def create_party(
 
 @router.post("/owner/parties/replace")
 async def owner_replace_party(
-    payload: CreateParty,
-    background_tasks: BackgroundTasks,
     x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
 ):
     owner_auth(x_telegram_init_data)
