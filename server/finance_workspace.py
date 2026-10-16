@@ -197,6 +197,95 @@ def _send_notification(chat_id: int | None, message: str, *, button: bool = Fals
         LOG.warning("Finance trainee notification could not be delivered", exc_info=True)
 
 
+
+def _telegram_finance_notice(chat_id: int, message: str) -> tuple[bool, str | None]:
+    """Send a recipient notification without exposing the bot token in logs."""
+    if not core.BOT_TOKEN:
+        return False, "Токен бота не настроен"
+    req = urllib.request.Request(
+        f"https://api.telegram.org/bot{core.BOT_TOKEN}/sendMessage",
+        data=json.dumps({"chat_id": chat_id, "text": message}, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=8) as response:
+            result = json.loads(response.read().decode("utf-8"))
+        if not result.get("ok"):
+            return False, str(result.get("description", "Telegram API: ok=false"))[:250]
+        return True, None
+    except urllib.error.HTTPError as exc:
+        # Telegram returns errors such as "Forbidden: bot was blocked by the user".
+        # Keep this information available to the owner without leaking credentials.
+        try:
+            data = json.loads(exc.read().decode("utf-8", errors="replace"))
+            reason = str(data.get("description") or f"Telegram HTTP {exc.code}")
+        except Exception:
+            reason = f"Telegram HTTP {exc.code}"
+        return False, reason[:250]
+    except Exception as exc:
+        return False, f"Ошибка отправки: {type(exc).__name__}"
+
+
+def _send_approved_finance_notice(request_id: int) -> None:
+    """Delivery is independent of the financial transaction: errors cannot undo a credit."""
+    with core.SessionLocal() as session:
+        with session.begin():
+            delivery = session.scalar(
+                select(FinanceTelegramDelivery).where(
+                    FinanceTelegramDelivery.request_id == request_id
+                ).with_for_update()
+            )
+            if delivery is None or delivery.status in {"sent", "sending"}:
+                return
+            decision = session.get(FinanceDecisionRequest, request_id)
+            if not decision or decision.status != "approved" or not decision.transaction_id:
+                return
+            tx = session.get(core.Transaction, decision.transaction_id)
+            if tx is None or tx.telegram_id != decision.target_id:
+                LOG.error("FINANCE_DELIVERY invalid_request id=%s", request_id)
+                return
+            if tx.amount != (decision.amount if decision.action == "grant" else -decision.amount):
+                LOG.error("FINANCE_DELIVERY amount_mismatch id=%s", request_id)
+                return
+            delivery.status = "sending"
+            delivery.attempts += 1
+            delivery.updated_at = core.now_utc()
+            chat_id = delivery.recipient_id
+            reason = decision.reason
+            amount = decision.amount
+            direction = decision.action
+
+    if direction == "grant":
+        msg = (f"🐾 Nyan Wallet | Начисление\n\n"
+               f"На твой кошелёк начислено +{amount} 🐾\n"
+               f"Причина: {reason}\n\n"
+               f"Операция подтверждена владельцем · заявка №{request_id}")
+    else:
+        msg = (f"🐾 Nyan Wallet | Списание\n\n"
+               f"С твоего кошелька списано {amount} 🐾\n"
+               f"Причина: {reason}\n\n"
+               f"Операция подтверждена владельцем · заявка №{request_id}")
+    success, error = _telegram_finance_notice(chat_id, msg)
+    with core.SessionLocal() as session:
+        with session.begin():
+            delivery = session.scalar(
+                select(FinanceTelegramDelivery).where(
+                    FinanceTelegramDelivery.request_id == request_id
+                ).with_for_update()
+            )
+            if delivery is not None:
+                delivery.status = "sent" if success else "failed"
+                delivery.last_error = None if success else error
+                delivery.updated_at = core.now_utc()
+                if success:
+                    delivery.sent_at = core.now_utc()
+    if success:
+        LOG.info("FINANCE_DELIVERY sent request_id=%s recipient=%s", request_id, chat_id)
+    else:
+        LOG.warning("FINANCE_DELIVERY failed request_id=%s reason=%s", request_id, error)
+
+
 @router.get("/api/finance/workspace/access")
 async def access(
     x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
