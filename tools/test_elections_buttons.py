@@ -71,4 +71,16 @@ assert 'elections.js?' in page and 'elections.css?' in page
 assert 'X-Telegram-Init-Data' in js and 'if(!tg?.initData)' in js
 assert "/api/elections" in js
 assert "startapp=elections" not in js, "Avoid nested Mini App loops"
+home_script=(ROOT/"home_v2.js").read_text(encoding="utf-8")
+home_style=(ROOT/"home_v2.css").read_text(encoding="utf-8")
+assert 'id="nyan-home-elections"' in home_script, "Elections button missing from main wallet screen"
+assert 'data-nyan-elections-link' in home_script
+assert 'new URL("./elections.html", current.href)' in home_script, "Home link does not navigate to Elections"
+assert 'destination.search = current.search' in home_script
+assert 'destination.hash = current.hash' in home_script, "Telegram launch hash lost from wallet navigation"
+assert ".nyan-home-elections{" in home_style
+assert "home_v2.js?v=20261016-elections-home1" in index
+assert "home_v2.css?v=20261016-elections-home1" in index
+assert 'class="nyan-home-primary"' not in home_script, "Large action tiles recreated"
+
 print("OK: private broadcast Mini App, channel URL deep links, and Elections page all agree.")
