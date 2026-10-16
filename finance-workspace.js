@@ -79,7 +79,9 @@
     main.append(
       create("div", "fw-card-title", "№" + item.id + " · " + (LABEL[item.action] || item.action) +
         (item.action === "investigate" ? "" : " · " + item.amount + " 🐾")),
-      create("div", "fw-card-meta", "Кошелёк: " + item.target_label + " · ID " + item.target_id),
+      create("div", "fw-card-meta",
+        (item.action === "investigate" ? "Объект проверки: " : "Кошелёк: ") + item.target_label +
+        (item.target_id !== null && item.target_id !== undefined ? " · ID " + item.target_id : "")),
       create("div", "fw-card-meta", prettyTime(item.created_at))
     );
     if (showTrainee) main.append(create("div", "fw-card-meta",
@@ -108,6 +110,16 @@
     const investigate = $("fw-action").value === "investigate";
     $("fw-amount-group").hidden = investigate;
     $("fw-amount").required = !investigate;
+    $("fw-target").required = !investigate;
+    $("fw-target-label").textContent = investigate
+      ? "Кошелёк, номер перевода или объект проверки (необязательно)"
+      : "Получатель / участник";
+    $("fw-target").placeholder = investigate
+      ? "Например, TX-101, Telegram ID или @username"
+      : "@username или Telegram ID";
+    $("fw-target-hint").textContent = investigate
+      ? "Укажите номер транзакции или аккаунт, если известен. Можно оставить поле пустым и описать ситуацию ниже"
+      : "Для начисления и списания пользователь должен иметь кошелёк Nyan Wallet";
     if (investigate) $("fw-amount").value = "0";
     else if ($("fw-amount").value === "0") $("fw-amount").value = "";
   }
@@ -178,7 +190,7 @@
       );
       notify(decision === "approve"
         ? (result.request.transaction_id
-          ? "Заявка №" + item.id + " одобрена, транзакция №" + result.request.transaction_id + " проведена"
+          ? "Заявка №" + item.id + " одобрена, транзакция №" + result.request.transaction_id + " проведена. Уведомление получателю отправляется отдельно"
           : "Проверка по заявке №" + item.id + " согласована без изменения баланса")
         : "Заявка №" + item.id + " отклонена");
       await refreshOwner();
