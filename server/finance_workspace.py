@@ -57,10 +57,11 @@ class FinanceDecisionRequest(core.Base):
         BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"),
         nullable=False, index=True,
     )
-    target_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"),
-        nullable=False, index=True,
+    target_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="SET NULL"),
+        nullable=True, index=True,
     )
+    target_reference: Mapped[str | None] = mapped_column(String(128), nullable=True)
     action: Mapped[str] = mapped_column(String(16), nullable=False)
     amount: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     reason: Mapped[str] = mapped_column(Text, nullable=False)
@@ -76,7 +77,7 @@ class FinanceDecisionRequest(core.Base):
 
 class ProposalPayload(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
-    target: str = Field(min_length=1, max_length=64)
+    target: str | None = Field(default=None, max_length=128)
     action: Literal["grant", "debit", "investigate"]
     amount: int = Field(ge=0, le=MAX_AMOUNT)
     reason: str = Field(min_length=10, max_length=300)
@@ -111,11 +112,15 @@ def _name(user: core.User | None) -> str:
 
 
 def _serialize(item: FinanceDecisionRequest, session, *, include_trainee: bool = False) -> dict:
-    target = session.get(core.User, item.target_id)
+    target = session.get(core.User, item.target_id) if item.target_id is not None else None
+    label = _name(target) if target is not None else (
+        item.target_reference or "без указанного кошелька"
+    )
     result = {
         "id": item.id,
-        "target_label": _name(target),
+        "target_label": label,
         "target_id": item.target_id,
+        "target_reference": item.target_reference,
         "action": item.action,
         "amount": item.amount,
         "reason": item.reason,
@@ -216,8 +221,10 @@ async def submit_request(
         raise HTTPException(status_code=422, detail="Для проверки операции сумма должна быть 0")
     if payload.action != "investigate" and payload.amount < 1:
         raise HTTPException(status_code=422, detail="Укажите положительную сумму")
-    if not payload.target or len(payload.target) > 64:
+    if payload.action != "investigate" and not (payload.target or "").strip():
         raise HTTPException(status_code=422, detail="Укажите получателя")
+    if payload.target and len(payload.target) > 128:
+        raise HTTPException(status_code=422, detail="Слишком длинная ссылка на операцию")
 
     with core.SessionLocal() as session:
         with session.begin():
@@ -229,9 +236,13 @@ async def submit_request(
                 )
             )
             if existing:
-                normalized = payload.target.lstrip("@").strip().lower()
-                target_match = str(existing.target_id) == normalized or (
-                    _name(session.get(core.User, existing.target_id)).lstrip("@").lower() == normalized
+                normalized = (payload.target or "").lstrip("@").strip().lower()
+                target_match = (
+                    (existing.target_reference or "").lstrip("@").strip().lower() == normalized
+                    or (existing.target_id is not None and str(existing.target_id) == normalized)
+                    or (existing.target_id is not None and (
+                        _name(session.get(core.User, existing.target_id)).lstrip("@").lower() == normalized
+                    ))
                 )
                 if (not target_match or existing.action != payload.action
                         or existing.amount != payload.amount or existing.reason != payload.reason
@@ -252,15 +263,20 @@ async def submit_request(
             if day_count >= MAX_DAILY_PER_TRAINEE:
                 raise HTTPException(status_code=429, detail="Лимит заявок за 24 часа исчерпан")
 
-            target = core.find_target_user(session, payload.target)
-            if not target:
-                raise HTTPException(status_code=404, detail="Пользователь не найден в Nyan Wallet")
-            if core.is_owner(target.telegram_id):
-                raise HTTPException(status_code=400, detail="Заявки на кошелёк владельца не принимаются")
-
+            target_ref = (payload.target or "").strip()
+            target = core.find_target_user(session, target_ref) if target_ref else None
+            if payload.action != "investigate":
+                if target is None:
+                    raise HTTPException(status_code=404, detail="Пользователь не найден в Nyan Wallet")
+                if core.is_owner(target.telegram_id):
+                    raise HTTPException(status_code=400, detail="Заявки на кошелёк владельца не принимаются")
+            # Technical investigations can refer to a transfer ID, an external
+            # account or a suspect not yet registered in Nyan Wallet.
+            # They must never alter wallet balances.
             record = FinanceDecisionRequest(
                 trainee_id=user["id"],
-                target_id=target.telegram_id,
+                target_id=target.telegram_id if target is not None else None,
+                target_reference=target_ref or None,
                 action=payload.action,
                 amount=payload.amount,
                 reason=payload.reason,
@@ -484,5 +500,15 @@ def register_finance_workspace(app) -> None:
         return
     FinanceTrainee.__table__.create(bind=core.engine, checkfirst=True)
     FinanceDecisionRequest.__table__.create(bind=core.engine, checkfirst=True)
+    # Backward-compatible migration for requests created before technical
+    # investigations were allowed without a known wallet user.
+    if core.engine.dialect.name == "postgresql":
+        with core.engine.begin() as connection:
+            connection.exec_driver_sql(
+                "ALTER TABLE finance_decision_requests ALTER COLUMN target_id DROP NOT NULL"
+            )
+            connection.exec_driver_sql(
+                "ALTER TABLE finance_decision_requests ADD COLUMN IF NOT EXISTS target_reference VARCHAR(128)"
+            )
     app.include_router(router)
     _REGISTERED = True
