@@ -59,6 +59,8 @@ core.User = User
 core.engine = engine
 core.SessionLocal = SessionLocal
 core.is_owner = lambda uid: uid == 1
+core.OWNER_TELEGRAM_ID = 1
+core.BOT_TOKEN = "fake-test-token"
 
 
 def fake_verify(raw: str, *, require_subscription: bool = False):
