@@ -291,7 +291,11 @@ async def get_elections(x_telegram_init_data: str | None = Header(default=None, 
     with core.SessionLocal() as session:
         season = latest_season(session)
         if season is None:
-            return {"ok": True, "season": None, "parties": [], "my_party_id": None, "is_owner": core.is_owner(uid)}
+            result = {"ok": True, "season": None, "parties": [], "my_party_id": None, "is_owner": core.is_owner(uid)}
+            if core.is_owner(uid):
+                audit = session.get(ElectionInitialRollback, 1)
+                result["initial_rollback"] = audit.status if audit else None
+            return result
         approved = session.scalars(
             select(ElectionParty).where(
                 ElectionParty.season_id == season.id, ElectionParty.status == "approved"
@@ -304,6 +308,7 @@ async def get_elections(x_telegram_init_data: str | None = Header(default=None, 
         return {
             "ok": True,
             "is_owner": core.is_owner(uid),
+            "initial_rollback": (session.get(ElectionInitialRollback, 1).status if core.is_owner(uid) and session.get(ElectionInitialRollback, 1) else None),
             "season": {"id": season.id, "title": season.title, "phase": season.phase},
             "parties": [party_data(p, session) for p in approved],
             "my_party_id": member.party_id if member else None,
