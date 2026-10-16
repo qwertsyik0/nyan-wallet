@@ -15,3 +15,11 @@ button,input,textarea{font:inherit}button{cursor:pointer}button:disabled{opacity
 .el-alert{padding:13px;border:1px solid #e8bfd2;border-radius:15px;background:#fff1f5;color:var(--berry);font-size:12px;line-height:1.5}.el-loading{padding:26px 8px;text-align:center;color:var(--muted);font-size:13px}
 footer{text-align:center;margin:22px 0 0;font-size:10px;color:#ac8194}button:focus-visible{outline:2px solid #a33869;outline-offset:3px}
 [hidden]{display:none!important}@media(max-width:330px){.el-app{padding-inline:12px}.el-section{padding:13px}.el-hero{padding:22px 17px}}
+
+
+/* Native emblem uploader: same soft berry palette, no external URL required */
+.el-form input[type=file]{padding:10px;border-style:dashed;background:#fff7fa;cursor:pointer;font-size:12px}
+.el-form input[type=file]::file-selector-button{padding:8px 12px;margin-right:10px;background:#fff0f6;color:#8c2d56;border:1px solid #eed2df;border-radius:9px;font-weight:750}
+.el-image-preview{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:10px;border:1px solid #efdae3;border-radius:16px;background:#fff9fb}
+.el-image-preview img{display:block;max-width:115px;max-height:115px;object-fit:contain;border-radius:12px;background:#fff}
+.el-party-emblem{display:block;max-width:100%;width:150px;height:135px;object-fit:contain;margin:12px 0 6px;border:1px solid #f1e2e9;border-radius:14px;background:#fff}
