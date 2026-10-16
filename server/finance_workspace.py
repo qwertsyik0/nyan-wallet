@@ -366,7 +366,7 @@ def _build_finance_investigation_report(session, record: FinanceDecisionRequest)
 
 
 def _send_approved_finance_notice(request_id: int) -> None:
-    """Delivery is independent of the financial transaction: errors cannot undo a credit."""
+    """Send the appropriate owner-approved report/receipt, never moving funds."""
     with core.SessionLocal() as session:
         with session.begin():
             delivery = session.scalar(
@@ -377,34 +377,58 @@ def _send_approved_finance_notice(request_id: int) -> None:
             if delivery is None or delivery.status in {"sent", "sending"}:
                 return
             decision = session.get(FinanceDecisionRequest, request_id)
-            if not decision or decision.status != "approved" or not decision.transaction_id:
+            if not decision or decision.status != "approved":
                 return
-            tx = session.get(core.Transaction, decision.transaction_id)
-            if tx is None or tx.telegram_id != decision.target_id:
-                LOG.error("FINANCE_DELIVERY invalid_request id=%s", request_id)
+
+            if decision.action == "investigate":
+                # Approval allows read-only disclosure to the *requesting*
+                # active finance trainee, never to the investigated user.
+                trainee_active = session.scalar(
+                    select(FinanceTrainee.telegram_id).where(
+                        FinanceTrainee.telegram_id == decision.trainee_id,
+                        FinanceTrainee.active.is_(True),
+                    )
+                )
+                if not trainee_active or delivery.recipient_id != decision.trainee_id:
+                    delivery.status = "failed"
+                    delivery.last_error = "Стажёр больше не имеет права получать финансовые отчёты"
+                    delivery.updated_at = core.now_utc()
+                    return
+                chat_id = decision.trainee_id
+                msg = _build_finance_investigation_report(session, decision)
+            elif decision.action in {"grant", "debit"}:
+                if not decision.transaction_id or delivery.recipient_id != decision.target_id:
+                    LOG.error("FINANCE_DELIVERY invalid_recipient request=%s", request_id)
+                    return
+                tx = session.get(core.Transaction, decision.transaction_id)
+                expected = decision.amount if decision.action == "grant" else -decision.amount
+                if not tx or tx.telegram_id != decision.target_id or tx.amount != expected:
+                    LOG.error("FINANCE_DELIVERY invalid_transaction request=%s", request_id)
+                    return
+                # Public reason only. Internal reason and staff status must
+                # never enter user notifications or transaction histories.
+                reason = decision.public_reason or (
+                    "Начисление лапкоинов" if decision.action == "grant"
+                    else "Корректировка баланса"
+                )
+                chat_id = decision.target_id
+                if decision.action == "grant":
+                    msg = (f"🐾 Nyan Wallet | Начисление\n\n"
+                           f"На твой кошелёк начислено +{decision.amount} 🐾\n"
+                           f"Причина: {reason}")
+                else:
+                    msg = (f"🐾 Nyan Wallet | Списание\n\n"
+                           f"С твоего кошелька списано {decision.amount} 🐾\n"
+                           f"Причина: {reason}")
+            else:
+                LOG.error("FINANCE_DELIVERY unsupported_action request=%s", request_id)
                 return
-            if tx.amount != (decision.amount if decision.action == "grant" else -decision.amount):
-                LOG.error("FINANCE_DELIVERY amount_mismatch id=%s", request_id)
-                return
+
             delivery.status = "sending"
             delivery.attempts += 1
+            delivery.last_error = None
             delivery.updated_at = core.now_utc()
-            chat_id = delivery.recipient_id
-            reason = decision.public_reason or (
-                "Начисление лапкоинов" if decision.action == "grant"
-                else "Корректировка баланса"
-            )
-            amount = decision.amount
-            direction = decision.action
 
-    if direction == "grant":
-        msg = (f"🐾 Nyan Wallet | Начисление\n\n"
-               f"На твой кошелёк начислено +{amount} 🐾\n"
-               f"Причина: {reason}")
-    else:
-        msg = (f"🐾 Nyan Wallet | Списание\n\n"
-               f"С твоего кошелька списано {amount} 🐾\n"
-               f"Причина: {reason}")
     success, error = _telegram_finance_notice(chat_id, msg)
     with core.SessionLocal() as session:
         with session.begin():
