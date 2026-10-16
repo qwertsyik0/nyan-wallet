@@ -527,7 +527,9 @@ jobs:
       - name: Check wallet home navigation CSS cascade
         run: python tools/test_home_nav_cascade.py
       - name: Test Nyan Elections party registration and authorization
-        run: python tools/test_elections_foundation.py
+        run: |
+          python -m pip install httpx
+          python tools/test_elections_foundation.py
       - name: Check browser JavaScript syntax
         run: |
           for file in ./*.js; do
