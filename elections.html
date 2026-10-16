@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Выборы — Nyan Wallet</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./elections.css?v=20261016-1">
+</head>
+<body>
+  <div class="el-app">
+    <header class="el-header">
+      <button id="el-back" class="el-back" type="button" aria-label="Назад в кошелёк">‹</button>
+      <div><span class="el-brand">Nyan Wallet</span><span class="el-subtitle">политическая жизнь Нян</span></div>
+      <span class="el-icon" aria-hidden="true">✦</span>
+    </header>
+    <main>
+      <section class="el-hero">
+        <span class="el-kicker">NYAN ELECTIONS</span>
+        <h1>Выборы</h1>
+        <p>Партии, программы и события экосистемы в одном месте.</p>
+        <div id="el-phase" class="el-phase">загружаем статус</div>
+      </section>
+      <p id="el-alert" class="el-alert" role="status" hidden></p>
+      <section id="el-main" hidden>
+        <section class="el-section">
+          <div class="el-heading"><h2>Партии</h2><span id="el-party-count"></span></div>
+          <div id="el-parties" class="el-parties"></div>
+        </section>
+        <section id="el-my-section" class="el-section" hidden>
+          <h2>Моя партия</h2>
+          <div id="el-my-content"></div>
+        </section>
+        <section id="el-create-section" class="el-section" hidden>
+          <h2>Создать партию</h2>
+          <p class="el-muted">Владелец рассматривает заявки перед публикацией.</p>
+          <form id="el-create" class="el-form">
+            <label>Название партии<input name="name" type="text" maxlength="80" minlength="3" required placeholder="Название"></label>
+            <label>Аббревиатура<input name="short_name" maxlength="15" minlength="2" required placeholder="НЯН"></label>
+            <label>Предвыборная программа<textarea name="program" maxlength="3000" minlength="30" required rows="5" placeholder="Предложения и цели партии"></textarea></label>
+            <label>Ссылка на эмблему (необязательно)<input name="emblem_url" type="url" maxlength="500" placeholder="https://..."></label>
+            <button class="el-button" type="submit">Отправить на рассмотрение</button>
+          </form>
+        </section>
+        <section id="el-owner-section" class="el-section" hidden>
+          <h2>Управление выборами</h2>
+          <div id="el-owner-content"></div>
+          <div id="el-owner-pending" class="el-pending"></div>
+        </section>
+      </section>
+      <div id="el-loading" class="el-loading" role="status">Загружаем данные выборов…</div>
+    </main>
+    <footer>сохранено оформление Nyan Wallet · Nyan Elections</footer>
+  </div>
+  <script src="./elections.js?v=20261016-1"></script>
+</body>
+</html>
