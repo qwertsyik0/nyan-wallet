@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#fff5fa">
+  <meta name="color-scheme" content="light">
+  <title>Nyan Wallet — управление финансами</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./finance-workspace.css?v=20261016-1">
+</head>
+<body>
+<main class="fw-shell">
+  <header class="fw-header">
+    <span class="fw-brand">🐾 NYAN WALLET</span>
+    <a id="fw-back" href="./index.html">К кошельку ↗</a>
+  </header>
+  <div class="fw-kicker" id="fw-role-name">Личный кабинет</div>
+  <h1>управление<br>финансами</h1>
+  <p class="fw-intro" id="fw-intro">Проверяем права доступа…</p>
+  <div class="fw-notice" id="fw-notice" role="status" aria-live="polite">Подключаемся к Nyan Wallet…</div>
+
+  <section id="fw-trainee-section" class="fw-section" hidden>
+    <div class="fw-section-head"><h2>Новая заявка</h2><span class="fw-tag">Стажировка</span></div>
+    <p class="fw-description">Никакое начисление или списание не проводится автоматически. Ты отправляешь предложение владельцу на проверку.</p>
+    <form id="fw-form" class="fw-form" novalidate>
+      <label>Действие
+        <select id="fw-action" required>
+          <option value="grant">Начисление 🐾</option>
+          <option value="debit">Списание 🐾</option>
+          <option value="investigate">Проверка подозрительной операции</option>
+        </select>
+      </label>
+      <label>Получатель / участник
+        <input id="fw-target" maxlength="64" placeholder="@username или Telegram ID" autocomplete="off" required>
+      </label>
+      <label id="fw-amount-group">Количество лапкоинов
+        <input id="fw-amount" type="number" inputmode="numeric" min="1" max="100000" step="1" placeholder="Например, 50" required>
+      </label>
+      <label>Основание
+        <textarea id="fw-reason" rows="3" minlength="10" maxlength="300" placeholder="Почему необходимо провести эту операцию" required></textarea>
+      </label>
+      <label>Подтверждения / комментарий
+        <textarea id="fw-evidence" rows="2" maxlength="500" placeholder="Номер обращения, ID транзакции или другие доступные сведения"></textarea>
+      </label>
+      <button class="fw-primary" type="submit" id="fw-send">Отправить на проверку</button>
+      <p class="fw-small">Без разрешения владельца баланс пользователя не изменится</p>
+    </form>
+  </section>
+  <section id="fw-my-section" class="fw-section" hidden>
+    <div class="fw-section-head"><h2>Мои заявки</h2><button class="fw-small-button" id="fw-my-refresh" type="button">Обновить</button></div>
+    <div id="fw-my-list" class="fw-list">Загружаем…</div>
+  </section>
+
+  <section id="fw-owner-section" class="fw-section" hidden>
+    <div class="fw-section-head"><h2>Заявки на проверку</h2><span class="fw-tag">Владелец</span></div>
+    <p class="fw-description">Одобрение начисления или списания выполняет операцию ровно один раз и сохраняет запись в истории кошелька</p>
+    <div class="fw-tools">
+      <select id="fw-filter" aria-label="Статус заявок">
+        <option value="pending">Ожидают решения</option>
+        <option value="approved">Одобрены</option>
+        <option value="rejected">Отклонены</option>
+        <option value="all">Все</option>
+      </select>
+      <button class="fw-small-button" id="fw-owner-refresh" type="button">Обновить</button>
+    </div>
+    <div id="fw-owner-list" class="fw-list">Загружаем…</div>
+  </section>
+  <section id="fw-staff-section" class="fw-section" hidden>
+    <div class="fw-section-head"><h2>Стажёры</h2><button class="fw-small-button" id="fw-staff-refresh" type="button">Обновить</button></div>
+    <p class="fw-description">Назначить нового стажёра можно из списка кандидатов после рассмотрения анкеты. Доступ можно отозвать в любой момент</p>
+    <a class="fw-link" href="./finance-review.html" id="fw-candidates-link">Открыть анкеты кандидатов ↗</a>
+    <div id="fw-staff-list" class="fw-list">Загружаем…</div>
+  </section>
+  <footer>NYAN WALLET · FINANCE WORKSPACE</footer>
+</main>
+<script src="./finance-workspace.js?v=20261016-1"></script>
+</body>
+</html>
