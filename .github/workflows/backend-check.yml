@@ -8,6 +8,7 @@ on:
       - "*.js"
       - "tools/install_giveaway_bot.py"
       - "tools/nyan_bot_autodeploy.py"
+      - "tools/test_finance_workspace.py"
       - "bot_addons/giveaway_bot.py.gz.b64"
       - "bot_addons/maintenance_bot.py"
       - "bot_addons/broadcast_bot.py"
