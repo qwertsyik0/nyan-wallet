@@ -31,8 +31,9 @@
           <option value="investigate">Проверка подозрительной операции</option>
         </select>
       </label>
-      <label>Получатель / участник
-        <input id="fw-target" maxlength="64" placeholder="@username или Telegram ID" autocomplete="off" required>
+      <label><span id="fw-target-label">Получатель / участник</span>
+        <input id="fw-target" maxlength="128" placeholder="@username или Telegram ID" autocomplete="off" required>
+        <span id="fw-target-hint" class="fw-small">Для начисления и списания пользователь должен иметь кошелёк Nyan Wallet</span>
       </label>
       <label id="fw-amount-group">Количество лапкоинов
         <input id="fw-amount" type="number" inputmode="numeric" min="1" max="100000" step="1" placeholder="Например, 50" required>
@@ -41,7 +42,7 @@
         <textarea id="fw-reason" rows="3" minlength="10" maxlength="300" placeholder="Почему необходимо провести эту операцию" required></textarea>
       </label>
       <label>Подтверждения / комментарий
-        <textarea id="fw-evidence" rows="2" maxlength="500" placeholder="Номер обращения, ID транзакции или другие доступные сведения"></textarea>
+        <textarea id="fw-evidence" rows="3" maxlength="500" placeholder="Номер обращения, ID транзакции, время, суммы и доступные технические сведения"></textarea>
       </label>
       <button class="fw-primary" type="submit" id="fw-send">Отправить на проверку</button>
       <p class="fw-small">Без разрешения владельца баланс пользователя не изменится</p>
@@ -54,7 +55,7 @@
 
   <section id="fw-owner-section" class="fw-section" hidden>
     <div class="fw-section-head"><h2>Заявки на проверку</h2><span class="fw-tag">Владелец</span></div>
-    <p class="fw-description">Одобрение начисления или списания выполняет операцию ровно один раз и сохраняет запись в истории кошелька</p>
+    <p class="fw-description">Одобрение начисления или списания выполняет операцию ровно один раз и сохраняет запись в истории кошелька. Получатель получает уведомление в приложении и сообщение от бота, если Telegram разрешает отправку</p>
     <div class="fw-tools">
       <select id="fw-filter" aria-label="Статус заявок">
         <option value="pending">Ожидают решения</option>
@@ -74,6 +75,6 @@
   </section>
   <footer>NYAN WALLET · FINANCE WORKSPACE</footer>
 </main>
-<script src="./finance-workspace.js?v=20261016-1"></script>
+<script src="./finance-workspace.js?v=20261016-2"></script>
 </body>
 </html>
