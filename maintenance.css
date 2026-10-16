@@ -50,6 +50,7 @@
     font-weight: 800;
     line-height: 1.2;
     letter-spacing: -.02em;
+    overflow-wrap: anywhere;
 }
 
 .maintenance-message {
@@ -90,8 +91,8 @@
 
 
 
-/* Large decorative gear behind the maintenance card. It deliberately sits
-   partly outside the top-right corner and never intercepts touches. */
+/* Subtle decorative gear behind the maintenance copy.
+   It never intercepts touches. */
 .maintenance-background-gear {
     position: absolute;
     z-index: 0;
