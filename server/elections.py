@@ -62,6 +62,7 @@ class ElectionParty(core.Base):
         UniqueConstraint("season_id", "name_key", name="uq_election_party_season_name"),
         UniqueConstraint("season_id", "short_key", name="uq_election_party_season_short"),
         UniqueConstraint("season_id", "chair_id", name="uq_election_party_season_chair"),
+        {"sqlite_autoincrement": True},
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
