@@ -78,6 +78,26 @@ bans = types.ModuleType("server.user_bans")
 bans.BlockedUser = BlockedUser
 sys.modules["server.user_bans"] = bans
 
+class WalletNotification(Base):
+    __tablename__ = "wallet_notifications"
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id"), nullable=False)
+    kind: Mapped[str] = mapped_column(String(40), nullable=False)
+    title: Mapped[str] = mapped_column(String(120), nullable=False)
+    body: Mapped[str] = mapped_column(String(1000), nullable=False)
+    is_read: Mapped[bool] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+def fake_notify(session, telegram_id, kind, title, body):
+    session.add(WalletNotification(
+        telegram_id=telegram_id, kind=kind, title=title, body=body,
+        is_read=False, created_at=datetime.now(timezone.utc),
+    ))
+
+advanced = types.ModuleType("server.advanced_features")
+advanced.notify = fake_notify
+sys.modules["server.advanced_features"] = advanced
+
 spec = importlib.util.spec_from_file_location(
     "server.elections", ROOT / "server" / "elections.py"
 )
@@ -85,6 +105,12 @@ assert spec and spec.loader
 elections = importlib.util.module_from_spec(spec)
 sys.modules["server.elections"] = elections
 spec.loader.exec_module(elections)
+
+delivered = []
+def fake_send(chat_id, message, button_label):
+    delivered.append((chat_id, message, button_label))
+    return True
+elections._send_party_telegram_notice = fake_send
 
 app = FastAPI()
 elections.register_elections(app)
@@ -135,6 +161,14 @@ image_buffer = io.BytesIO()
 Image.new("RGB", (128, 128), (200, 100, 140)).save(image_buffer, "PNG")
 image_data = "data:image/png;base64," + base64.b64encode(image_buffer.getvalue()).decode("ascii")
 p2 = ok(post("/parties", 3, {**party("Партия Звёзд", "ПЗ"), "emblem_data": image_data}))["party_id"]
+assert len(delivered) == 2
+assert all(chat_id == 1 and "Рассмотреть заявку" in button for chat_id, _msg, button in delivered)
+with SessionLocal() as session:
+    notify_owner = session.scalars(select(WalletNotification).where(
+        WalletNotification.telegram_id == 1
+    )).all()
+    assert len(notify_owner) == 2
+    assert all(item.kind == "elections" for item in notify_owner)
 ok(post("/parties", 4, {**party("Bad Picture", "BP"), "emblem_data": "data:image/png;base64,invalid"}), 422)
 stored = client.get(f"/api/elections/parties/{p2}/emblem")
 assert stored.status_code == 200, stored.text
@@ -156,7 +190,24 @@ ok(post("/owner/phase", 1, {"next_phase": "recruitment"}), 409)
 ok(post(f"/owner/parties/{p1}/review", 2, {"decision": "approve"}), 403)
 ok(post(f"/owner/parties/{p1}/review", 1, {"decision": "approve"}))
 ok(post(f"/owner/parties/{p2}/review", 1, {"decision": "approve"}))
+p3 = ok(post("/parties", 4, party("Партия Города", "ПГ")))["party_id"]
+ok(post(f"/owner/parties/{p3}/review", 1, {"decision": "reject"}), 422)
+ok(post(f"/owner/parties/{p3}/review", 1, {"decision": "reject", "note": "Не хватает конкретных предложений"}))
+ok(post(f"/owner/parties/{p3}/review", 1, {"decision": "reject", "note": "Повтор"}), 409)
 ok(post(f"/owner/parties/{p1}/review", 1, {"decision": "approve"}), 409)
+with SessionLocal() as session:
+    applicant2 = session.scalars(select(WalletNotification).where(
+        WalletNotification.telegram_id == 2, WalletNotification.title == "Партия одобрена"
+    )).all()
+    applicant4 = session.scalars(select(WalletNotification).where(
+        WalletNotification.telegram_id == 4, WalletNotification.title == "Партия отклонена"
+    )).all()
+    assert len(applicant2) == 1
+    assert len(applicant4) == 1
+    assert "Не хватает конкретных предложений" in applicant4[0].body
+assert len(delivered) == 6
+assert any(c == 4 and "отклонена" in m and "Не хватает конкретных предложений" in m for c,m,_ in delivered)
+assert any(c == 2 and "одобрена" in m for c,m,_ in delivered)
 
 public = ok(get("", 4))
 assert len(public["parties"]) == 2
