@@ -235,6 +235,10 @@ async def run_tests():
     assert appointed["active"] is True
     access = await module.access(x_telegram_init_data="trainee")
     assert access["role"] == "trainee"
+    await expect_http_error(422, module.submit_request(
+        proposal("no_public_reason_12", public_reason=None),
+        BackgroundTasks(), x_telegram_init_data="trainee"
+    ))
 
     first = await module.submit_request(
         proposal("first_request_123"), BackgroundTasks(),
@@ -350,6 +354,46 @@ async def run_tests():
         assert session.get(User, 202).balance == 550
         assert len(session.scalars(select(Transaction)).all()) == 1
 
+    # A technical investigation produces a private report even when
+    # the transaction reference cannot be resolved.
+    module._send_approved_finance_notice(third["request"]["id"])
+    assert delivered[-1][0] == 101
+    assert "Кошелёк по указанным данным не найден" in delivered[-1][1]
+
+    report = await module.submit_request(
+        proposal("known_wallet_123", "investigate", 0, "202"),
+        BackgroundTasks(), x_telegram_init_data="trainee"
+    )
+    await module.decide_request(
+        report["request"]["id"], module.DecisionPayload(decision="approve"),
+        BackgroundTasks(), x_telegram_init_data="owner"
+    )
+    module._send_approved_finance_notice(report["request"]["id"])
+    assert delivered[-1][0] == 101  # Only the trainee, never the customer
+    assert "Баланс: 550 🐾" in delivered[-1][1]
+    assert "Telegram ID: 202" in delivered[-1][1]
+    assert "Промокоды: 1, получено 100 🐾" in delivered[-1][1]
+    assert "NWT0123456789ABCDEF" in delivered[-1][1]
+    assert "Служебная проверка" not in delivered[-1][1]
+    with SessionLocal() as session:
+        assert session.get(User, 202).balance == 550
+        assert len(session.scalars(select(Transaction)).all()) == 1
+
+    transfer_case = await module.submit_request(
+        proposal("transfer_id_report", "investigate", 0, "NWT0123456789ABCDEF"),
+        BackgroundTasks(), x_telegram_init_data="trainee"
+    )
+    await module.decide_request(
+        transfer_case["request"]["id"], module.DecisionPayload(decision="approve"),
+        BackgroundTasks(), x_telegram_init_data="owner"
+    )
+    module._send_approved_finance_notice(transfer_case["request"]["id"])
+    assert delivered[-1][0] == 101
+    assert "Telegram ID: 202" in delivered[-1][1]
+    assert "Telegram ID: 303" in delivered[-1][1]
+    with SessionLocal() as session:
+        assert session.get(User, 202).balance == 550
+
     failed_delivery = await module.submit_request(
         proposal("failed_notice_123", "grant", 10),
         BackgroundTasks(), x_telegram_init_data="trainee"
@@ -398,6 +442,43 @@ async def run_tests():
     ))
     with SessionLocal() as session:
         assert session.get(User, 202).balance == 560
+
+    # Old customer-visible descriptions are scrubbed while original
+    # confidential owner rationale remains in the finance request table.
+    with SessionLocal() as session:
+        with session.begin():
+            old = module.FinanceDecisionRequest(
+                trainee_id=101, target_id=202, target_reference="202",
+                action="grant", amount=7, reason="Конфиденциальная служебная проверка",
+                public_reason=None, evidence="old evidence", request_token="legacy_scrub_123",
+                status="approved", created_at=datetime.now(timezone.utc),
+            )
+            session.add(old)
+            session.flush()
+            legacy_transaction = Transaction(
+                telegram_id=202, amount=7, operation_type="owner_grant",
+                description=f"Конфиденциальная служебная проверка (стажёрская заявка №{old.id})",
+                created_at=datetime.now(timezone.utc),
+            )
+            session.add(legacy_transaction)
+            session.flush()
+            old.transaction_id = legacy_transaction.id
+            old_id = old.id
+    module._scrub_legacy_public_finance_messages()
+    with SessionLocal() as session:
+        old = session.get(module.FinanceDecisionRequest, old_id)
+        tx = session.get(Transaction, old.transaction_id)
+        assert old.reason == "Конфиденциальная служебная проверка"
+        assert tx.description == "Начисление лапкоинов"
+        assert all(
+            "Конфиденциальная" not in n.body
+            for n in session.scalars(
+                select(WalletNotification).where(
+                    WalletNotification.telegram_id == 202,
+                    WalletNotification.body.contains(f"заявка №{old_id}"),
+                )
+            ).all()
+        )
     print("Finance internship integration: role gates, transaction ledger, in-app notice, Telegram delivery audit, technical investigations, no double execution, insufficient balance, rejection, revoke — OK")
 
 
