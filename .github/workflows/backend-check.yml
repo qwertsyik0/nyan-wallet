@@ -2,7 +2,7 @@ name: Backend and client syntax check
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'fix/undo-accidental-elections-campaign-20261017']
     paths:
       - "server/**/*.py"
       - "*.js"
