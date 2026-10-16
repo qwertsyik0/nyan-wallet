@@ -38,8 +38,13 @@
       <label id="fw-amount-group">Количество лапкоинов
         <input id="fw-amount" type="number" inputmode="numeric" min="1" max="100000" step="1" placeholder="Например, 50" required>
       </label>
-      <label>Основание
-        <textarea id="fw-reason" rows="3" minlength="10" maxlength="300" placeholder="Почему необходимо провести эту операцию" required></textarea>
+      <label id="fw-public-reason-group">Причина для пользователя
+        <textarea id="fw-public-reason" rows="2" minlength="5" maxlength="200" placeholder="Например: кэшбэк за покупку Telegram Stars" required></textarea>
+        <span class="fw-small">Будет показана в истории кошелька, уведомлении в приложении и сообщении Telegram. Пиши понятно и без служебной информации</span>
+      </label>
+      <label>Служебное обоснование · только для владельца
+        <textarea id="fw-reason" rows="3" minlength="10" maxlength="300" placeholder="Почему операция необходима, какие данные проверены" required></textarea>
+        <span class="fw-small">Этот текст используется только для рассмотрения заявки и не показывается пользователю</span>
       </label>
       <label>Подтверждения / комментарий
         <textarea id="fw-evidence" rows="3" maxlength="500" placeholder="Номер обращения, ID транзакции, время, суммы и доступные технические сведения"></textarea>
@@ -75,6 +80,6 @@
   </section>
   <footer>NYAN WALLET · FINANCE WORKSPACE</footer>
 </main>
-<script src="./finance-workspace.js?v=20261016-3"></script>
+<script src="./finance-workspace.js?v=20261016-public-v1"></script>
 </body>
 </html>
