@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Выборы — Nyan Wallet</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="./elections.css?v=20261016-1">
+  <link rel="stylesheet" href="./elections.css?v=20261016-image2">
 </head>
 <body>
   <div class="el-app">
@@ -38,7 +38,14 @@
             <label>Название партии<input name="name" type="text" maxlength="80" minlength="3" required placeholder="Название"></label>
             <label>Аббревиатура<input name="short_name" maxlength="15" minlength="2" required placeholder="НЯН"></label>
             <label>Предвыборная программа<textarea name="program" maxlength="3000" minlength="30" required rows="5" placeholder="Предложения и цели партии"></textarea></label>
-            <label>Ссылка на эмблему (необязательно)<input name="emblem_url" type="url" maxlength="500" placeholder="https://..."></label>
+            <label>Эмблема партии (необязательно)
+              <input id="el-emblem-input" name="emblem_file" type="file" accept="image/png,image/jpeg,image/webp" aria-describedby="el-emblem-hint">
+            </label>
+            <p id="el-emblem-hint" class="el-muted">Выберите фотографию из галереи или вставьте изображение из буфера. PNG, JPG или WebP, до 2 МБ.</p>
+            <div id="el-emblem-preview" class="el-image-preview" hidden>
+              <img id="el-emblem-img" alt="Предпросмотр эмблемы партии">
+              <button class="el-button secondary" id="el-emblem-remove" type="button">Убрать изображение</button>
+            </div>
             <button class="el-button" type="submit">Отправить на рассмотрение</button>
           </form>
         </section>
@@ -52,6 +59,6 @@
     </main>
     <footer>сохранено оформление Nyan Wallet · Nyan Elections</footer>
   </div>
-  <script src="./elections.js?v=20261016-1"></script>
+  <script src="./elections.js?v=20261016-image2"></script>
 </body>
 </html>

@@ -6,13 +6,16 @@ which requires PostgreSQL, bot credentials and startup jobs.
 
 from __future__ import annotations
 
+import base64
 import importlib.util
+import io
 import sys
 import types
 from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from PIL import Image
 from fastapi.testclient import TestClient
 from sqlalchemy import BigInteger, DateTime, ForeignKey, String, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
@@ -128,7 +131,17 @@ assert season["phase"] == "registration"
 ok(post("/owner/seasons", 1, {"title": "Второй сезон"}), 409)
 
 p1 = ok(post("/parties", 2, party("Партия Лапы", "ПЛ")))["party_id"]
-p2 = ok(post("/parties", 3, party("Партия Звёзд", "ПЗ")))["party_id"]
+image_buffer = io.BytesIO()
+Image.new("RGB", (128, 128), (200, 100, 140)).save(image_buffer, "PNG")
+image_data = "data:image/png;base64," + base64.b64encode(image_buffer.getvalue()).decode("ascii")
+p2 = ok(post("/parties", 3, {**party("Партия Звёзд", "ПЗ"), "emblem_data": image_data}))["party_id"]
+ok(post("/parties", 4, {**party("Bad Picture", "BP"), "emblem_data": "data:image/png;base64,invalid"}), 422)
+stored = client.get(f"/api/elections/parties/{p2}/emblem")
+assert stored.status_code == 200, stored.text
+assert stored.headers["content-type"].startswith("image/webp")
+with Image.open(io.BytesIO(stored.content)) as result:
+    assert result.format == "WEBP" and result.size == (128, 128)
+assert client.get(f"/api/elections/parties/{p2+100}/emblem").status_code == 404
 ok(post("/parties", 4, party("партия лапы", "XX")), 409)
 ok(post("/parties", 2, party("Третья партия", "ТП")), 409)
 ok(post("/parties", 5, party("Запрещённая", "ЗП")), 403)
@@ -147,6 +160,7 @@ ok(post(f"/owner/parties/{p1}/review", 1, {"decision": "approve"}), 409)
 
 public = ok(get("", 4))
 assert len(public["parties"]) == 2
+assert next(item for item in public["parties"] if item["id"] == p2)["emblem_url"] == f"/api/elections/parties/{p2}/emblem"
 assert "chair_id" not in public["parties"][0]
 assert ok(get("", 2))["my_party_id"] == p1
 
@@ -176,5 +190,29 @@ with SessionLocal() as session:
     assert len(people) == 3
     assert {p.telegram_id for p in people} == {2, 3, 4}
     assert {p.party_id for p in people} == {p1, p2}
+
+# One-off production rollback must refuse any season containing party records.
+with SessionLocal.begin() as session:
+    session.query(elections.ElectionInitialRollback).delete()
+    current = session.get(elections.ElectionSeason, 1)
+    current.phase = "registration"
+assert elections.rollback_first_empty_season_once() == "skipped_contains_party_data"
+with SessionLocal() as session:
+    assert session.get(elections.ElectionSeason, 1) is not None
+
+# Clearing a *test* season verifies the one-time empty-season rollback and audit.
+with SessionLocal.begin() as session:
+    session.query(elections.ElectionMembership).delete()
+    session.query(elections.ElectionPartyEmblem).delete()
+    session.query(elections.ElectionParty).delete()
+    session.query(elections.ElectionInitialRollback).delete()
+assert elections.rollback_first_empty_season_once() == "empty_initial_season_rolled_back"
+assert elections.rollback_first_empty_season_once() == "already_processed"
+assert ok(get("", 1))["season"] is None
+assert ok(get("", 1))["initial_rollback"] == "empty_initial_season_rolled_back"
+assert ok(get("", 2))["season"] is None
+assert "initial_rollback" not in ok(get("", 2))
+
+print("OK: sanitized emblem upload, metadata removal, owner-only rollback audit and safe reset")
 
 print("OK: elections registration, moderation, exclusive membership, phase guard and security")
