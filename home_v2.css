@@ -45,36 +45,45 @@
   gap:9px;
 }
 .nyan-home-action{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:9px;
   min-width:0;
-  min-height:80px;
-  padding:10px 8px 9px;
-  border:1px solid #efdae3;
-  border-radius:20px;
-  background:rgba(255,255,255,.94);
-  color:#6e2147;
-  box-shadow:0 9px 24px rgba(114,34,70,.05);
+  min-height:70px;
+  padding:11px;
+  border:1px solid #eed7e1;
+  border-radius:18px;
+  background:linear-gradient(145deg,#fff,#fff8fb);
+  color:var(--ny-text,#6e2147);
+  box-shadow:0 6px 18px rgba(114,34,70,.045);
+  text-align:left;
+}
+.nyan-home-action[data-home-key="earn"],
+.nyan-home-action[data-home-key="spend"]{
+  background:linear-gradient(135deg,#fff4f8,#fff);
+  border-color:#eecddd;
 }
 .nyan-home-action:active{
   transform:scale(.98);
 }
 .nyan-home-action-icon{
-  width:34px;
-  height:34px;
-  margin:0 auto 6px;
+  width:35px;
+  height:35px;
+  flex:0 0 35px;
   display:grid;
   place-items:center;
-  border-radius:14px;
-  background:linear-gradient(145deg,#fff0f6,#ffe3ee);
+  border-radius:12px;
+  background:linear-gradient(145deg,#fff0f6,#ffe1ec);
   color:#8f2955;
-  font-size:18px;
+  font-size:19px;
   font-weight:900;
 }
 .nyan-home-action-label{
+  min-width:0;
   display:block;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  font-size:11px;
-  line-height:1.25;
+  font-size:12px;
+  line-height:1.3;
   font-weight:800;
   white-space:normal;
   overflow-wrap:anywhere;
@@ -84,7 +93,7 @@
   border:1px solid #efd8e2;
   border-radius:22px;
   background:rgba(255,255,255,.9);
-  box-shadow:0 12px 32px rgba(114,34,70,.055);
+  box-shadow:0 8px 26px rgba(114,34,70,.045);
 }
 .nyan-home-panel-head{
   display:flex;
@@ -94,10 +103,10 @@
   margin-bottom:12px;
 }
 .nyan-home-panel-title{
-  font-size:15px;
+  font-size:17px;
   font-weight:900;
-  letter-spacing:-.02em;
-  color:#6e2147;
+  letter-spacing:-.025em;
+  color:var(--ny-text,#6e2147);
 }
 .nyan-home-panel-note{
   font-size:9px;
@@ -105,40 +114,46 @@
 }
 .nyan-home-today{
   display:grid;
-  grid-template-columns:1fr;
-  gap:8px;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:9px;
 }
 .nyan-home-today-card{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
   min-width:0;
-  padding:12px;
+  min-height:112px;
+  padding:13px;
   border:1px solid #f0dce5;
-  border-radius:16px;
-  background:linear-gradient(145deg,#fff,#fff8fb);
+  border-radius:17px;
+  background:linear-gradient(145deg,#fff,#fff6fa);
 }
 .nyan-home-today-kicker{
-  font-size:9px;
-  color:#aa748c;
+  font-size:11px;
+  line-height:1.35;
+  font-weight:650;
+  color:#97657c;
 }
 .nyan-home-today-value{
-  margin-top:4px;
-  font-size:20px;
+  margin-top:7px;
+  font-size:25px;
   line-height:1.1;
   font-weight:900;
+  font-variant-numeric:tabular-nums;
   letter-spacing:-.035em;
   color:#79264d;
 }
 .nyan-home-today-meta{
-  margin-top:6px;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  font-size:9px;
-  color:#aa748c;
+  margin-top:auto;
+  padding-top:8px;
+  font-size:10px;
+  line-height:1.4;
+  color:#a17188;
 }
 .nyan-home-tasks-track{
   height:5px;
   overflow:hidden;
-  margin-top:11px;
+  margin-top:9px;
   border-radius:999px;
   background:#f3e2ea;
 }
@@ -153,28 +168,48 @@
 .nyan-home-more{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:8px;
+  gap:5px 10px;
   width:100%;
-  overflow:visible;
   padding:0;
 }
 .nyan-home-more-button{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:9px;
   min-width:0;
-  min-height:44px;
+  min-height:48px;
   width:100%;
-  padding:10px 11px;
-  border:1px solid rgba(239,216,226,.72);
-  border-radius:14px;
-  background:#fffafb;
+  padding:8px 5px;
+  border:0;
+  border-bottom:1px solid #f1e0e8;
+  border-radius:0;
+  background:transparent;
   color:#7e4059;
   box-shadow:none;
-  font-size:11px;
+  font-size:12px;
   line-height:1.3;
   font-weight:800;
-  white-space:normal;
+  text-align:left;
+}
+.nyan-home-more-icon{
+  flex:0 0 28px;
+  display:grid;
+  place-items:center;
+  width:28px;
+  height:28px;
+  border-radius:10px;
+  background:#fff1f7;
+  color:#922954;
+  font-size:15px;
+  line-height:1;
+}
+.nyan-home-more-label{
+  min-width:0;
   overflow-wrap:anywhere;
 }
 .nyan-home-more-button[hidden]{display:none!important}
+.nyan-home-more-button:active{background:#fff4f8;border-radius:12px}
 .nyan-home-action,
 .nyan-home-more-button,
 .nyan-home-today-card,
@@ -208,7 +243,8 @@
   display:inline-grid;
   min-width:16px;
   height:16px;
-  margin-left:4px;
+  flex:0 0 auto;
+  margin-left:auto;
   padding:0 4px;
   place-items:center;
   border-radius:999px;
@@ -270,9 +306,16 @@
   font-weight:850;
 }
 .nyan-home-owner[hidden]{display:none!important}
-@media(max-width:390px){
-  .nyan-home-action{min-height:74px}
-  .nyan-home-more{grid-template-columns:1fr}
+@media(max-width:350px){
+  .nyan-home-action{gap:7px;padding:9px 7px;min-height:67px}
+  .nyan-home-action-icon{width:31px;height:31px;flex-basis:31px;font-size:17px}
+  .nyan-home-action-label{font-size:11px}
+  .nyan-home-today{grid-template-columns:1fr}
+  .nyan-home-today-card{min-height:92px}
+  .nyan-home-more-button{font-size:11px;gap:5px}
+}
+@media(max-width:300px){
+  .nyan-home-primary,.nyan-home-more{grid-template-columns:1fr}
 }
 
 /* Strict mobile layout: the home screen never scrolls sideways. */
@@ -305,7 +348,8 @@ html,body{
   white-space:normal;
   overflow:visible;
   text-overflow:clip;
-  line-height:1.35;
+  overflow-wrap:anywhere;
+  line-height:1.4;
 }
 #wallet-view .wallet-card-top,
 #wallet-view .wallet-card-bottom{
