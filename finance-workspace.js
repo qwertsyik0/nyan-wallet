@@ -88,7 +88,11 @@
       "Стажёр: " + item.trainee_label + " · ID " + item.trainee_id));
     head.append(main, create("span", "fw-status " + item.status, LABEL[item.status] || item.status));
     card.appendChild(head);
-    card.appendChild(create("div", "fw-card-reason", "Основание: " + item.reason));
+    card.appendChild(create("div", "fw-card-reason", "Служебное обоснование: " + item.reason));
+    if (item.action !== "investigate") {
+      card.appendChild(create("div", "fw-card-meta",
+        "Причина для пользователя: " + (item.public_reason || "общая формулировка для старой заявки")));
+    }
     if (item.evidence) card.appendChild(create("div", "fw-card-meta", "Подтверждения: " + item.evidence));
     if (item.owner_note) card.appendChild(create("div", "fw-card-meta", "Решение владельца: " + item.owner_note));
     if (item.transaction_id) card.appendChild(create("div", "fw-card-meta", "Транзакция №" + item.transaction_id));
@@ -114,6 +118,9 @@
     // Disable its native constraint validation for investigations entirely.
     $("fw-amount").disabled = investigate;
     $("fw-target").required = !investigate;
+    $("fw-public-reason-group").hidden = investigate;
+    $("fw-public-reason").required = !investigate;
+    $("fw-public-reason").disabled = investigate;
     $("fw-target-label").textContent = investigate
       ? "Кошелёк, номер перевода или объект проверки (необязательно)"
       : "Получатель / участник";
@@ -138,12 +145,18 @@
     }
     const target = $("fw-target").value.trim();
     const reason = $("fw-reason").value.trim().replace(/\s+/g, " ");
+    const publicReason = action === "investigate" ? null :
+      $("fw-public-reason").value.trim().replace(/\s+/g, " ");
+    if (action !== "investigate" && (!publicReason || publicReason.length < 5)) {
+      return notify("Укажите понятную пользователю причину (не менее 5 символов)", true);
+    }
     const evidence = $("fw-evidence").value.trim().replace(/\s+/g, " ") || null;
     if (reason.length < 10) return notify("Основание должно содержать минимум 10 символов", true);
     if (!window.confirm(
       "Отправить заявку на проверку?\n" +
       (LABEL[action] || action) + (action === "investigate" ? "" : " · " + amount + " 🐾") +
       "\nПользователь: " + target +
+      (publicReason ? "\nПричина для пользователя: " + publicReason : "") +
       "\n\nБаланс не изменится, пока владелец не одобрит операцию"
     )) return;
     busy = true;
@@ -152,7 +165,8 @@
     try {
       if (!requestToken) requestToken = requestId();
       const result = await call("/api/finance/workspace/requests", "POST", {
-        action, amount, target, reason, evidence, request_token: requestToken
+        action, amount, target, reason, public_reason: publicReason, evidence,
+        request_token: requestToken
       });
       requestToken = "";
       notify(result.already_submitted
@@ -345,7 +359,7 @@
     $("fw-candidates-link").href = preservedLink("./finance-review.html");
     $("fw-form").addEventListener("submit", submit);
     $("fw-action").addEventListener("change", () => { requestToken = ""; syncAction(); });
-    for (const id of ["fw-target", "fw-amount", "fw-reason", "fw-evidence"]) {
+    for (const id of ["fw-target", "fw-amount", "fw-reason", "fw-public-reason", "fw-evidence"]) {
       $(id).addEventListener("input", () => { requestToken = ""; });
     }
     $("fw-my-refresh").addEventListener("click", refreshMine);
