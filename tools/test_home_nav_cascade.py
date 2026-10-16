@@ -15,14 +15,14 @@ client = (ROOT / "home_v2.js").read_text(encoding="utf-8")
 html = (ROOT / "index.html").read_text(encoding="utf-8")
 
 # Extract the exact shell rule rather than searching for a stray text comment.
-match = re.search(r"#wallet-view\\s+\\.actions\\.nyan-actions-grid\\s*\\{([^}]*)\\}", shell)
+match = re.search(r"#wallet-view\s+\.actions\.nyan-actions-grid\s*\{([^}]*)\}", shell)
 assert match, "Legacy navigation shell selector missing"
-assert re.search(r"\\bdisplay\\s*:\\s*none\\s*!important\\b", match.group(1), re.I) or re.search(
-    r"\\bdisplay\\s*:\\s*none\\s*!important\\s*;", match.group(1), re.I
-), "Legacy shell must not force its menu visible above home_v2"
+assert re.search(r"\bdisplay\s*:\s*none\s*!important\b", match.group(1), re.I), (
+    "Legacy shell must not force its menu visible above home_v2"
+)
 
-assert re.search(r"#wallet-view\\s*>\\s*\\.actions\\s*,", home), "Home v2 must hide original buttons"
-assert re.search(r"\\bdisplay\\s*:\\s*none\\s*!important", home), "Home v2 legacy hiding rule missing"
+assert re.search(r"#wallet-view\s*>\s*\.actions\s*,", home), "Home v2 must hide original buttons"
+assert re.search(r"\bdisplay\s*:\s*none\s*!important", home), "Home v2 legacy hiding rule missing"
 assert "id = \"nyan-home-v2\"" in client, "New home UI not generated"
 assert 'if (target) proxyClick(target);' in client, "Legacy click target delegation removed"
 assert '<link rel="stylesheet" href="./home_v2.css?' in html
