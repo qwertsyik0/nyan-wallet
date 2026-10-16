@@ -128,7 +128,7 @@
       ? "Например, TX-101, Telegram ID или @username"
       : "@username или Telegram ID";
     $("fw-target-hint").textContent = investigate
-      ? "Укажите номер транзакции или аккаунт, если известен. Можно оставить поле пустым и описать ситуацию ниже"
+      ? "Для получения данных укажи @username, Telegram ID, номер NYAN или ID NWT-перевода. Без точной ссылки система сообщит, что кошелёк не определён"
       : "Для начисления и списания пользователь должен иметь кошелёк Nyan Wallet";
     if (investigate) $("fw-amount").value = "0";
     else if ($("fw-amount").value === "0") $("fw-amount").value = "";
