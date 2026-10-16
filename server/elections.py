@@ -8,11 +8,14 @@ from __future__ import annotations
 
 import base64
 import binascii
+import html
 import io
 import json
 import logging
 import os
 import re
+import threading
+import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -115,6 +118,18 @@ class ElectionPhaseUndo20261017(core.Base):
     season_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(String(60), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ElectionNSNLetter20261017(core.Base):
+    """Durable at-most-once send tracking for the owner's targeted NSN mailing."""
+
+    __tablename__ = "election_nsn_member_letters_20261017"
+    season_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    party_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    attempted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class ElectionMembership(core.Base):
@@ -347,6 +362,137 @@ def _party_group_invite(party: ElectionParty) -> str | None:
             return url
         logger.warning("Invalid Elections group invite URL configured for %s", party.id)
     return None
+
+
+
+def _nsn_member_letter_text(telegram_id: int, username: str | None, first_name: str, party_name: str, invite_url: str) -> str:
+    """Render only the recipient's own Telegram profile link in a safe HTML message."""
+    handle = (username or "").lstrip("@")
+    if re.fullmatch(r"[A-Za-z0-9_]{5,32}", handle):
+        profile_url = f"https://t.me/{handle}"
+        nickname = "@" + handle
+    else:
+        profile_url = f"tg://user?id={int(telegram_id)}"
+        nickname = first_name.strip() or "товарищ"
+    clickable_nick = f'<a href="{html.escape(profile_url, quote=True)}">{html.escape(nickname)}</a>'
+    safe_party = html.escape(party_name)
+    safe_group = html.escape(invite_url, quote=True)
+    return (
+        "🚩 <b>НАРОДНЫЙ СОЮЗ НЯН | ПИСЬМО УЧАСТНИКУ</b>\n\n"
+        f"Товарищ {clickable_nick}, приветствуем в наших рядах!\n\n"
+        f"Ты состоишь в партии «{safe_party}». "
+        "Для общения с однопартийцами, обсуждения программы и подготовки к выборам "
+        "у нас есть отдельный чат.\n\n"
+        f'💬 <a href="{safe_group}">Перейти в чат партии</a>\n'
+        f"{safe_group}\n\n"
+        "До встречи в нашем штабе! 🐾"
+    )
+
+
+def _send_nsn_member_letter(telegram_id: int, username: str | None, first_name: str, party_name: str, invite_url: str) -> bool:
+    if not core.BOT_TOKEN:
+        return False
+    payload = {
+        "chat_id": int(telegram_id),
+        "text": _nsn_member_letter_text(telegram_id, username, first_name, party_name, invite_url),
+        "parse_mode": "HTML",
+        "link_preview_options": {"is_disabled": True},
+        "reply_markup": {"inline_keyboard": [[{
+            "text": "🚩 Вступить в чат НСН",
+            "url": invite_url,
+        }]]},
+    }
+    req = urllib.request.Request(
+        f"https://api.telegram.org/bot{core.BOT_TOKEN}/sendMessage",
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+        return result.get("ok") is True
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        logger.warning("NSN member letter failed: %s", type(exc).__name__)
+        return False
+
+
+def dispatch_nsn_member_letters_20261017() -> dict[str, int | str]:
+    """One-time mailing to current NSN members, never any other party.
+
+    First persist an attempt claim, then send. An interrupted attempt is NOT
+    retried automatically; this is intentional to prevent duplicate Telegram
+    messages if a process exits after delivery but before persisting success.
+    """
+    stats: dict[str, int | str] = {"matched": 0, "attempted": 0, "sent": 0, "failed": 0, "skipped": 0}
+    with core.SessionLocal() as session:
+        season = latest_season(session)
+        if not season or season.id != 2 or season.phase != "recruitment":
+            stats["reason"] = "wrong_season_or_phase"
+            return stats
+        party = session.scalar(select(ElectionParty).where(
+            ElectionParty.season_id == season.id,
+            ElectionParty.name_key == "народный союз нян",
+            ElectionParty.status == "approved",
+        ))
+        if not party:
+            stats["reason"] = "approved_nsn_party_not_found"
+            return stats
+        invite = _party_group_invite(party)
+        if not invite:
+            stats["reason"] = "group_invite_missing"
+            return stats
+        season_id, party_id, party_name = season.id, party.id, party.name
+        members = session.execute(
+            select(ElectionMembership.telegram_id, core.User.username, core.User.first_name)
+            .join(core.User, core.User.telegram_id == ElectionMembership.telegram_id)
+            .where(
+                ElectionMembership.season_id == season_id,
+                ElectionMembership.party_id == party_id,
+            ).order_by(ElectionMembership.telegram_id)
+        ).all()
+    stats["matched"] = len(members)
+    for member_id, username, first_name in members:
+        # Re-check party membership when claiming delivery, since people can
+        # switch parties while recruitment is underway.
+        try:
+            with core.SessionLocal.begin() as session:
+                if session.get(ElectionNSNLetter20261017, (season_id, member_id)) is not None:
+                    stats["skipped"] += 1
+                    continue
+                current = session.scalar(select(ElectionMembership.party_id).where(
+                    ElectionMembership.season_id == season_id,
+                    ElectionMembership.telegram_id == member_id,
+                ))
+                if current != party_id:
+                    stats["skipped"] += 1
+                    continue
+                session.add(ElectionNSNLetter20261017(
+                    season_id=season_id, party_id=party_id, telegram_id=member_id,
+                    status="attempted", attempted_at=timestamp(),
+                ))
+        except IntegrityError:
+            stats["skipped"] += 1
+            continue
+        stats["attempted"] += 1
+        sent = _send_nsn_member_letter(member_id, username, first_name, party_name, invite)
+        with core.SessionLocal.begin() as session:
+            record = session.get(ElectionNSNLetter20261017, (season_id, member_id))
+            if record:
+                record.status = "sent" if sent else "failed"
+                if sent:
+                    record.delivered_at = timestamp()
+        stats["sent" if sent else "failed"] += 1
+        time.sleep(0.3)  # avoid Telegram API burst limits
+    return stats
+
+
+def _run_nsn_letter_mailing_once() -> None:
+    try:
+        result = dispatch_nsn_member_letters_20261017()
+        logger.warning("elections_nsn_member_letters_20261017 summary=%s", result)
+    except Exception:
+        logger.exception("elections_nsn_member_letters_20261017 unexpected error")
 
 
 def party_data(party: ElectionParty, session, *, include_private: bool = False) -> dict:
@@ -786,7 +932,13 @@ def register_elections(app) -> None:
     ElectionPartyEmblem.__table__.create(bind=core.engine, checkfirst=True)
     ElectionInitialRollback.__table__.create(bind=core.engine, checkfirst=True)
     ElectionPhaseUndo20261017.__table__.create(bind=core.engine, checkfirst=True)
+    ElectionNSNLetter20261017.__table__.create(bind=core.engine, checkfirst=True)
     rollback_first_empty_season_once()
     undo_accidental_campaign_20261017_once()
     app.include_router(router)
     _REGISTERED = True
+    if os.getenv("NYAN_ELECTIONS_NSN_LETTERS_20261017", "") == "send":
+        threading.Thread(
+            target=_run_nsn_letter_mailing_once, name="nsn-one-time-member-letters",
+            daemon=True,
+        ).start()
