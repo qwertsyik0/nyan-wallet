@@ -135,6 +135,21 @@
   font-size:9px;
   color:#aa748c;
 }
+.nyan-home-tasks-track{
+  height:5px;
+  overflow:hidden;
+  margin-top:11px;
+  border-radius:999px;
+  background:#f3e2ea;
+}
+.nyan-home-tasks-track>span{
+  display:block;
+  height:100%;
+  width:0;
+  border-radius:inherit;
+  background:#922954;
+  transition:width .2s ease-out;
+}
 .nyan-home-more{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
@@ -160,6 +175,35 @@
   overflow-wrap:anywhere;
 }
 .nyan-home-more-button[hidden]{display:none!important}
+.nyan-home-action,
+.nyan-home-more-button,
+.nyan-home-today-card,
+.nyan-history-toggle,
+.nyan-home-owner{
+  transition:transform .16s ease, background-color .16s ease, border-color .16s ease;
+}
+.nyan-home-more-button:active,
+.nyan-home-today-card:active,
+.nyan-history-toggle:active,
+.nyan-home-owner:active{
+  transform:scale(.99);
+}
+.nyan-home-action:focus-visible,
+.nyan-home-more-button:focus-visible,
+.nyan-home-today-card:focus-visible,
+.nyan-history-toggle:focus-visible,
+.nyan-home-owner:focus-visible{
+  outline:2px solid #a83a66;
+  outline-offset:2px;
+}
+@media(prefers-reduced-motion:reduce){
+  .nyan-home-action,
+  .nyan-home-more-button,
+  .nyan-home-today-card,
+  .nyan-history-toggle,
+  .nyan-home-owner,
+  .nyan-home-tasks-track>span{transition:none}
+}
 .nyan-home-more-button .nyan-home-badge{
   display:inline-grid;
   min-width:16px;
