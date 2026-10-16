@@ -51,6 +51,8 @@ for source,helper_name,extra in (
     else:
         assert namespace[helper_name](app_url+"?startapp=elections")=="elections"
 
+assert 'draft.keep_source_markup = False' in legacy, "Forwarded channel buttons must not break Elections publication"
+
 legacy_ns=dict(common)
 for name in ("_start_param_for_url","_mini_app_deep_link"):
     exec(compile(ast.Module(body=[one_func(legacy,name)],type_ignores=[]),"<legacy>","exec"),legacy_ns)
