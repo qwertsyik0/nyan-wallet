@@ -21,6 +21,7 @@
     ["situation_farm", "Ситуация: подозрительные переводы"],
   ];
   let loading = false;
+  let activeTrainees = new Set();
 
   tg?.ready?.();
   tg?.expand?.();
@@ -138,6 +139,37 @@
         });
         reviewBox.prepend(sendButton);
       }
+      if (item.status !== "rejected") {
+        const active = activeTrainees.has(item.telegram_id);
+        const appoint = create("button", "button button-secondary",
+          active ? "Стажировка активна" : "Назначить стажёром");
+        appoint.type = "button";
+        appoint.style.width = "100%";
+        appoint.style.margin = "5px 0 8px";
+        appoint.disabled = active;
+        appoint.addEventListener("click", async () => {
+          if (!window.confirm(
+            "Назначить " + name + " финансовым стажёром?\n" +
+            "Он сможет создавать заявки, но не сможет менять баланс без вашего согласия"
+          )) return;
+          appoint.disabled = true;
+          appoint.textContent = "Открываем доступ…";
+          try {
+            await request(
+              "/api/owner/finance/trainees/application/" + item.id, "POST", {}
+            );
+            activeTrainees.add(item.telegram_id);
+            appoint.textContent = "Стажировка активна";
+            notice.textContent = "Доступ стажёру открыт. Участник увидит вкладку в своём профиле Nyan Wallet";
+            tg?.HapticFeedback?.notificationOccurred?.("success");
+          } catch (err) {
+            appoint.disabled = false;
+            appoint.textContent = "Назначить стажёром";
+            notice.textContent = err?.message || "Не удалось открыть доступ";
+          }
+        });
+        reviewBox.appendChild(appoint);
+      }
       card.appendChild(reviewBox);
     }
     if (item.owner_note) {
@@ -201,6 +233,10 @@
     try {
       const result = await request("/api/owner/recruitment/finance?status=" +
         encodeURIComponent(filter.value));
+      const staffResult = await request("/api/owner/finance/trainees").catch(() => ({trainees:[]}));
+      activeTrainees = new Set(
+        (staffResult.trainees || []).filter(item => item.active).map(item => item.telegram_id)
+      );
       const items = Array.isArray(result.applications) ? result.applications : [];
       list.replaceChildren();
       if (!items.length) {
