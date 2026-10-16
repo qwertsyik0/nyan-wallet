@@ -9,14 +9,14 @@ button:disabled{cursor:wait;opacity:.56}
 .fw-header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:34px}
 .fw-brand{font-size:13px;font-weight:900;letter-spacing:.04em}
 .fw-header a,.fw-link{color:var(--berry);font-weight:700;text-decoration:none;font-size:12px}
-.fw-header a{border:1px solid var(--border);background:#fff;border-radius:13px;padding:10px 12px}
+.fw-header a{display:inline-flex;align-items:center;min-height:44px;border:1px solid var(--border);background:#fff;border-radius:13px;padding:10px 12px}
 .fw-kicker{font-size:11px;text-transform:uppercase;letter-spacing:.16em;font-weight:800;color:#a87692}
 h1{font-size:clamp(35px,10vw,57px);line-height:1.03;letter-spacing:-.06em;margin:7px 0 13px;color:#702d50}
 .fw-intro{color:var(--muted);font-size:13px;line-height:1.65;margin:0 0 18px}
 .fw-notice{font-size:12px;line-height:1.6;background:#fff;border:1px solid var(--border);border-radius:12px;padding:13px 15px;margin-bottom:15px}
 .fw-notice:empty{display:none}
 .fw-notice.error{border-color:#dfb2c4;background:#fff1f4;color:#95293c}
-.fw-section{background:#fff;border:1px solid var(--border);border-radius:22px;padding:20px 17px;margin:15px 0;box-shadow:0 8px 24px rgba(126,57,86,.045)}
+.fw-section{background:#fff;border:1px solid var(--border);border-radius:22px;padding:18px 16px;margin:14px 0;box-shadow:0 8px 24px rgba(126,57,86,.045)}
 .fw-section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}
 .fw-section h2{font-size:19px;line-height:1.2;letter-spacing:-.04em;margin:0}
 .fw-description{color:var(--muted);font-size:12px;line-height:1.65;margin:7px 0 17px}
@@ -26,25 +26,27 @@ h1{font-size:clamp(35px,10vw,57px);line-height:1.03;letter-spacing:-.06em;margin
 .fw-form input,.fw-form select,.fw-form textarea,.fw-tools select,.fw-review-note textarea{width:100%;background:#fffafd;border:1px solid #ebcfde;border-radius:11px;padding:13px 12px;color:#442138;outline:none;font-size:13px;font-weight:500;min-width:0}
 .fw-form input:focus,.fw-form textarea:focus,.fw-form select:focus,.fw-review-note textarea:focus{border-color:#ba87a2;box-shadow:0 0 0 3px #f7e7ef}
 .fw-form textarea,.fw-review-note textarea{resize:vertical}
-.fw-primary,.fw-small-button,.fw-secondary{border:0;border-radius:13px;background:var(--berry);color:#fff;padding:13px 14px;font-weight:800;font-size:13px}
+.fw-primary,.fw-small-button,.fw-secondary{min-height:44px;border:0;border-radius:13px;background:var(--berry);color:#fff;padding:12px 14px;font-weight:800;font-size:13px}
 .fw-small-button{padding:8px 11px;font-size:11px;background:#fff4f9;border:1px solid var(--border);color:var(--berry)}
 .fw-small{font-size:11px;color:var(--muted);line-height:1.6;margin:0}
-.fw-tools{display:flex;gap:9px;margin:12px 0 17px}
-.fw-tools select{flex:1}
-.fw-list{display:grid;gap:12px;font-size:12px}
-.fw-card{border:1px solid var(--border);border-radius:15px;padding:14px;background:#fffafd;overflow-wrap:anywhere}
+.fw-tools{display:flex;flex-wrap:wrap;gap:9px;margin:12px 0 17px}
+.fw-tools select{flex:1;min-width:0}
+.fw-list{display:grid;gap:10px;font-size:12px}
+.fw-card{min-width:0;border:1px solid var(--border);border-radius:15px;padding:13px;background:#fffafd;overflow-wrap:anywhere}
 .fw-card-head{display:flex;justify-content:space-between;align-items:start;gap:8px;margin-bottom:8px}
-.fw-card-title{font-size:14px;font-weight:850;color:#6d284d}
+.fw-card-head>:first-child{min-width:0;overflow-wrap:anywhere}
+.fw-card-title{font-size:14px;font-weight:850;line-height:1.3;color:#6d284d;overflow-wrap:anywhere}
 .fw-card-meta{color:var(--muted);font-size:11px;line-height:1.5;margin:5px 0}
 .fw-card-reason{font-size:12px;color:#573b49;line-height:1.6;white-space:pre-wrap;margin-top:8px}
 .fw-status{font-size:10px;font-weight:800;color:#74465e;background:#f9e9f1;border-radius:8px;padding:6px 8px;white-space:nowrap}
 .fw-status.approved{background:#e8f3eb;color:#376b4c}
 .fw-status.rejected{background:#fff0f0;color:#9b4956}
 .fw-card-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.fw-card-actions button{flex:1;min-width:112px}
+.fw-card-actions button{flex:1;min-width:112px;min-height:44px}
 .fw-approve{border:none;border-radius:10px;color:white;background:#713351;padding:10px 12px;font-weight:800}
 .fw-reject{border:1px solid #dfbbcc;border-radius:10px;color:#963f5e;background:white;padding:10px 12px;font-weight:800}
 .fw-review-note{margin-top:11px}
 .fw-link{display:block;width:max-content;max-width:100%;background:#fff4f9;border:1px solid var(--border);border-radius:12px;padding:11px 13px;margin:12px 0}
+.fw-header a:focus-visible,.fw-link:focus-visible,.fw-card-actions button:focus-visible,.fw-primary:focus-visible,.fw-small-button:focus-visible,.fw-secondary:focus-visible{outline:2px solid #a83a66;outline-offset:2px}
 footer{font-size:10px;color:#b894a6;text-align:center;letter-spacing:.12em;padding-top:21px}
 @media(max-width:385px){.fw-shell{padding-inline:12px}.fw-section{padding-inline:13px}.fw-card-actions button{min-width:100%}}

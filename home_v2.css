@@ -1,6 +1,6 @@
 /* Nyan Wallet home v2 */
 #wallet-view{
-  padding-bottom:30px;
+  padding-bottom:max(30px, env(safe-area-inset-bottom, 0px));
 }
 #wallet-view>header{
   margin-bottom:14px;
@@ -35,19 +35,19 @@
   display:none!important;
 }
 .nyan-home-v2{
-  margin-top:14px;
+  margin-top:13px;
   display:grid;
-  gap:12px;
+  gap:11px;
 }
 .nyan-home-primary{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:8px;
+  gap:9px;
 }
 .nyan-home-action{
   min-width:0;
-  min-height:92px;
-  padding:12px 6px 10px;
+  min-height:80px;
+  padding:10px 8px 9px;
   border:1px solid #efdae3;
   border-radius:20px;
   background:rgba(255,255,255,.94);
@@ -58,9 +58,9 @@
   transform:scale(.98);
 }
 .nyan-home-action-icon{
-  width:38px;
-  height:38px;
-  margin:0 auto 8px;
+  width:34px;
+  height:34px;
+  margin:0 auto 6px;
   display:grid;
   place-items:center;
   border-radius:14px;
@@ -73,16 +73,16 @@
   display:block;
   overflow:hidden;
   text-overflow:ellipsis;
-  font-size:10px;
-  line-height:1.2;
+  font-size:11px;
+  line-height:1.25;
   font-weight:800;
   white-space:normal;
   overflow-wrap:anywhere;
 }
 .nyan-home-panel{
-  padding:16px;
+  padding:15px;
   border:1px solid #efd8e2;
-  border-radius:23px;
+  border-radius:22px;
   background:rgba(255,255,255,.9);
   box-shadow:0 12px 32px rgba(114,34,70,.055);
 }
@@ -110,9 +110,9 @@
 }
 .nyan-home-today-card{
   min-width:0;
-  padding:13px;
+  padding:12px;
   border:1px solid #f0dce5;
-  border-radius:17px;
+  border-radius:16px;
   background:linear-gradient(145deg,#fff,#fff8fb);
 }
 .nyan-home-today-kicker{
@@ -121,44 +121,89 @@
 }
 .nyan-home-today-value{
   margin-top:4px;
-  font-size:19px;
+  font-size:20px;
   line-height:1.1;
   font-weight:900;
   letter-spacing:-.035em;
   color:#79264d;
 }
 .nyan-home-today-meta{
-  margin-top:5px;
+  margin-top:6px;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
   font-size:9px;
   color:#aa748c;
 }
+.nyan-home-tasks-track{
+  height:5px;
+  overflow:hidden;
+  margin-top:11px;
+  border-radius:999px;
+  background:#f3e2ea;
+}
+.nyan-home-tasks-track>span{
+  display:block;
+  height:100%;
+  width:0;
+  border-radius:inherit;
+  background:#922954;
+  transition:width .2s ease-out;
+}
 .nyan-home-more{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:7px;
+  gap:8px;
   width:100%;
   overflow:visible;
-  padding:1px 0 3px;
+  padding:0;
 }
 .nyan-home-more-button{
   min-width:0;
+  min-height:44px;
   width:100%;
-  padding:10px 9px;
-  border:1px solid #efd8e2;
-  border-radius:999px;
-  background:#fff;
+  padding:10px 11px;
+  border:1px solid rgba(239,216,226,.72);
+  border-radius:14px;
+  background:#fffafb;
   color:#7e4059;
   box-shadow:none;
-  font-size:9px;
-  line-height:1.25;
+  font-size:11px;
+  line-height:1.3;
   font-weight:800;
   white-space:normal;
   overflow-wrap:anywhere;
 }
 .nyan-home-more-button[hidden]{display:none!important}
+.nyan-home-action,
+.nyan-home-more-button,
+.nyan-home-today-card,
+.nyan-history-toggle,
+.nyan-home-owner{
+  transition:transform .16s ease, background-color .16s ease, border-color .16s ease;
+}
+.nyan-home-more-button:active,
+.nyan-home-today-card:active,
+.nyan-history-toggle:active,
+.nyan-home-owner:active{
+  transform:scale(.99);
+}
+.nyan-home-action:focus-visible,
+.nyan-home-more-button:focus-visible,
+.nyan-home-today-card:focus-visible,
+.nyan-history-toggle:focus-visible,
+.nyan-home-owner:focus-visible{
+  outline:2px solid #a83a66;
+  outline-offset:2px;
+}
+@media(prefers-reduced-motion:reduce){
+  .nyan-home-action,
+  .nyan-home-more-button,
+  .nyan-home-today-card,
+  .nyan-history-toggle,
+  .nyan-home-owner,
+  .nyan-home-tasks-track>span{transition:none}
+}
 .nyan-home-more-button .nyan-home-badge{
   display:inline-grid;
   min-width:16px;
@@ -202,6 +247,7 @@
 }
 .nyan-history-toggle{
   width:100%;
+  min-height:44px;
   margin-top:9px;
   padding:10px 12px;
   border:1px solid #efd8e2;
@@ -225,7 +271,7 @@
 }
 .nyan-home-owner[hidden]{display:none!important}
 @media(max-width:390px){
-  .nyan-home-action{min-height:82px}
+  .nyan-home-action{min-height:74px}
   .nyan-home-more{grid-template-columns:1fr}
 }
 
