@@ -289,8 +289,11 @@ def _build_finance_investigation_report(session, record: FinanceDecisionRequest)
         "🐾 Nyan Wallet | Финансовая проверка",
         f"Заявка №{record.id}",
         f"Запрос: {reference}",
+        f"Сведения на {_finance_report_time(core.now_utc())}",
         "",
     ]
+    if record.owner_note:
+        lines.extend([f"Комментарий владельца: {record.owner_note[:250]}", ""])
     ids = list(dict.fromkeys(_resolve_investigation_wallet_ids(session, record)))[:2]
     if not ids:
         lines.extend([
