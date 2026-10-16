@@ -307,6 +307,52 @@ assert ok(get("", 1))["initial_rollback"] == "empty_initial_season_rolled_back"
 assert ok(get("", 2))["season"] is None
 assert "initial_rollback" not in ok(get("", 2))
 
+# A user's accidental recruitment -> campaign transition is corrected
+# exactly once, only in season #2. Existing parties and memberships survive.
+with SessionLocal.begin() as session:
+    session.query(elections.ElectionPhaseUndo20261017).delete()
+    session.add(elections.ElectionSeason(
+        id=2, title="Первый сезон", phase="campaign", created_by=1,
+        created_at=datetime.now(timezone.utc), updated_at=datetime.now(timezone.utc)
+    ))
+    session.add(elections.ElectionParty(
+        id=101, season_id=2, chair_id=2,
+        name="Тестовая партия", name_key="тестовая партия", short_name="ТП",
+        short_key="тп", program="Полноценная предвыборная программа для проверки возврата.",
+        status="approved", submitted_at=datetime.now(timezone.utc)
+    ))
+    session.add(elections.ElectionMembership(
+        season_id=2, party_id=101, telegram_id=2, joined_at=datetime.now(timezone.utc)
+    ))
+with SessionLocal() as session:
+    baseline_parties = session.query(elections.ElectionParty).count()
+    baseline_members = session.query(elections.ElectionMembership).count()
+assert elections.undo_accidental_campaign_20261017_once() == "campaign_reverted_to_recruitment"
+assert ok(get("", 2))["season"]["phase"] == "recruitment"
+assert ok(get("", 2))["my_party_id"] == 101
+with SessionLocal() as session:
+    assert session.query(elections.ElectionParty).count() == baseline_parties
+    assert session.query(elections.ElectionMembership).count() == baseline_members
+    audit = session.get(elections.ElectionPhaseUndo20261017, 1)
+    assert audit.season_id == 2
+    assert audit.status == "campaign_reverted_to_recruitment"
+with SessionLocal.begin() as session:
+    session.get(elections.ElectionSeason, 2).phase = "campaign"
+assert elections.undo_accidental_campaign_20261017_once() == "already_processed"
+assert ok(get("", 2))["season"]["phase"] == "campaign"
+
+# On a different season, never revert campaign, even if the one-shot audit
+# is missing due to a fresh database.
+with SessionLocal.begin() as session:
+    session.query(elections.ElectionPhaseUndo20261017).delete()
+    session.add(elections.ElectionSeason(
+        id=3, title="Другой сезон", phase="campaign", created_by=1,
+        created_at=datetime.now(timezone.utc), updated_at=datetime.now(timezone.utc)
+    ))
+assert elections.undo_accidental_campaign_20261017_once() == "skipped_unexpected_season"
+assert ok(get("", 2))["season"]["phase"] == "campaign"
+assert elections.undo_accidental_campaign_20261017_once() == "already_processed"
+
 print("OK: sanitized emblem upload, metadata removal, owner-only rollback audit and safe reset")
 
 print("OK: elections registration, moderation, exclusive membership, phase guard and security")
