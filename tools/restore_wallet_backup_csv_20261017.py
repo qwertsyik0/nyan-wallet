@@ -13,6 +13,9 @@ import sys
 import zipfile
 from pathlib import Path
 
+# A script executed from tools/ must still import the parent server/ package.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from sqlalchemy import Integer, inspect
 from sqlalchemy.types import LargeBinary
 
