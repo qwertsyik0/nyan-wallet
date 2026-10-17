@@ -494,11 +494,27 @@ button span {
     margin-top: 12px;
 }
 
+/* Owner user search results must shrink inside narrow Telegram WebViews.
+   Use a zero-minimum grid track instead of the intrinsic width of a long ID. */
+#owner-view .nyan-admin-body,
+#owner-view .owner-users-list {
+    min-width: 0;
+    max-width: 100%;
+}
+
+#owner-view .owner-users-list {
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+}
+
 .owner-user-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: space-between;
     gap: 12px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     padding: 13px 14px;
     text-align: left;
     background: #fff;
@@ -508,6 +524,7 @@ button span {
 
 .owner-user-row-main {
     min-width: 0;
+    max-width: 100%;
 }
 
 .owner-user-row-name {
@@ -526,12 +543,27 @@ button span {
     color: #aa8092;
 }
 
+/* A numeric Telegram ID and timestamp may require two lines on a phone. */
+.owner-user-row-meta {
+    overflow-wrap: anywhere;
+    white-space: normal;
+    line-height: 1.35;
+}
+
 .owner-user-row-balance,
 .owner-promo-reward {
     flex: 0 0 auto;
     font-size: 13px;
     font-weight: 700;
     color: #922954;
+}
+
+.owner-user-row-balance {
+    min-width: 0;
+    max-width: min(120px, 40vw);
+    text-align: right;
+    overflow-wrap: anywhere;
+    font-variant-numeric: tabular-nums;
 }
 
 .selected-user-head {
