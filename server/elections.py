@@ -987,7 +987,7 @@ async def games_signup_status(
         season = latest_season(session)
         if season is None:
             return {"ok": True, "season": None, "parties": [], "my_party_id": None,
-                    "confirmed": False, "reward": 500}
+                    "confirmed": False, "reward": 500, "is_owner": core.is_owner(uid)}
         parties = session.scalars(select(ElectionParty).where(
             ElectionParty.season_id == season.id, ElectionParty.status == "approved"
         ).order_by(ElectionParty.id)).all()
@@ -1005,6 +1005,7 @@ async def games_signup_status(
             "confirmed": bool(signup and membership and signup.party_id == membership.party_id),
             "reward": 500,
             "reward_status": "after_participation",
+            "is_owner": core.is_owner(uid),
         }
 
 
@@ -1053,6 +1054,38 @@ async def confirm_games_signup(
     return {"ok": True, "confirmed": True, "party_id": party.id, "already_confirmed": False}
 
 
+@router.get("/owner/games/signups")
+async def list_game_signups_for_owner(
+    x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data")
+):
+    """Private game registration roster, not proof of reward eligibility."""
+    owner_auth(x_telegram_init_data)
+    with core.SessionLocal() as session:
+        season = latest_season(session)
+        if not season:
+            return {"ok": True, "season_id": None, "signups": []}
+        rows = session.execute(
+            select(ElectionGamesSignup, ElectionParty, core.User)
+            .join(ElectionParty, ElectionParty.id == ElectionGamesSignup.party_id)
+            .join(core.User, core.User.telegram_id == ElectionGamesSignup.telegram_id)
+            .join(ElectionMembership, (
+                (ElectionMembership.season_id == ElectionGamesSignup.season_id)
+                & (ElectionMembership.telegram_id == ElectionGamesSignup.telegram_id)
+                & (ElectionMembership.party_id == ElectionGamesSignup.party_id)
+            ))
+            .where(ElectionGamesSignup.season_id == season.id,
+                   ElectionParty.status == "approved")
+            .order_by(ElectionParty.name, ElectionGamesSignup.confirmed_at)
+        ).all()
+        return {"ok": True, "season_id": season.id, "signups": [
+            {"telegram_id": int(user.telegram_id),
+             "username": ("@" + user.username) if user.username else None,
+             "party": party.name,
+             "confirmed_at": signup.confirmed_at.isoformat()}
+            for signup, party, user in rows
+        ]}
+
+
 @router.post("/parties/{party_id}/join")
 async def join_party(
     party_id: int,
@@ -1084,6 +1117,14 @@ async def join_party(
                     current = session.get(ElectionParty, existing.party_id)
                     if current and current.chair_id == uid:
                         raise HTTPException(status_code=409, detail="Председатель не может покинуть свою партию")
+                    # Confirmation belongs to the old party and must never be
+                    # restored by switching back without an explicit new opt-in.
+                    registration = session.scalar(select(ElectionGamesSignup).where(
+                        ElectionGamesSignup.season_id == season.id,
+                        ElectionGamesSignup.telegram_id == uid,
+                    ).with_for_update())
+                    if registration:
+                        session.delete(registration)
                     existing.party_id = party.id
                     existing.joined_at = timestamp()
                 else:
@@ -1114,6 +1155,12 @@ async def leave_party(x_telegram_init_data: str | None = Header(default=None, al
             party = session.get(ElectionParty, membership.party_id)
             if party and party.chair_id == uid:
                 raise HTTPException(status_code=409, detail="Председатель не может покинуть свою партию")
+            registration = session.scalar(select(ElectionGamesSignup).where(
+                ElectionGamesSignup.season_id == season.id,
+                ElectionGamesSignup.telegram_id == uid,
+            ).with_for_update())
+            if registration:
+                session.delete(registration)
             session.delete(membership)
     return {"ok": True}
 

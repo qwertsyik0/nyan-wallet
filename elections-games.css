@@ -1,1 +1,5 @@
 .games-back{display:grid;place-items:center;text-decoration:none;flex-shrink:0}.games-note{margin:16px 0 0}.games-party{min-width:0;overflow:hidden}.games-party .el-button{width:100%;margin-top:12px}.games-party-name{overflow-wrap:anywhere}.games-good{color:#7a2955;font-weight:850}.games-confirm{width:100%;margin-top:10px}.games-muted{margin:10px 0 0;font-size:12px;line-height:1.5;color:var(--muted)}#game-error{margin-top:14px}html,body{max-width:100%;overflow-x:hidden}
+.games-owner-list{display:grid;gap:9px;max-height:430px;overflow-y:auto;overflow-x:hidden}
+.games-owner-row{display:grid;gap:4px;min-width:0;padding:11px 12px;border:1px solid #efdae3;border-radius:13px;background:#fffafd}
+.games-owner-row strong{font-size:12px;color:#782449;font-weight:800;overflow-wrap:anywhere}
+.games-owner-row small{font-size:11px;color:#a4758c;overflow-wrap:anywhere}
