@@ -112,7 +112,7 @@
 
   async function reload() {
     const [elections, signup] = await Promise.all([api(""), api("/games/status")]);
-    if (!elections.season || signup.season_id !== elections.season.id) {
+    if (signup.season_id !== (elections.season?.id ?? null)) {
       throw new Error("Данные выборов обновились. Попробуй ещё раз.");
     }
     render(elections, signup);
