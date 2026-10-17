@@ -442,8 +442,42 @@ assert len(group_deliveries) == 2
 
 os.environ["NYAN_ELECTIONS_GROUP_INVITES"] = prior_mapping
 
+# The intentional campaign launch must affect only the audited season #2,
+# only after all four parties are approved, and never alter membership or
+# re-run a phase transition on a subsequent restart.
+assert elections.open_campaign_20261017_once() == "skipped_unexpected_party_count"
+with SessionLocal() as session:
+    assert session.get(elections.ElectionCampaignOpen20261017, 1) is None
+    assert session.get(elections.ElectionSeason, 2).phase == "recruitment"
 with SessionLocal.begin() as session:
-    session.get(elections.ElectionSeason, 2).phase = "campaign"
+    for uid in (6, 7):
+        session.add(User(telegram_id=uid, first_name=f"User {uid}", username=f"user{uid}"))
+    for pid, chair in ((103, 6), (104, 7)):
+        session.add(elections.ElectionParty(
+            id=pid, season_id=2, chair_id=chair,
+            name=f"Тестовая партия {pid}", name_key=f"тестовая партия {pid}",
+            short_name=f"ТП{pid}", short_key=f"тп{pid}",
+            program="Полноценная программа для проверки открытия агитации.",
+            status="approved", submitted_at=datetime.now(timezone.utc)
+        ))
+        session.add(elections.ElectionMembership(
+            season_id=2, party_id=pid, telegram_id=chair,
+            joined_at=datetime.now(timezone.utc),
+        ))
+with SessionLocal() as session:
+    party_ids_before = {p.id for p in session.scalars(select(elections.ElectionParty)).all()}
+    membership_before = {
+        (m.telegram_id, m.party_id) for m in session.scalars(select(elections.ElectionMembership)).all()
+    }
+assert elections.open_campaign_20261017_once() == "campaign_opened"
+assert elections.open_campaign_20261017_once() == "already_processed"
+assert ok(get("", 2))["season"]["phase"] == "campaign"
+with SessionLocal() as session:
+    assert {p.id for p in session.scalars(select(elections.ElectionParty)).all()} == party_ids_before
+    assert {(m.telegram_id, m.party_id) for m in session.scalars(select(elections.ElectionMembership)).all()} == membership_before
+    audit = session.get(elections.ElectionCampaignOpen20261017, 1)
+    assert audit and audit.season_id == 2 and audit.status == "campaign_opened"
+
 assert elections.undo_accidental_campaign_20261017_once() == "already_processed"
 assert ok(get("", 2))["season"]["phase"] == "campaign"
 
