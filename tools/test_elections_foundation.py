@@ -259,7 +259,7 @@ assert client.get("/api/elections/games/status").status_code == 401
 assert client.post("/api/elections/games/confirm").status_code == 401
 assert ok(get("/games/status", 4))["confirmed"] is False
 assert ok(get("/games/status", 4))["reward"] == 500
-assert ok(post("/games/confirm", 3), 409)
+assert ok(post("/games/confirm", 1), 409)
 assert ok(post("/games/confirm", 5), 403)
 assert ok(post("/games/confirm", 4))["confirmed"] is True
 assert ok(post("/games/confirm", 4))["already_confirmed"] is True
