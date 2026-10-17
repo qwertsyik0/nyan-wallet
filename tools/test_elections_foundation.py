@@ -265,6 +265,56 @@ with SessionLocal() as session:
     assert {p.telegram_id for p in people} == {2, 3, 4}
     assert {p.party_id for p in people} == {p1, p2}
 
+# Election games signups are explicitly opt-in, idempotent and tied to current
+# party membership. They never mutate wallet balances or allocate rewards.
+assert client.get("/api/elections/games/status").status_code == 401
+assert post("/games/confirm", 2).status_code == 200
+assert ok(get("/games/status", 2))["registered"] is True
+assert ok(get("/games/status", 2))["reward"] == 500
+first_confirmation = SessionLocal().get(elections.ElectionGameSignup, (1, 2)).confirmed_at
+assert ok(post("/games/confirm", 2))["already_registered"] is True
+assert SessionLocal().get(elections.ElectionGameSignup, (1, 2)).confirmed_at == first_confirmation
+ok(post("/games/confirm", 5), 403)  # Blocked accounts.
+ok(post("/games/join", 5, {"party_id": p1}), 403)
+ok(post("/games/join", 4, {"party_id": p1}), 409)  # Must confirm an existing membership.
+ok(post("/games/join", 4, {"party_id": -1}), 422)
+ok(post("/games/join", 4, {"party_id": "1"}), 422)  # Pydantic strict.
+ok(post("/games/confirm", 4))
+assert ok(get("/games/status", 4))["registered"] is True
+ok(get("/owner/games/signups", 2), 403)
+owner_roster = ok(get("/owner/games/signups", 1))["signups"]
+assert {x["telegram_id"] for x in owner_roster} == {2, 4}
+assert {x["party_name"] for x in owner_roster} == {"Партия Лапы"}
+
+# Switching parties invalidates the old explicit confirmation.
+ok(post(f"/parties/{p2}/join", 4))
+assert ok(get("/games/status", 4))["registered"] is False
+assert {x["telegram_id"] for x in ok(get("/owner/games/signups", 1))["signups"]} == {2}
+ok(post("/games/confirm", 4))
+assert ok(get("/games/status", 4))["registered"] is True
+ok(post("/parties/leave", 4))
+assert ok(get("/games/status", 4))["registered"] is False
+ok(post("/games/confirm", 4), 409)
+
+# A nonmember must be able to join the party and register atomically.
+ok(post("/games/join", 4, {"party_id": 99999}), 404)
+joined = ok(post("/games/join", 4, {"party_id": p1}))
+assert joined["registered"] is True and joined["party_id"] == p1
+assert ok(get("/games/status", 4))["registered"] is True
+ok(post("/games/join", 4, {"party_id": p2}), 409)
+with SessionLocal() as session:
+    assert session.query(elections.ElectionGameSignup).count() == 2
+    assert session.query(elections.ElectionMembership).count() == 3
+    assert session.query(WalletNotification).count() >= 0
+# A registration-closed season must reject new confirmations/joins.
+with SessionLocal.begin() as session:
+    session.get(elections.ElectionSeason, 1).phase = "results"
+ok(post("/games/confirm", 4), 409)
+ok(post("/games/join", 4, {"party_id": p1}), 409)
+assert ok(get("/games/status", 4))["registration_open"] is False
+with SessionLocal.begin() as session:
+    session.get(elections.ElectionSeason, 1).phase = "campaign"
+
 # Owner is a neutral moderator: no creating or replacing party, including
 # when a season is open for everyone else.
 with SessionLocal.begin() as session:
@@ -296,6 +346,7 @@ with SessionLocal() as session:
 
 # Clearing a *test* season verifies the one-time empty-season rollback and audit.
 with SessionLocal.begin() as session:
+    session.query(elections.ElectionGameSignup).delete()
     session.query(elections.ElectionMembership).delete()
     session.query(elections.ElectionPartyEmblem).delete()
     session.query(elections.ElectionParty).delete()
