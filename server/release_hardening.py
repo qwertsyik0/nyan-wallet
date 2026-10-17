@@ -3,10 +3,12 @@ from __future__ import annotations
 import asyncio
 import csv
 import hmac
+import http.client
 import io
 import json
 import os
 import threading
+import tempfile
 import time
 import urllib.request
 import uuid
@@ -142,30 +144,34 @@ def _serialize_cell(value: Any) -> str:
     return str(value)
 
 
-def _table_csv(table) -> bytes:
-    output = io.StringIO(newline="")
-    writer = csv.writer(output)
+def _write_table_csv_to_archive(table, archive: zipfile.ZipFile) -> None:
+    """Stream database rows directly into a ZIP entry; never buffer a full table."""
     columns = list(table.columns)
-    writer.writerow([column.name for column in columns])
-
     stmt = select(table)
     pk_columns = list(table.primary_key.columns)
     if pk_columns:
         stmt = stmt.order_by(*pk_columns)
+    with archive.open(f"tables/{table.name}.csv", "w", force_zip64=True) as entry:
+        with io.TextIOWrapper(entry, encoding="utf-8-sig", newline="") as stream:
+            writer = csv.writer(stream)
+            writer.writerow([column.name for column in columns])
+            with core.engine.connect().execution_options(
+                stream_results=True, max_row_buffer=100
+            ) as connection:
+                result = connection.execute(stmt)
+                try:
+                    for row in result.mappings():
+                        writer.writerow([_serialize_cell(row[column.name]) for column in columns])
+                finally:
+                    result.close()
 
-    with core.engine.connect() as connection:
-        for row in connection.execute(stmt).mappings():
-            writer.writerow([_serialize_cell(row[column.name]) for column in columns])
 
-    return output.getvalue().encode("utf-8-sig")
-
-
-def build_backup_zip() -> bytes:
-    output = io.BytesIO()
+def build_backup_zip_file(path: str) -> None:
+    """Write backup directly to temporary storage instead of in-memory buffers."""
     created_at = datetime.now(timezone.utc)
     tables = [table for table in core.Base.metadata.sorted_tables]
-
-    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED, compresslevel=6,
+                         allowZip64=True) as archive:
         manifest = [
             "Nyan Wallet automatic backup",
             f"created_at_utc={created_at.isoformat()}",
@@ -174,9 +180,7 @@ def build_backup_zip() -> bytes:
         ]
         archive.writestr("manifest.txt", "\n".join(manifest).encode("utf-8"))
         for table in tables:
-            archive.writestr(f"tables/{table.name}.csv", _table_csv(table))
-
-    return output.getvalue()
+            _write_table_csv_to_archive(table, archive)
 
 
 def _multipart_field(name: str, value: str, boundary: str) -> bytes:
@@ -187,38 +191,48 @@ def _multipart_field(name: str, value: str, boundary: str) -> bytes:
     ).encode("utf-8")
 
 
-def send_backup_document(data: bytes, filename: str) -> None:
+def send_backup_document(path: str, filename: str) -> None:
+    """Stream multipart upload without a second memory copy of the archive."""
     if not core.BOT_TOKEN or not core.OWNER_TELEGRAM_ID:
         raise RuntimeError("BOT_TOKEN или OWNER_TELEGRAM_ID отсутствует")
-
-    if len(data) > 45 * 1024 * 1024:
+    file_size = os.path.getsize(path)
+    if file_size > 45 * 1024 * 1024:
         raise RuntimeError("Автоматическая резервная копия превышает 45 МБ")
 
     boundary = f"----NyanWallet{uuid.uuid4().hex}"
-    body = io.BytesIO()
-    body.write(_multipart_field("chat_id", str(core.OWNER_TELEGRAM_ID), boundary))
-    body.write(_multipart_field("caption", "Ежедневная резервная копия Nyan Wallet", boundary))
-    body.write(f"--{boundary}\r\n".encode("utf-8"))
-    body.write(
-        (
+    prefix = (
+        _multipart_field("chat_id", str(core.OWNER_TELEGRAM_ID), boundary)
+        + _multipart_field("caption", "Ежедневная резервная копия Nyan Wallet", boundary)
+        + f"--{boundary}\r\n".encode("utf-8")
+        + (
             f'Content-Disposition: form-data; name="document"; filename="{filename}"\r\n'
             "Content-Type: application/zip\r\n\r\n"
         ).encode("utf-8")
     )
-    body.write(data)
-    body.write(b"\r\n")
-    body.write(f"--{boundary}--\r\n".encode("utf-8"))
-
-    request = urllib.request.Request(
-        f"https://api.telegram.org/bot{core.BOT_TOKEN}/sendDocument",
-        data=body.getvalue(),
-        method="POST",
-        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
-    )
-    with urllib.request.urlopen(request, timeout=90) as response:
-        payload = json.loads(response.read().decode("utf-8"))
+    suffix = f"\r\n--{boundary}--\r\n".encode("utf-8")
+    connection = http.client.HTTPSConnection("api.telegram.org", timeout=90)
+    try:
+        connection.putrequest("POST", f"/bot{core.BOT_TOKEN}/sendDocument")
+        connection.putheader("Content-Type", f"multipart/form-data; boundary={boundary}")
+        connection.putheader("Content-Length", str(len(prefix) + file_size + len(suffix)))
+        connection.endheaders()
+        connection.send(prefix)
+        with open(path, "rb") as backup:
+            while True:
+                chunk = backup.read(64 * 1024)
+                if not chunk:
+                    break
+                connection.send(chunk)
+        connection.send(suffix)
+        response = connection.getresponse()
+        raw = response.read(2048)
+        if response.status != 200:
+            raise RuntimeError(f"Telegram backup HTTP {response.status}")
+        payload = json.loads(raw.decode("utf-8"))
         if not payload.get("ok"):
             raise RuntimeError("Telegram не подтвердил отправку резервной копии")
+    finally:
+        connection.close()
 
 
 def run_daily_backup_if_needed() -> None:
@@ -233,9 +247,11 @@ def run_daily_backup_if_needed() -> None:
 
         attempted_at = datetime.now(timezone.utc)
         try:
-            data = build_backup_zip()
             filename = f"nyan-wallet-backup-{today.isoformat()}.zip"
-            send_backup_document(data, filename)
+            with tempfile.TemporaryDirectory(prefix="nyan-wallet-backup-") as temp_dir:
+                path = os.path.join(temp_dir, filename)
+                build_backup_zip_file(path)
+                send_backup_document(path, filename)
         except Exception as exc:
             with core.SessionLocal() as session:
                 row = session.get(BackupRun, today)
