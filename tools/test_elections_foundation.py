@@ -264,10 +264,25 @@ assert ok(post("/games/confirm", 5), 403)
 assert ok(post("/games/confirm", 4))["confirmed"] is True
 assert ok(post("/games/confirm", 4))["already_confirmed"] is True
 assert ok(get("/games/status", 4))["confirmed"] is True
+ok(get("/owner/games/signups", 2), 403)
+assert client.get("/api/elections/owner/games/signups").status_code == 401
+roster = ok(get("/owner/games/signups", 1))["signups"]
+assert len(roster) == 1 and roster[0]["telegram_id"] == 4
+assert roster[0]["party"] == "Партия Лапы"
 ok(post(f"/parties/{p2}/join", 4))
 assert ok(get("/games/status", 4))["confirmed"] is False
+with SessionLocal() as session:
+    assert session.query(elections.ElectionGamesSignup).count() == 0
+assert ok(get("/owner/games/signups", 1))["signups"] == []
 assert ok(post("/games/confirm", 4))["already_confirmed"] is False
 assert ok(get("/games/status", 4))["confirmed"] is True
+# Leave and rejoin the same party must never resurrect the old signup.
+ok(post("/parties/leave", 4))
+assert ok(get("/games/status", 4))["confirmed"] is False
+assert ok(get("/owner/games/signups", 1))["signups"] == []
+ok(post(f"/parties/{p2}/join", 4))
+assert ok(get("/games/status", 4))["confirmed"] is False
+ok(post("/games/confirm", 4))
 with SessionLocal() as session:
     assert session.query(elections.ElectionGamesSignup).count() == 1
 ok(post("/owner/phase", 1, {"next_phase": "voting"}), 422)
@@ -313,6 +328,7 @@ with SessionLocal() as session:
 
 # Clearing a *test* season verifies the one-time empty-season rollback and audit.
 with SessionLocal.begin() as session:
+    session.query(elections.ElectionGamesSignup).delete()
     session.query(elections.ElectionMembership).delete()
     session.query(elections.ElectionPartyEmblem).delete()
     session.query(elections.ElectionParty).delete()
@@ -512,4 +528,7 @@ assert elections.undo_accidental_campaign_20261017_once() == "already_processed"
 
 print("OK: sanitized emblem upload, metadata removal, owner-only rollback audit and safe reset")
 
-print("OK: elections registration, moderation, exclusive membership, phase guard and security")
+assert "startapp=games" in (ROOT / "elections.html").read_text(encoding="utf-8")
+assert 'id="game-owner-section"' in (ROOT / "elections-games.html").read_text(encoding="utf-8")
+assert 'loadOwnerRoster()' in (ROOT / "elections-games.js").read_text(encoding="utf-8")
+print("OK: elections registration, game roster authorization and invalidation, phase guard and security")
