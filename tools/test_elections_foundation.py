@@ -253,6 +253,23 @@ assert ok(get("", 4))["my_party_id"] is None
 ok(post("/parties/leave", 4), 404)
 ok(post("/owner/phase", 1, {"next_phase": "campaign"}))
 ok(post(f"/parties/{p1}/join", 4))
+# Games registration: party membership, explicit confirmation, strict auth,
+# no automatic reward, and reconfirmation after switching party.
+assert client.get("/api/elections/games/status").status_code == 401
+assert client.post("/api/elections/games/confirm").status_code == 401
+assert ok(get("/games/status", 4))["confirmed"] is False
+assert ok(get("/games/status", 4))["reward"] == 500
+assert ok(post("/games/confirm", 3), 409)
+assert ok(post("/games/confirm", 5), 403)
+assert ok(post("/games/confirm", 4))["confirmed"] is True
+assert ok(post("/games/confirm", 4))["already_confirmed"] is True
+assert ok(get("/games/status", 4))["confirmed"] is True
+ok(post(f"/parties/{p2}/join", 4))
+assert ok(get("/games/status", 4))["confirmed"] is False
+assert ok(post("/games/confirm", 4))["already_confirmed"] is False
+assert ok(get("/games/status", 4))["confirmed"] is True
+with SessionLocal() as session:
+    assert session.query(elections.ElectionGamesSignup).count() == 1
 ok(post("/owner/phase", 1, {"next_phase": "voting"}), 422)
 
 # Unimplemented critical stages must fail closed, not accidentally open live ballots.
