@@ -2,7 +2,7 @@ name: Backend and client syntax check
 
 on:
   push:
-    branches: [main, 'feat/elections-games-signup-20261017']
+    branches: [main]
     paths:
       - "server/**/*.py"
       - "*.js"
