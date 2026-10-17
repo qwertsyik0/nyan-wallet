@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Запись на игры — Nyan Elections</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./elections.css?v=20261017-group-invite1">
+  <link rel="stylesheet" href="./election-games.css?v=20261017-games1">
+</head>
+<body>
+<div class="el-app">
+  <header class="el-header">
+    <a href="https://t.me/nyancash_bot?startapp=elections" class="el-back eg-back" aria-label="Вернуться к выборам">‹</a>
+    <div><span class="el-brand">Nyan Wallet</span><span class="el-subtitle">игры и выборы Нян</span></div>
+    <span class="el-icon" aria-hidden="true">✦</span>
+  </header>
+  <main>
+    <section class="el-hero eg-hero">
+      <span class="el-kicker">NYAN ELECTIONS · РЕГИСТРАЦИЯ</span>
+      <h1>Игры Нян</h1>
+      <p>Выбери партию или подтверди своё участие в предвыборных играх.</p>
+      <div class="eg-reward"><strong>500 🐾</strong><span>гарантированная награда за участие</span></div>
+      <p class="eg-small">Награда за фактическое участие в играх, а не за одну запись. Начисление производится после проверки участия.</p>
+    </section>
+    <p id="eg-message" class="el-alert" role="status" aria-live="polite" hidden></p>
+    <div id="eg-loading" class="el-loading" role="status">Проверяем данные Telegram и текущую партию…</div>
+    <div id="eg-content" hidden>
+      <section id="eg-confirmed" class="el-section eg-state" hidden>
+        <div class="eg-check" aria-hidden="true">✓</div>
+        <h2>Ты записан!</h2>
+        <p id="eg-confirmed-party" class="el-muted"></p>
+        <p class="eg-detail">Жди объявления о начале игр. Награда 500 🐾 будет начислена после подтверждённого участия.</p>
+      </section>
+      <section id="eg-existing" class="el-section" hidden>
+        <h2>Подтверди участие</h2>
+        <p id="eg-current-party" class="el-muted"></p>
+        <button id="eg-confirm-button" class="el-button eg-full" type="button">Подтвердить участие в играх</button>
+      </section>
+      <section id="eg-new" class="el-section" hidden>
+        <h2>Выбери партию</h2>
+        <p class="el-muted">Ты пока не состоишь в партии. Выбери одну из одобренных партий: вступление и запись на игры произойдут одновременно.</p>
+        <div id="eg-parties" class="el-parties"></div>
+      </section>
+      <section id="eg-closed" class="el-section" hidden>
+        <h2>Регистрация закрыта</h2>
+        <p class="el-muted">Дождись следующего объявления организаторов.</p>
+      </section>
+      <section id="eg-owner" class="el-section" hidden>
+        <div class="el-heading"><h2>Записавшиеся</h2><span id="eg-count"></span></div>
+        <p class="el-muted">Этот список виден только владельцу. Запись не означает начисление награды.</p>
+        <div id="eg-owner-list" class="eg-owner-list"></div>
+      </section>
+    </div>
+    <a href="https://t.me/nyancash_bot?startapp=elections" class="eg-footer-link">Открыть все партии и программы →</a>
+  </main>
+  <footer>NYAN ELECTIONS · Nyan Wallet</footer>
+</div>
+<script src="./election-games.js?v=20261017-games1"></script>
+</body>
+</html>
