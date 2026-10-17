@@ -2,7 +2,7 @@ name: Backend and client syntax check
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'feat/nyan-election-games-registration-20261017']
     paths:
       - "server/**/*.py"
       - "*.js"
@@ -24,6 +24,8 @@ on:
       - "tools/test_elections_buttons.py"
       - "tools/test_elections_party_form.cjs"
       - "elections.html"
+      - "election-games.html"
+      - "election-games.css"
       - "elections.css"
       - "requirements.txt"
       - "bot_addons/broadcast_bot.py"
