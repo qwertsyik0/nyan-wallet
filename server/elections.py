@@ -154,6 +154,18 @@ class ElectionPartyGroupLetter20261017(core.Base):
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class ElectionDebateLetter20261017(core.Base):
+    """At-most-once mailing of election debates and rewards to party members."""
+
+    __tablename__ = "election_debate_letters_20261017"
+    season_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    party_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    attempted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class ElectionGamesSignup(core.Base):
     """Explicit game participation confirmation; never awards currency."""
 
@@ -681,6 +693,159 @@ def _run_all_party_group_letters_once() -> None:
         logger.warning("elections_all_party_group_letters_20261017 summary=%s", result)
     except Exception:
         logger.exception("elections_all_party_group_letters_20261017 unexpected error")
+
+
+DEBATES_GROUP_URL_20261017 = "https://t.me/+hh-es702uN9kMTUy"
+
+
+def _debate_letter_text(telegram_id: int, first_name: str | None, last_name: str | None,
+                        party_name: str) -> str:
+    """Personalized HTML; visible name is the saved Telegram profile name."""
+    display_name = " ".join(
+        value.strip() for value in (first_name, last_name) if value and value.strip()
+    ) or "участник выборов"
+    profile = f'<a href="tg://user?id={int(telegram_id)}">{html.escape(display_name)}</a>'
+    safe_party = html.escape(party_name)
+    return (
+        "🗳 <b>NYAN ELECTIONS | ОФИЦИАЛЬНОЕ УВЕДОМЛЕНИЕ</b>\n\n"
+        f"Многоуважаемый {profile}!\n\n"
+        "Избирательная комиссия Nyan Wallet уведомляет Вас о регистрации в "
+        f"политической партии «{safe_party}».\n\n"
+        "Впереди предвыборная кампания. Для участия приглашаем Вас в два чата:\n\n"
+        "🏛 <b>Партийный штаб</b> — здесь однопартийцы обсуждают программу, "
+        "готовят выступления и принимают совместные решения.\n\n"
+        "🎙 <b>Общий избирательный чат</b> — именно здесь пройдут основные дебаты, "
+        "публичные выступления председателей и обсуждение предложений партий.\n\n"
+        "🏆 <b>Награды победителям</b>\n"
+        "Участников победившей партии ждут призы — от Telegram Stars до "
+        "Telegram-аккаунтов! Также победившая партия получит право "
+        "<b>управлять Nyan Wallet в течение 7 дней</b>.\n\n"
+        "🐾 Напоминаем: за участие в выборах предусмотрено гарантированное "
+        "вознаграждение <b>500 лапкоинов</b>.\n\n"
+        "С уважением,\n<b>Избирательная комиссия Nyan Wallet</b>"
+    )
+
+
+def _send_debate_letter(telegram_id: int, first_name: str | None, last_name: str | None,
+                        party_name: str, party_invite: str) -> bool:
+    if not core.BOT_TOKEN:
+        return False
+    payload = {
+        "chat_id": int(telegram_id),
+        "text": _debate_letter_text(telegram_id, first_name, last_name, party_name),
+        "parse_mode": "HTML",
+        "link_preview_options": {"is_disabled": True},
+        "reply_markup": {
+            "inline_keyboard": [
+                [{"text": "🏛 Чат моей партии", "url": party_invite}],
+                [{"text": "🎙 Общий чат дебатов", "url": DEBATES_GROUP_URL_20261017}],
+            ],
+        },
+    }
+    request = urllib.request.Request(
+        f"https://api.telegram.org/bot{core.BOT_TOKEN}/sendMessage",
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=12) as response:
+            result = json.loads(response.read().decode("utf-8"))
+        return result.get("ok") is True
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        logger.warning("Election debate invitation delivery failed chat_id=%s error=%s",
+                       telegram_id, type(exc).__name__)
+        return False
+
+
+def dispatch_debate_letters_20261017() -> dict:
+    """Send once to season 2 members; claim attempts before Telegram API calls."""
+    stats = {
+        "approved_parties": 0, "matched": 0, "attempted": 0,
+        "sent": 0, "failed": 0, "skipped": 0, "unmapped_parties": [],
+    }
+    if not core.BOT_TOKEN:
+        stats["reason"] = "bot_token_missing"
+        return stats
+    with core.SessionLocal() as session:
+        season = latest_season(session)
+        if not season or season.id != 2 or season.phase not in JOIN_PHASES:
+            stats["reason"] = "wrong_season_or_phase"
+            return stats
+        season_id = season.id
+        parties = session.scalars(select(ElectionParty).where(
+            ElectionParty.season_id == season_id,
+            ElectionParty.status == "approved",
+        ).order_by(ElectionParty.id)).all()
+        stats["approved_parties"] = len(parties)
+        if len(parties) != 4:
+            stats["reason"] = "unexpected_party_count"
+            return stats
+        targets = []
+        for party in parties:
+            invite = _party_group_invite(party)
+            if not invite:
+                stats["unmapped_parties"].append(party.name)
+                continue
+            members = session.execute(
+                select(ElectionMembership.telegram_id, core.User.first_name, core.User.last_name)
+                .join(core.User, core.User.telegram_id == ElectionMembership.telegram_id)
+                .where(
+                    ElectionMembership.season_id == season_id,
+                    ElectionMembership.party_id == party.id,
+                ).order_by(ElectionMembership.telegram_id)
+            ).all()
+            for uid, first_name, last_name in members:
+                targets.append((int(uid), first_name, last_name, party.id, party.name, invite))
+        stats["matched"] = len(targets)
+    # All party URLs must be configured before sending anyone's notification.
+    if stats["unmapped_parties"]:
+        stats["reason"] = "missing_party_invite"
+        return stats
+
+    for uid, first_name, last_name, party_id, party_name, invite in targets:
+        try:
+            with core.SessionLocal.begin() as session:
+                latest = latest_season(session, lock=True)
+                if not latest or latest.id != season_id or latest.phase not in JOIN_PHASES:
+                    stats["skipped"] += 1
+                    continue
+                if session.get(ElectionDebateLetter20261017, (season_id, uid)) is not None:
+                    stats["skipped"] += 1
+                    continue
+                current_party = session.scalar(select(ElectionMembership.party_id).where(
+                    ElectionMembership.season_id == season_id,
+                    ElectionMembership.telegram_id == uid,
+                ))
+                if current_party != party_id:
+                    stats["skipped"] += 1
+                    continue
+                session.add(ElectionDebateLetter20261017(
+                    season_id=season_id, telegram_id=uid, party_id=party_id,
+                    status="attempted", attempted_at=timestamp(),
+                ))
+        except IntegrityError:
+            stats["skipped"] += 1
+            continue
+        stats["attempted"] += 1
+        delivered = _send_debate_letter(uid, first_name, last_name, party_name, invite)
+        with core.SessionLocal.begin() as session:
+            record = session.get(ElectionDebateLetter20261017, (season_id, uid))
+            if record:
+                record.status = "sent" if delivered else "failed"
+                if delivered:
+                    record.delivered_at = timestamp()
+        stats["sent" if delivered else "failed"] += 1
+        time.sleep(0.35)
+    return stats
+
+
+def _run_debate_letters_once() -> None:
+    try:
+        result = dispatch_debate_letters_20261017()
+        logger.warning("elections_debate_letters_20261017 summary=%s", result)
+    except Exception:
+        logger.exception("elections_debate_letters_20261017 unexpected error")
 
 
 def party_data(party: ElectionParty, session, *, include_private: bool = False) -> dict:
@@ -1287,6 +1452,7 @@ def register_elections(app) -> None:
     ElectionCampaignOpen20261017.__table__.create(bind=core.engine, checkfirst=True)
     ElectionNSNLetter20261017.__table__.create(bind=core.engine, checkfirst=True)
     ElectionPartyGroupLetter20261017.__table__.create(bind=core.engine, checkfirst=True)
+    ElectionDebateLetter20261017.__table__.create(bind=core.engine, checkfirst=True)
     rollback_first_empty_season_once()
     undo_accidental_campaign_20261017_once()
     if os.getenv("NYAN_ELECTIONS_OPEN_CAMPAIGN_20261017", "") == "open":
@@ -1302,4 +1468,9 @@ def register_elections(app) -> None:
         threading.Thread(
             target=_run_all_party_group_letters_once,
             name="all-party-one-time-chat-invites", daemon=True,
+        ).start()
+    if os.getenv("NYAN_ELECTIONS_DEBATE_LETTERS_20261017", "") == "send":
+        threading.Thread(
+            target=_run_debate_letters_once,
+            name="one-time-election-debate-invites", daemon=True,
         ).start()
