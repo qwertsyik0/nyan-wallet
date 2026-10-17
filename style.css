@@ -560,7 +560,7 @@ button span {
 
 .owner-user-row-balance {
     min-width: 0;
-    max-width: 44%;
+    max-width: min(120px, 40vw);
     text-align: right;
     overflow-wrap: anywhere;
     font-variant-numeric: tabular-nums;
