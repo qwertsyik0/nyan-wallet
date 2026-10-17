@@ -30,7 +30,7 @@ assert 'api("/games/status")' in script
 assert 'api("/owner/games/signups")' in script
 assert '.textContent =' in script and "innerHTML" not in script
 assert '500 🐾' in page and "после проверки участия" in page
-assert '.eg-party' in styles and '--wine' in styles
+assert '.eg-party' in styles and 'var(--ink)' in styles
 for route in ('"/games/status"', '"/games/join"', '"/games/confirm"', '"/owner/games/signups"'):
     assert f"@router." in backend and route in backend, route
 assert '"election_game_signups"' in backend
