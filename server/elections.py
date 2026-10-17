@@ -987,7 +987,7 @@ async def games_signup_status(
         season = latest_season(session)
         if season is None:
             return {"ok": True, "season": None, "parties": [], "my_party_id": None,
-                    "confirmed": False, "reward": 500}
+                    "confirmed": False, "reward": 500, "is_owner": core.is_owner(uid)}
         parties = session.scalars(select(ElectionParty).where(
             ElectionParty.season_id == season.id, ElectionParty.status == "approved"
         ).order_by(ElectionParty.id)).all()
@@ -1005,6 +1005,7 @@ async def games_signup_status(
             "confirmed": bool(signup and membership and signup.party_id == membership.party_id),
             "reward": 500,
             "reward_status": "after_participation",
+            "is_owner": core.is_owner(uid),
         }
 
 
