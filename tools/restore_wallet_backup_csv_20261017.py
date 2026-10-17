@@ -144,9 +144,24 @@ def restore(path, preview):
                         maximum = connection.exec_driver_sql(
                             'SELECT MAX("' + col.name + '") FROM "' + table + '"'
                         ).scalar_one()
-                        connection.exec_driver_sql(
-                            "SELECT setval(%s::regclass, %s, true)", (seq, maximum)
-                        )
+                        # Telegram chat IDs are negative, but a SERIAL sequence
+                        # defaults to the range 1..2^63-1. Such IDs are provided
+                        # explicitly and must never be passed to setval().
+                        bounds = connection.exec_driver_sql(
+                            "SELECT s.seqmin, s.seqmax FROM pg_sequence s "
+                            "WHERE s.seqrelid = %s::regclass",
+                            (seq,),
+                        ).one()
+                        if maximum is not None and bounds.seqmin <= maximum <= bounds.seqmax:
+                            connection.exec_driver_sql(
+                                "SELECT setval(%s::regclass, %s, true)", (seq, maximum)
+                            )
+                        else:
+                            print(
+                                "Skipped out-of-range sequence value for "
+                                + table + "." + col.name + ": " + str(maximum),
+                                flush=True,
+                            )
 
             for table, expected in counts.items():
                 actual = connection.exec_driver_sql(
