@@ -15,9 +15,10 @@ js = (ROOT / "app.js").read_text(encoding="utf-8")
 
 def block(selector: str) -> str:
     pattern = r"(?m)^" + re.escape(selector) + r"\s*\{([^}]*)\}"
-    match = re.search(pattern, css)
-    assert match, f"Missing owner layout rule: {selector}"
-    return match.group(1)
+    matches = list(re.finditer(pattern, css))
+    assert matches, f"Missing owner layout rule: {selector}"
+    # The selector also appears in a shared rule; inspect its final override.
+    return matches[-1].group(1)
 
 
 def has(style: str, property_name: str, expected_pattern: str) -> bool:
