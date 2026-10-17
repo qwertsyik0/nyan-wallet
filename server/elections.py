@@ -120,6 +120,16 @@ class ElectionPhaseUndo20261017(core.Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class ElectionCampaignOpen20261017(core.Base):
+    """Idempotent audit of the owner's explicit 17 Oct campaign opening."""
+
+    __tablename__ = "election_campaign_open_20261017"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    season_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(60), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class ElectionNSNLetter20261017(core.Base):
     """Durable at-most-once send tracking for the owner's targeted NSN mailing."""
 
@@ -1088,6 +1098,46 @@ def undo_accidental_campaign_20261017_once() -> str:
     return status
 
 
+def open_campaign_20261017_once() -> str:
+    """Owner-approved one-shot recruitment -> campaign for the original season.
+
+    Runs ONLY when NYAN_ELECTIONS_OPEN_CAMPAIGN_20261017=open. The season
+    lock, strict preconditions and transaction-backed audit prevent any later
+    deploy/restart from moving another season or rewriting party membership.
+    """
+    with core.SessionLocal() as session:
+        with session.begin():
+            if session.get(ElectionCampaignOpen20261017, 1) is not None:
+                return "already_processed"
+            season = latest_season(session, lock=True)
+            season_id = season.id if season else None
+            if season is None or season.id != 2:
+                status = "skipped_unexpected_season"
+            elif season.phase not in ("recruitment", "campaign"):
+                status = "skipped_unexpected_phase"
+            else:
+                rollback = session.get(ElectionPhaseUndo20261017, 1)
+                if not rollback or rollback.season_id != 2 or rollback.status != "campaign_reverted_to_recruitment":
+                    status = "skipped_missing_rollback_audit"
+                else:
+                    approved = session.scalar(select(func.count(ElectionParty.id)).where(
+                        ElectionParty.season_id == 2,
+                        ElectionParty.status == "approved",
+                    ))
+                    if approved != 4:
+                        status = "skipped_unexpected_party_count"
+                    else:
+                        status = "already_campaign" if season.phase == "campaign" else "campaign_opened"
+                        if season.phase == "recruitment":
+                            season.phase = "campaign"
+                            season.updated_at = timestamp()
+                        session.add(ElectionCampaignOpen20261017(
+                            id=1, season_id=2, status=status, created_at=timestamp(),
+                        ))
+    logger.warning("election_campaign_open_20261017 season_id=%s result=%s", season_id, status)
+    return status
+
+
 def register_elections(app) -> None:
     global _REGISTERED
     if _REGISTERED:
@@ -1098,10 +1148,13 @@ def register_elections(app) -> None:
     ElectionPartyEmblem.__table__.create(bind=core.engine, checkfirst=True)
     ElectionInitialRollback.__table__.create(bind=core.engine, checkfirst=True)
     ElectionPhaseUndo20261017.__table__.create(bind=core.engine, checkfirst=True)
+    ElectionCampaignOpen20261017.__table__.create(bind=core.engine, checkfirst=True)
     ElectionNSNLetter20261017.__table__.create(bind=core.engine, checkfirst=True)
     ElectionPartyGroupLetter20261017.__table__.create(bind=core.engine, checkfirst=True)
     rollback_first_empty_season_once()
     undo_accidental_campaign_20261017_once()
+    if os.getenv("NYAN_ELECTIONS_OPEN_CAMPAIGN_20261017", "") == "open":
+        open_campaign_20261017_once()
     app.include_router(router)
     _REGISTERED = True
     if os.getenv("NYAN_ELECTIONS_NSN_LETTERS_20261017", "") == "send":
