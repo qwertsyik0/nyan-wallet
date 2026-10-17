@@ -154,6 +154,18 @@ class ElectionPartyGroupLetter20261017(core.Base):
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class ElectionGamesSignup(core.Base):
+    """Explicit game participation confirmation; never awards currency."""
+
+    __tablename__ = "election_games_signups"
+    __table_args__ = (UniqueConstraint("season_id", "telegram_id", name="uq_election_games_signup"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    season_id: Mapped[int] = mapped_column(Integer, ForeignKey("election_seasons.id"), nullable=False)
+    party_id: Mapped[int] = mapped_column(Integer, ForeignKey("election_parties.id"), nullable=False)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id"), nullable=False)
+    confirmed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class ElectionMembership(core.Base):
     """Database-level guarantee: at most one party per person within a season."""
 
@@ -965,6 +977,82 @@ async def owner_advance(
     return {"ok": True, "season_id": season_id, "phase": payload.next_phase}
 
 
+@router.get("/games/status")
+async def games_signup_status(
+    x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
+):
+    uid = auth(x_telegram_init_data)
+    with core.SessionLocal() as session:
+        require_account(session, uid)
+        season = latest_season(session)
+        if season is None:
+            return {"ok": True, "season": None, "parties": [], "my_party_id": None,
+                    "confirmed": False, "reward": 500}
+        parties = session.scalars(select(ElectionParty).where(
+            ElectionParty.season_id == season.id, ElectionParty.status == "approved"
+        ).order_by(ElectionParty.id)).all()
+        membership = session.scalar(select(ElectionMembership).where(
+            ElectionMembership.season_id == season.id, ElectionMembership.telegram_id == uid,
+        ))
+        signup = session.scalar(select(ElectionGamesSignup).where(
+            ElectionGamesSignup.season_id == season.id, ElectionGamesSignup.telegram_id == uid,
+        ))
+        return {
+            "ok": True,
+            "season": {"id": season.id, "phase": season.phase},
+            "parties": [{"id": p.id, "name": p.name, "short_name": p.short_name} for p in parties],
+            "my_party_id": membership.party_id if membership else None,
+            "confirmed": bool(signup and membership and signup.party_id == membership.party_id),
+            "reward": 500,
+            "reward_status": "after_participation",
+        }
+
+
+@router.post("/games/confirm")
+async def confirm_games_signup(
+    x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
+):
+    uid = auth(x_telegram_init_data)
+    with core.SessionLocal() as session:
+        try:
+            with session.begin():
+                require_account(session, uid)
+                season = latest_season(session, lock=True)
+                if not season or season.phase not in JOIN_PHASES:
+                    raise HTTPException(status_code=409, detail="Запись на игры сейчас закрыта")
+                membership = session.scalar(select(ElectionMembership).where(
+                    ElectionMembership.season_id == season.id,
+                    ElectionMembership.telegram_id == uid,
+                ))
+                if not membership:
+                    raise HTTPException(status_code=409, detail="Сначала вступите в партию")
+                party = session.scalar(select(ElectionParty).where(
+                    ElectionParty.id == membership.party_id,
+                    ElectionParty.season_id == season.id,
+                    ElectionParty.status == "approved",
+                ))
+                if party is None:
+                    raise HTTPException(status_code=409, detail="Партия недоступна")
+                existing = session.scalar(select(ElectionGamesSignup).where(
+                    ElectionGamesSignup.season_id == season.id,
+                    ElectionGamesSignup.telegram_id == uid,
+                ).with_for_update())
+                if existing is not None:
+                    if existing.party_id == membership.party_id:
+                        return {"ok": True, "confirmed": True, "party_id": party.id,
+                                "already_confirmed": True}
+                    existing.party_id = membership.party_id
+                    existing.confirmed_at = timestamp()
+                else:
+                    session.add(ElectionGamesSignup(
+                        season_id=season.id, party_id=party.id,
+                        telegram_id=uid, confirmed_at=timestamp(),
+                    ))
+        except IntegrityError as exc:
+            raise HTTPException(status_code=409, detail="Повторная запись: обновите страницу") from exc
+    return {"ok": True, "confirmed": True, "party_id": party.id, "already_confirmed": False}
+
+
 @router.post("/parties/{party_id}/join")
 async def join_party(
     party_id: int,
@@ -1145,6 +1233,7 @@ def register_elections(app) -> None:
     ElectionSeason.__table__.create(bind=core.engine, checkfirst=True)
     ElectionParty.__table__.create(bind=core.engine, checkfirst=True)
     ElectionMembership.__table__.create(bind=core.engine, checkfirst=True)
+    ElectionGamesSignup.__table__.create(bind=core.engine, checkfirst=True)
     ElectionPartyEmblem.__table__.create(bind=core.engine, checkfirst=True)
     ElectionInitialRollback.__table__.create(bind=core.engine, checkfirst=True)
     ElectionPhaseUndo20261017.__table__.create(bind=core.engine, checkfirst=True)
