@@ -15,7 +15,24 @@ async function call(path,post=false){
 }
 function node(tag,cls,text){const x=document.createElement(tag);if(cls)x.className=cls;if(text!==undefined)x.textContent=text;return x;}
 function button(text,callback){const x=node("button","el-button",text);x.type="button";x.disabled=busy;x.addEventListener("click",callback);return x;}
-async function refresh(){state=await call("/games/status");render();}
+async function refresh(){state=await call("/games/status");render();if(state.is_owner)loadOwnerRoster();}
+
+async function loadOwnerRoster(){
+  const list=$("game-owner-list");
+  $("game-owner-section").hidden=false;
+  list.replaceChildren(node("p","el-muted","Загружаем подтверждения…"));
+  try {
+    const data=await call("/owner/games/signups");
+    list.replaceChildren();
+    if(!data.signups.length)list.append(node("p","el-muted","Пока никто не подтвердил участие."));
+    for(const signup of data.signups){
+      const entry=node("article","games-owner-row");
+      entry.append(node("strong","",((signup.username||"Без username")+" · "+signup.telegram_id)));
+      entry.append(node("small","",signup.party));
+      list.append(entry);
+    }
+  }catch(e){list.replaceChildren(node("p","el-muted",e.message||"Не удалось загрузить список."));}
+}
 function render(){
  const status=$("game-status"),actions=$("game-actions"),wrap=$("game-party-section"),parties=$("game-parties");
  actions.replaceChildren();parties.replaceChildren();error("");
