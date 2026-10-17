@@ -2,6 +2,13 @@
 "use strict";
 const tg=window.Telegram?.WebApp;
 const API="https://nyan-wallet.tail327bb6.ts.net/api/elections";
+// Temporary public-list exclusion. Memberships and signup records remain unchanged.
+function partyHiddenFromList(p){
+  const name=String(p?.name||"").trim().replace(/\s+/g," ").toLocaleLowerCase("ru-RU");
+  const shortName=String(p?.short_name||"").trim().toLocaleLowerCase("ru-RU");
+  return name==="союз айристократов парижа"||shortName==="сап"||
+         name==="антонианство шаматовский дом";
+}
 const phaseLabels={registration:"Регистрация партий",recruitment:"Набор участников",campaign:"Предвыборная кампания",voting:"Голосование",results:"Итоги",closed:"Завершён"};
 let state=null,busy=false,readingImage=false,selectedEmblem=null,previewUrl=null;
 const $=id=>document.getElementById(id);
@@ -135,11 +142,12 @@ function renderOwner(){
 function render(){
   $("el-loading").hidden=true;$("el-main").hidden=false;
   const season=state.season,parties=$("el-parties");
+  const publicParties=(state.parties||[]).filter(p=>!partyHiddenFromList(p));
   $("el-phase").textContent=season?season.title+" · "+(phaseLabels[season.phase]||season.phase):"Сезон пока не объявлен";
-  $("el-party-count").textContent=String(state.parties?.length||0);
+  $("el-party-count").textContent=String(publicParties.length);
   reset(parties);
-  if(!state.parties?.length)parties.append(make("p","el-muted",season?"Одобренных партий пока нет.":"Выборы пока не объявлены."));
-  else for(const item of state.parties)parties.append(partyCard(item));
+  if(!publicParties.length)parties.append(make("p","el-muted",season?"Одобренных партий пока нет.":"Выборы пока не объявлены."));
+  else for(const item of publicParties)parties.append(partyCard(item));
   const mine=$("el-my-section"),body=$("el-my-content");reset(body);
   mine.hidden=!(state.my_party_id||state.applications?.length);
   const party=state.parties?.find(p=>p.id===state.my_party_id);

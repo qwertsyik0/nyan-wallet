@@ -2,6 +2,13 @@
 "use strict";
 const tg=window.Telegram?.WebApp;
 const API="https://nyan-wallet.tail327bb6.ts.net/api/elections";
+// Temporary public-list exclusion. Memberships and signup records remain unchanged.
+function partyHiddenFromList(p){
+  const name=String(p?.name||"").trim().replace(/\s+/g," ").toLocaleLowerCase("ru-RU");
+  const shortName=String(p?.short_name||"").trim().toLocaleLowerCase("ru-RU");
+  return name==="союз айристократов парижа"||shortName==="сап"||
+         name==="антонианство шаматовский дом";
+}
 const $=id=>document.getElementById(id);
 let state=null,busy=false;
 tg?.ready?.();tg?.expand?.();
@@ -39,17 +46,18 @@ function render(){
  if(!state.season){status.textContent="Игры пока не объявлены.";wrap.hidden=true;return;}
  if(!["recruitment","campaign"].includes(state.season.phase)){status.textContent="Запись на игры сейчас закрыта.";wrap.hidden=true;return;}
  const mine=state.parties.find(p=>p.id===state.my_party_id);
+ const availableParties=state.parties.filter(p=>!partyHiddenFromList(p));
  if(mine){
    wrap.hidden=true;
    if(state.confirmed){status.textContent="Участие подтверждено · "+mine.name;status.classList.add("games-good");}
    else{status.classList.remove("games-good");status.textContent="Ты состоишь в партии «"+mine.name+"», но ещё не подтвердил участие.";actions.append(button("Подтвердить участие",()=>submit("/games/confirm")));}
  }else{
    status.classList.remove("games-good");status.textContent="Ты пока не состоишь в партии. Выбери одну из доступных партий, чтобы записаться.";wrap.hidden=false;
-   for(const p of state.parties){
+   for(const p of availableParties){
       const box=node("article","el-party games-party"),name=node("div","el-party-title games-party-name",p.name),small=node("p","games-muted","После вступления потребуется подтвердить участие.");
       box.append(name,small,button("Вступить в партию",()=>submit("/parties/"+encodeURIComponent(p.id)+"/join")));parties.append(box);
    }
-   if(!state.parties.length)parties.append(node("p","el-muted","Нет доступных партий."));
+   if(!availableParties.length)parties.append(node("p","el-muted","Нет доступных партий."));
  }
 }
 async function submit(path){
