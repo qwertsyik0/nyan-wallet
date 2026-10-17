@@ -1,7 +1,7 @@
 (() => {
 "use strict";
 const tg=window.Telegram?.WebApp;
-const API="https://nyan-wallet-api.onrender.com/api/elections";
+const API="https://nyan-wallet.tail327bb6.ts.net/api/elections";
 const phaseLabels={registration:"Регистрация партий",recruitment:"Набор участников",campaign:"Предвыборная кампания",voting:"Голосование",results:"Итоги",closed:"Завершён"};
 let state=null,busy=false,readingImage=false,selectedEmblem=null,previewUrl=null;
 const $=id=>document.getElementById(id);

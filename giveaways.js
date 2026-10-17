@@ -1,5 +1,5 @@
 (() => {
-  const API = "https://nyan-wallet-api.onrender.com";
+  const API = "https://nyan-wallet.tail327bb6.ts.net";
   const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
   const app = document.querySelector(".app");
   if (!app) return;

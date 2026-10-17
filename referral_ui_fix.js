@@ -2,7 +2,7 @@
     "use strict";
 
     const NEXT_TEXT = "Приглашайте пользователей. Код можно применить один раз. Системные награды, задания, серии и промокоды не блокируют ввод реферального кода.";
-    const API_BASE = "https://nyan-wallet-api.onrender.com";
+    const API_BASE = "https://nyan-wallet.tail327bb6.ts.net";
     const tg = window.Telegram?.WebApp;
 
     function patchReferralText() {

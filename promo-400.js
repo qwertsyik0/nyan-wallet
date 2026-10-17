@@ -2,7 +2,7 @@
   "use strict";
 
   const tg = window.Telegram?.WebApp;
-  const API = "https://nyan-wallet-api.onrender.com";
+  const API = "https://nyan-wallet.tail327bb6.ts.net";
   const CODE = "NYAN400";
   const btn = document.getElementById("activate");
   const status = document.getElementById("status");

@@ -2,7 +2,7 @@
     "use strict";
 
     const tg = window.Telegram?.WebApp;
-    const API = "https://nyan-wallet-api.onrender.com";
+    const API = "https://nyan-wallet.tail327bb6.ts.net";
     const MAX_AMOUNT = 100000;
     const CLIENT_VERSION = "20260920-5";
 

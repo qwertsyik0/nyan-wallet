@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const API = "https://nyan-wallet-api.onrender.com";
+  const API = "https://nyan-wallet.tail327bb6.ts.net";
   const TELEGRAM = window.Telegram?.WebApp;
   const BOT_LINK = "https://t.me/nyancash_bot?startapp=nyanid";
   let identity = null;

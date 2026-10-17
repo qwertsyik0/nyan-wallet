@@ -1,7 +1,7 @@
 (() => {
   "use strict";
   const tg=window.Telegram?.WebApp;
-  const API="https://nyan-wallet-api.onrender.com";
+  const API="https://nyan-wallet.tail327bb6.ts.net";
   const list=document.getElementById("list");
   const statusEl=document.getElementById("status");
   const refresh=document.getElementById("refresh");

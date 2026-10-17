@@ -2,7 +2,7 @@
     "use strict";
 
     const nativeFetch = window.fetch.bind(window);
-    const API_ORIGIN = "https://nyan-wallet-api.onrender.com";
+    const API_ORIGIN = "https://nyan-wallet.tail327bb6.ts.net";
     const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
     const RETRY_DELAYS_MS = [1500, 3000, 6500, 12000];
 
