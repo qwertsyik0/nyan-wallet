@@ -509,7 +509,7 @@ jobs:
               js = Path(name + ".js").read_text(encoding="utf-8")
               assert name + ".js?v=" in html
               assert 'X-Telegram-Init-Data' in js
-              assert 'nyan-wallet-api.onrender.com' in js
+              assert 'https://' in js and 'nyan-wallet-api.onrender.com' not in js
           print("Financial recruitment routes, Telegram auth and owner-only review OK")
           PY
       - name: Verify info-channel subscription is optional
