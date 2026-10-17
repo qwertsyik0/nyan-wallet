@@ -387,6 +387,59 @@ with SessionLocal.begin() as session:
     moved.party_id = 101
 assert elections.dispatch_nsn_member_letters_20261017()["matched"] == 1
 assert len(nsn_delivery) == 2
+
+# One-time group invitation across every approved party, not just NSN.
+# NSN users already reached by the earlier private campaign should not
+# receive a second identical invitation.
+os.environ["NYAN_ELECTIONS_GROUP_INVITES"] = json.dumps({
+    **json.loads(os.environ["NYAN_ELECTIONS_GROUP_INVITES"]),
+    "Тестовая партия": "https://t.me/+TestParty12345678",
+}, ensure_ascii=False)
+group_deliveries = []
+def fake_party_group_message(uid, username, firstname, party_name, invite_url):
+    group_deliveries.append((uid, party_name, invite_url))
+    return uid != 4  # Telegram blocked the bot for one member.
+elections._send_party_group_letter = fake_party_group_message
+before_group_notices = SessionLocal().query(WalletNotification).count()
+stats = elections.dispatch_all_party_group_letters_20261017()
+assert stats["approved_parties"] == 2 and stats["mapped_parties"] == 2
+assert stats["matched"] == 3 and stats["already_notified"] == 1
+assert stats["attempted"] == 2 and stats["sent"] == 1 and stats["failed"] == 1
+assert {item[0] for item in group_deliveries} == {2, 4}
+assert all(item[1] == "Тестовая партия" for item in group_deliveries)
+assert all(item[2] == "https://t.me/+TestParty12345678" for item in group_deliveries)
+letter = elections._party_group_letter_text(
+    2, "user2", "User 2", "Тестовая партия", "https://t.me/+TestParty12345678"
+)
+assert '<a href="https://t.me/user2">@user2</a>' in letter
+assert '<a href="https://t.me/+TestParty12345678">' in letter
+assert 'tg://user?id=2' in elections._party_group_letter_text(
+    2, None, "<Псевдоним>", "Тестовая партия", "https://t.me/+TestParty12345678"
+)
+assert "&lt;Псевдоним&gt;" in elections._party_group_letter_text(
+    2, None, "<Псевдоним>", "Тестовая партия", "https://t.me/+TestParty12345678"
+)
+with SessionLocal() as session:
+    records = session.scalars(select(elections.ElectionPartyGroupLetter20261017)).all()
+    assert len(records) == 2
+    assert {rec.status for rec in records} == {"sent", "failed"}
+    assert session.query(WalletNotification).count() == before_group_notices + 2
+repeat = elections.dispatch_all_party_group_letters_20261017()
+assert repeat["attempted"] == 0 and repeat["already_notified"] == 1
+assert repeat["skipped"] == 2 and len(group_deliveries) == 2
+
+# Missing or unsafe group configurations cause a guarded skip, not a
+# wrong invitation to members of other parties.
+os.environ["NYAN_ELECTIONS_GROUP_INVITES"] = json.dumps({
+    "Народный Союз Нян": "https://t.me/+NsnGroupAbc123456",
+    "Тестовая партия": "https://example.net/unsafe"
+}, ensure_ascii=False)
+unmapped = elections.dispatch_all_party_group_letters_20261017()
+assert unmapped["approved_parties"] == 2 and unmapped["mapped_parties"] == 1
+assert unmapped["matched"] == 3 and len(unmapped["unmapped_parties"]) == 1
+assert unmapped["unmapped_parties"][0]["name"] == "Тестовая партия"
+assert len(group_deliveries) == 2
+
 os.environ["NYAN_ELECTIONS_GROUP_INVITES"] = prior_mapping
 
 with SessionLocal.begin() as session:
