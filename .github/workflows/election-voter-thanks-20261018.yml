@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/election-voter-thanks-20261018.yml"
+      - "tools/send_election_voter_letters_20261018.py"
   workflow_dispatch:
 
 permissions:
