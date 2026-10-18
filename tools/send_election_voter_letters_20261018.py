@@ -129,19 +129,24 @@ def main():
         return 2
     if dsn.startswith("postgresql+psycopg://"):
         dsn = dsn.replace("postgresql+psycopg://", "postgresql://", 1)
+    stage = "connect"
     try:
         import psycopg
         with psycopg.connect(dsn, connect_timeout=12, autocommit=True) as conn:
+            stage = "recipient_precheck"
             season, rows = recipients(conn)
             print(f"PRECHECK: season={season} voters={len(rows)} credited={EXPECTED}")
             if not live:
                 print("DRY RUN: no messages or database changes")
                 return 0
+            stage = "verify_telegram_bot"
             bot = bot_api(token, "getMe").get("result", {})
             if str(bot.get("username", "")).lower() != "nyancash_bot":
                 print("STOP: expected @nyancash_bot; refusing to use another bot")
                 return 2
+            stage = "create_delivery_ledger"
             create_ledger(conn)
+            stage = "delivery"
             counts = Counter()
             for uid, first, last in rows:
                 if not claim(conn, season, uid):
@@ -172,7 +177,24 @@ def main():
     except Exception as exc:
         # psycopg exceptions may include a connection string; never print them.
         detail = str(exc) if isinstance(exc, RuntimeError) else "database_or_runtime_error"
-        print(f"STOP: {type(exc).__name__}: {detail}")
+        msg = str(exc).lower()
+        if not isinstance(exc, RuntimeError):
+            signatures = (
+                ("password authentication failed", "bad_password"),
+                ("no pg_hba.conf entry", "network_or_pg_hba_blocked"),
+                ("name or service not known", "dns_resolution_failed"),
+                ("could not translate host name", "dns_resolution_failed"),
+                ("nodename nor servname provided", "dns_resolution_failed"),
+                ("connection refused", "connection_refused"),
+                ("timeout expired", "connection_timeout"),
+                ("timed out", "connection_timeout"),
+                ("ssl", "tls_error"),
+                ("does not exist", "database_or_schema_not_found"),
+                ("permission denied", "permission_denied"),
+            )
+            detail = next((label for signature, label in signatures if signature in msg), "database_or_runtime_error")
+        sqlstate = getattr(exc, "sqlstate", None)
+        print(f"STOP: stage={stage} type={type(exc).__name__} category={detail} sqlstate={sqlstate or 'none'}")
         return 2
 
 if __name__ == "__main__":
