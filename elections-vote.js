@@ -85,6 +85,9 @@ function renderOwner(){
     btn.textContent="Завершить голосование";btn.dataset.action="close";btn.hidden=false;
   }else if(["results","closed"].includes(state.phase)){
     note.textContent="Голосование закрыто. Всего учтено голосов: "+(state.total_votes||0)+". Результаты опубликованы.";
+    if(state.phase==="results"){
+      btn.textContent="Архивировать сезон";btn.dataset.action="archive";btn.hidden=false;
+    }
   }else{
     note.textContent="Голосование можно открыть после завершения агитации.";
   }
@@ -156,6 +159,11 @@ function showModal(kind,id=null){
     title="Завершить голосование";
     text="Остановить приём голосов и сразу опубликовать результаты? Это действие необратимо.";
     label="Завершить";
+  }else if(kind==="archive"){
+    if(!state?.is_owner||state.phase!=="results")return;
+    title="Архивировать сезон";
+    text="Перевести завершённый сезон в архив? Все итоги останутся сохранены, а в Nyan Elections можно будет создать следующий сезон.";
+    label="Архивировать";
   }else return;
   proposed={kind,id};
   $("vote-confirm-title").textContent=title;
@@ -171,7 +179,8 @@ async function submit(){
   try{
     if(kind==="cast")await call("/voting/cast",true,{party_id:id});
     else if(kind==="open")await call("/owner/voting/open",true);
-    else await call("/owner/voting/close",true);
+    else if(kind==="close")await call("/owner/voting/close",true);
+    else if(kind==="archive")await call("/owner/voting/archive",true);
     proposed=null;$("vote-confirm").hidden=true;document.body.classList.remove("vote-modal-open");
     busy=false;await load();
   }catch(e){

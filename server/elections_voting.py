@@ -292,6 +292,27 @@ async def owner_close_voting(
     return {"ok": True, "phase": "results", "total_votes": total}
 
 
+
+
+@router.post("/owner/voting/archive")
+async def owner_archive_voting(
+    x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
+):
+    """Archive a published count without touching ballots or making new votes possible."""
+    uid = election.owner_auth(x_telegram_init_data)
+    with core.SessionLocal() as session:
+        with session.begin():
+            season = election.latest_season(session, lock=True)
+            if season is None or season.phase != "results":
+                raise HTTPException(status_code=409, detail="Архивировать можно только опубликованные итоги")
+            control = session.get(ElectionBallotControl, season.id)
+            if control is None or control.closed_at is None:
+                raise HTTPException(status_code=409, detail="Итоги ещё не зафиксированы")
+            season.phase = "closed"
+            season.updated_at = election.timestamp()
+            season_id = season.id
+    return {"ok": True, "phase": "closed", "season_id": season_id}
+
 def register_elections_voting(app) -> None:
     global _REGISTERED
     if _REGISTERED:

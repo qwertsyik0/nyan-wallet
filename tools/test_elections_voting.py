@@ -189,4 +189,16 @@ with SessionLocal() as session:
     assert session.get(vote.ElectionVote, (10, 1)).party_id == 10
     assert session.get(vote.ElectionBallotControl, 10).closed_by == 1
 
-print("OK: signed ballots, excluded parties, one immutable vote, anti-ban, owner control, closed results")
+success(post(2, "/owner/voting/archive"), 403)
+assert success(post(1, "/owner/voting/archive"))["phase"] == "closed"
+success(post(1, "/owner/voting/archive"), 409)
+success(post(6, "/voting/cast", {"party_id": 10}), 409)
+archived = success(get(3))
+assert archived["phase"] == "closed"
+assert archived["total_votes"] == 2
+assert {p["party_id"]: p["votes"] for p in archived["results"]} == {10: 1, 11: 1}
+next_season = success(post(1, "/owner/seasons", {"title": "Следующий сезон выборов"}))
+assert next_season["phase"] == "registration"
+assert success(get(2))["my_vote_party_id"] is None
+
+print("OK: signed ballots, excluded parties, one immutable vote, anti-ban, archive and next season")
