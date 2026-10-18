@@ -71,7 +71,7 @@ def recipients(conn):
                 SELECT 1 FROM transactions t
                  WHERE t.telegram_id = v.telegram_id
                    AND t.amount = 200
-                   AND lower(coalesce(t.description, '')) LIKE '%%голосование в выборах%%'
+                   AND t.operation_type = 'election_vote_reward'
                )
         """, (season,))
         paid = cur.fetchone()[0]
