@@ -50,6 +50,28 @@ jobs:
           fi
       - name: Install only the PostgreSQL driver
         run: python -m pip install --disable-pip-version-check "psycopg[binary]==3.3.5"
+      - name: Probe PostgreSQL TLS negotiation without database credentials
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python - <<'PY'
+          import os, socket, struct, ssl
+          from urllib.parse import urlsplit
+          u = urlsplit(os.environ["DATABASE_URL"])
+          host, port = u.hostname, u.port or 5432
+          try:
+              with socket.create_connection((host, port), timeout=7) as sock:
+                  print("TCP: connected")
+                  sock.settimeout(7)
+                  sock.sendall(struct.pack("!II", 8, 80877103))
+                  first = sock.recv(1)
+                  print("PG_SSL_REQUEST_REPLY:", "TLS_SUPPORTED" if first == b"S" else "NO_TLS" if first == b"N" else "CONNECTION_CLOSED" if not first else "OTHER")
+                  if first == b"S":
+                      with ssl.create_default_context().wrap_socket(sock, server_hostname=host) as secure:
+                          print("TLS:", secure.version(), "handshake_ok")
+          except Exception as exc:
+              print("PROBE_EXCEPTION:", type(exc).__name__)
+          PY
       - name: Send 39 personal thank-you letters once
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
