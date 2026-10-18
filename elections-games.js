@@ -1,7 +1,7 @@
 (() => {
 "use strict";
 const tg=window.Telegram?.WebApp;
-const API="https://nyan-wallet.tail327bb6.ts.net/api/elections";
+const API="https://nyan-wallet-153-76-175-145.sslip.io/api/elections";
 // Temporary public-list exclusion. Memberships and signup records remain unchanged.
 function partyHiddenFromList(p){
   const name=String(p?.name||"").trim().replace(/\s+/g," ").toLocaleLowerCase("ru-RU");

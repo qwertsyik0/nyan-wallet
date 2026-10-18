@@ -1,7 +1,7 @@
 (() => {
 "use strict";
 const tg=window.Telegram?.WebApp;
-const API="https://nyan-wallet.tail327bb6.ts.net/api/elections";
+const API="https://nyan-wallet-153-76-175-145.sslip.io/api/elections";
 const $=id=>document.getElementById(id);
 const create=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=String(text);return n;};
 let state=null,busy=false,proposed=null;
