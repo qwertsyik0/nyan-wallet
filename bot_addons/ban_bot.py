@@ -19,7 +19,7 @@ from telegram.ext import Application, ApplicationHandlerStop, CallbackQueryHandl
 
 logger = logging.getLogger("nyan_wallet.ban_bot")
 
-DEFAULT_API_BASE = "https://nyan-wallet-api.onrender.com"
+DEFAULT_API_BASE = "https://nyan-wallet.tail327bb6.ts.net"
 DEFAULT_OWNER_ID = 6289461565
 MAX_REASON_LENGTH = 300
 MAX_RESPONSE_BYTES = 64 * 1024

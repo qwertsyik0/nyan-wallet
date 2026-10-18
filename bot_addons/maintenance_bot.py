@@ -20,7 +20,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 
 logger = logging.getLogger("nyan_wallet.maintenance_bot")
 
-DEFAULT_API_BASE = "https://nyan-wallet-api.onrender.com"
+DEFAULT_API_BASE = "https://nyan-wallet.tail327bb6.ts.net"
 DEFAULT_OWNER_ID = 6289461565
 DEFAULT_TITLE = "Nyan Wallet становится лучше"
 DEFAULT_MESSAGE = (
@@ -30,7 +30,7 @@ DEFAULT_MESSAGE = (
 )
 MAX_MESSAGE_LENGTH = 800
 MAX_RESPONSE_BYTES = 64 * 1024
-TIMEOUT_SECONDS = 10.0
+TIMEOUT_SECONDS = 5.0
 RETRYABLE_HTTP = frozenset({429, 502, 503, 504})
 
 
@@ -47,7 +47,7 @@ class MaintenanceState(TypedDict):
 
 @dataclass(frozen=True, slots=True)
 class RetryPolicy:
-    attempts: int = 5
+    attempts: int = 2
     base_delay: float = 0.75
     max_delay: float = 6.0
     jitter: float = 0.25

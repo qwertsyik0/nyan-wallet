@@ -39,7 +39,7 @@ from telegram.ext import (
 
 logger = logging.getLogger("nyan_wallet.broadcast_bot")
 
-DEFAULT_API_BASE = "https://nyan-wallet-api.onrender.com"
+DEFAULT_API_BASE = "https://nyan-wallet.tail327bb6.ts.net"
 ELECTIONS_MINI_APP_URL = "https://qwertsyik0.github.io/nyan-wallet/elections.html"
 DEFAULT_OWNER_ID = 6289461565
 PAGE_SIZE = 500
