@@ -2,7 +2,7 @@
     "use strict";
 
     const tg = window.Telegram?.WebApp;
-    const API = "https://nyan-wallet.tail327bb6.ts.net";
+    const API = "https://nyan-wallet-153-76-175-145.sslip.io";
     const OWNER_ADDON_SELECTOR = [
         "#nyg-owner-nav",
         "#owner-daily-tasks-panel",
