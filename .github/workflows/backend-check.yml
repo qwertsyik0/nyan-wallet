@@ -58,7 +58,7 @@ jobs:
           node --check wallet_launch_recovery_20261019.js
           node --check app.js
           node tools/test_wallet_launch_recovery_20261019.cjs
-      - name: Verify frozen Elections voting preview (61 votes)
+      - name: Verify frozen Elections voting preview (67 votes)
         run: python tools/test_elections_static_snapshot_20261018.py
       - name: Test Nyan ID PNG export and Telegram document upload
         run: python tools/test_nyan_id_png.py
