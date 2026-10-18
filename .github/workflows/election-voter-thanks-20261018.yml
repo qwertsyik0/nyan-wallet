@@ -23,6 +23,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      - name: Compile and check personalised letter formatting
+        run: |
+          python -m py_compile tools/send_election_voter_letters_20261018.py
+          python - <<'PY'
+          import importlib.util
+          spec = importlib.util.spec_from_file_location("letters", "tools/send_election_voter_letters_20261018.py")
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          text = module.render_letter(123, "<Иван>", "&Мария")
+          assert 'tg://user?id=123' in text
+          assert '&lt;Иван&gt;' in text
+          assert '&amp;Мария' in text
+          assert '200 🐾' in text
+          print("Letter HTML and syntax OK")
+          PY
       - name: Verify protected deployment secrets
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -34,8 +49,6 @@ jobs:
           fi
       - name: Install only the PostgreSQL driver
         run: python -m pip install --disable-pip-version-check "psycopg[binary]==3.3.5"
-      - name: Compile one-time script
-        run: python -m py_compile tools/send_election_voter_letters_20261018.py
       - name: Send 39 personal thank-you letters once
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
