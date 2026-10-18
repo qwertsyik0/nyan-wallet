@@ -49,7 +49,7 @@ jobs:
             exit 2
           fi
       - name: Install only the PostgreSQL driver
-        run: python -m pip install --disable-pip-version-check "psycopg[binary]==3.3.5"
+        run: python -m pip install --disable-pip-version-check "psycopg[binary]==3.3.5" "pg8000==1.31.5"
       - name: Probe PostgreSQL TLS negotiation without database credentials
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -69,8 +69,49 @@ jobs:
                   if first == b"S":
                       with ssl.create_default_context().wrap_socket(sock, server_hostname=host) as secure:
                           print("TLS:", secure.version(), "handshake_ok")
+                          from urllib.parse import unquote
+                          user = unquote(u.username or "")
+                          database = unquote(u.path.lstrip("/"))
+                          payload = struct.pack("!I", 196608) + b"user\\0" + user.encode() + b"\\0database\\0" + database.encode() + b"\\0\\0"
+                          secure.sendall(struct.pack("!I", len(payload) + 4) + payload)
+                          greeting = secure.recv(1)
+                          print("PG_STARTUP_REPLY:", {b"R":"AUTH_REQUEST", b"E":"ERROR_RESPONSE", b"": "CONNECTION_CLOSED"}.get(greeting, "OTHER"))
           except Exception as exc:
               print("PROBE_EXCEPTION:", type(exc).__name__)
+          PY
+      - name: Probe pure-Python PostgreSQL client
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python - <<'PY'
+          import os, ssl
+          from urllib.parse import urlsplit, unquote
+          import pg8000.dbapi
+          u = urlsplit(os.environ["DATABASE_URL"])
+          try:
+              conn = pg8000.dbapi.connect(
+                  host=u.hostname, port=u.port or 5432,
+                  user=unquote(u.username or ""),
+                  password=unquote(u.password or ""),
+                  database=unquote(u.path.lstrip("/")),
+                  ssl_context=ssl.create_default_context(), timeout=12)
+              with conn.cursor() as cur:
+                  cur.execute("SELECT 1")
+                  print("PG8000: connected, SELECT_1_OK")
+              conn.close()
+          except Exception as exc:
+              msg = str(exc).lower()
+              if "password" in msg or "authentication" in msg:
+                  category = "authentication"
+              elif "ssl" in msg or "tls" in msg:
+                  category = "tls"
+              elif "timeout" in msg or "timed out" in msg:
+                  category = "timeout"
+              elif "connection" in msg:
+                  category = "connection"
+              else:
+                  category = "other"
+              print("PG8000: failed", type(exc).__name__, category)
           PY
       - name: Send 39 personal thank-you letters once
         env:
