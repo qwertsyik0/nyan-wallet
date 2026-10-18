@@ -20,6 +20,7 @@ async function call(path,post=false,body={}){
   if(!response.ok){
     const detail=data?.detail;
     if(response.status===404)throw Error("Система голосования ещё не опубликована на сервере.");
+    if(response.status===503)throw Error("На Nyan Wallet сейчас технические работы. Голосование недоступно до их завершения.");
     throw Error(typeof detail==="string"?detail:"Ошибка сервера (HTTP "+response.status+").");
   }
   return data;

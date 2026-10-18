@@ -118,11 +118,13 @@ def write_atomic(target: Path, content: bytes) -> None:
 
 
 def validate_service() -> None:
-    active = command("systemctl", "is-active", SERVICE, check=False)
-    if active.stdout.strip() != "active":
-        raise RuntimeError("Сервис nyan-wallet не active: " + active.stdout.strip())
     last = ""
     for _ in range(15):
+        active = command("systemctl", "is-active", SERVICE, check=False)
+        if active.stdout.strip() != "active":
+            last = "Сервис не active: " + active.stdout.strip()
+            time.sleep(2)
+            continue
         try:
             with urllib.request.urlopen("http://127.0.0.1:8000/api/health", timeout=3) as result:
                 health = json.load(result)
