@@ -36,6 +36,7 @@ from .finance_recruitment import register_finance_recruitment
 from .finance_stage2 import register_finance_stage2
 from .finance_workspace import register_finance_workspace
 from .elections import register_elections
+from .elections_voting import register_elections_voting
 from .bot_menu import sync_bot_menu_buttons
 from .user_bans import register_user_bans
 from .promo_delayed_fee import register_promo_delayed_fee
@@ -88,6 +89,7 @@ else:
     register_finance_stage2(backend_app.app)
     register_finance_workspace(backend_app.app)
     register_elections(backend_app.app)
+    register_elections_voting(backend_app.app)
     send_survey_channel_followups_20261011()
     register_user_bans(backend_app.app)
     register_promo_delayed_fee(backend_app.app)
