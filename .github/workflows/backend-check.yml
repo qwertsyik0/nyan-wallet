@@ -8,6 +8,7 @@ on:
       - "elections.html"
       - "elections.css"
       - "tools/test_elections_static_snapshot_20261018.py"
+      - "tools/test_wallet_launch_recovery_20261019.cjs"
       - "*.js"
       - "tools/install_giveaway_bot.py"
       - "tools/nyan_bot_autodeploy.py"
@@ -52,6 +53,11 @@ jobs:
           python-version: "3.13"
       - name: Compile backend and installer
         run: python -m py_compile server/*.py tools/install_giveaway_bot.py tools/install_maintenance_bot.py tools/install_broadcast_bot.py tools/install_channel_publish_bot.py tools/install_ban_bot.py bot_addons/broadcast_bot.py bot_addons/channel_publish_bot.py bot_addons/channel_publish_bot_v2.py bot_addons/ban_bot.py tools/nyan_bot_autodeploy.py tools/deploy_elections_voting_firstvds.py
+      - name: Test Wallet Mini App first-launch recovery
+        run: |
+          node --check wallet_launch_recovery_20261019.js
+          node --check app.js
+          node tools/test_wallet_launch_recovery_20261019.cjs
       - name: Verify frozen Elections voting preview (61 votes)
         run: python tools/test_elections_static_snapshot_20261018.py
       - name: Test Nyan ID PNG export and Telegram document upload
