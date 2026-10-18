@@ -132,7 +132,7 @@ def main():
     stage = "connect"
     try:
         import psycopg
-        with psycopg.connect(dsn, connect_timeout=12, autocommit=True) as conn:
+        with psycopg.connect(dsn, sslmode="require", connect_timeout=12, autocommit=True) as conn:
             stage = "recipient_precheck"
             season, rows = recipients(conn)
             print(f"PRECHECK: season={season} voters={len(rows)} credited={EXPECTED}")
