@@ -27,21 +27,63 @@ async function call(path,post=false,body={}){
 }
 function error(message){$("vote-alert").hidden=!message;$("vote-alert").textContent=message||"";}
 function imageOf(p){
-  if(!p.emblem_url)return null;
-  try{
-    const target=new URL(p.emblem_url,new URL(API).origin);
-    if(target.protocol!=="https:")return null;
-    const img=create("img","vote-emblem");
-    img.alt="Эмблема партии "+p.name;img.loading="lazy";img.src=target.href;
-    return img;
-  }catch(_){return null;}
+  const wrapper=create("div","vote-emblem-wrap");
+  const fallback=create("div","vote-emblem-fallback",p.short_name||"✦");
+  wrapper.append(fallback);
+  if(p.emblem_url){
+    try{
+      const url=new URL(p.emblem_url,new URL(API).origin);
+      if(url.protocol==="https:"){
+        const img=create("img","vote-emblem");
+        img.alt=""; img.loading="lazy";img.decoding="async";
+        img.addEventListener("load",()=>{
+          wrapper.classList.add("vote-emblem-loaded");
+        });
+        img.addEventListener("error",()=>{
+          img.remove();
+          wrapper.classList.remove("vote-emblem-loaded");
+        });
+        img.src=url.href+(url.pathname.endsWith("/emblem")?"?v="+encodeURIComponent(p.emblem_rev||"1"):"");
+        wrapper.append(img);
+      }
+    }catch(_){}
+  }
+  return wrapper;
+}
+function attachEmblemUpload(box,p){
+  if(!state.is_owner||!["campaign","voting"].includes(state.phase))return;
+  const uploader=create("label","vote-upload-label","Заменить эмблему (PNG, JPG, WebP)");
+  const input=create("input","vote-upload-input");input.type="file";
+  input.accept="image/png,image/jpeg,image/webp";
+  uploader.append(input);box.append(uploader);
+  input.addEventListener("change",async()=>{
+    const file=input.files?.[0];if(!file)return;
+    if(!["image/png","image/jpeg","image/webp"].includes(file.type)||!file.size||file.size>2*1024*1024){
+      error("Для эмблемы нужен PNG, JPG или WebP до 2 МБ.");input.value="";return;
+    }
+    if(busy)return;
+    busy=true;input.disabled=true;error("");
+    try{
+      const raw=await new Promise((resolve,reject)=>{
+        const reader=new FileReader();
+        reader.onload=()=>resolve(String(reader.result));
+        reader.onerror=()=>reject(Error("Не удалось прочитать изображение"));
+        reader.readAsDataURL(file);
+      });
+      await call("/owner/voting/parties/"+encodeURIComponent(p.id)+"/emblem",true,{emblem_data:raw});
+      busy=false;await load();
+    }catch(e){
+      error(e instanceof TypeError?"Ошибка соединения. Обнови страницу и проверь, сохранилась ли эмблема.":e.message);
+    }finally{busy=false;input.disabled=false;input.value="";}
+  });
 }
 function card(p){
   const box=create("article","vote-party"),head=create("div","vote-party-head");
   const headText=create("div",""),title=create("h3","vote-party-name",p.name);
   headText.append(title,create("span","vote-chair","Председатель: "+p.chair_label));
   head.append(headText,create("span","el-party-short",p.short_name));box.append(head);
-  const img=imageOf(p);if(img)box.append(img);
+  box.append(imageOf(p));
+  attachEmblemUpload(box,p);
   box.append(create("p","vote-summary",p.summary||p.program));
   const details=create("details","vote-details");
   details.append(create("summary","","Читать полную программу"),

@@ -82,6 +82,47 @@ class CastVote(BaseModel):
     party_id: int = Field(gt=0)
 
 
+class UpdateEmblem(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    emblem_data: str = Field(min_length=20, max_length=2_900_000)
+
+
+@router.post("/owner/voting/parties/{party_id}/emblem")
+async def owner_upload_ballot_emblem(
+    party_id: int,
+    payload: UpdateEmblem,
+    x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
+):
+    election.owner_auth(x_telegram_init_data)
+    image_bytes = election.sanitize_emblem(payload.emblem_data)
+    if image_bytes is None:
+        raise HTTPException(status_code=422, detail="Прикрепите изображение")
+    with core.SessionLocal() as session:
+        with session.begin():
+            season = election.latest_season(session, lock=True)
+            if not season or season.phase not in ("campaign", "voting"):
+                raise HTTPException(status_code=409, detail="Редактирование эмблем сейчас недоступно")
+            party = session.get(election.ElectionParty, party_id)
+            if not party or party.season_id != season.id or not _eligible(party):
+                raise HTTPException(status_code=404, detail="Партия не найдена в бюллетене")
+            if season.phase == "voting":
+                ballot = session.get(ElectionBallotParty, (season.id, party_id))
+                if ballot is None:
+                    raise HTTPException(status_code=404, detail="Партии нет в бюллетене")
+            emblem = session.get(election.ElectionPartyEmblem, party_id)
+            if emblem is None:
+                session.add(election.ElectionPartyEmblem(
+                    party_id=party_id, image_data=image_bytes, mime_type="image/webp"
+                ))
+            else:
+                emblem.image_data = image_bytes
+                emblem.mime_type = "image/webp"
+            party.emblem_url = None
+            if season.phase == "voting":
+                ballot.emblem_url = f"/api/elections/parties/{party_id}/emblem"
+    return {"ok": True, "party_id": party_id, "emblem_url": f"/api/elections/parties/{party_id}/emblem"}
+
+
 def _eligible(party: election.ElectionParty) -> bool:
     # Previously withdrawn from the public list: never silently re-add to ballot.
     name = " ".join(party.name.split()).casefold()

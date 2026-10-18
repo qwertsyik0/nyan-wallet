@@ -26,3 +26,9 @@
 .vote-confirm-actions .el-button+.el-button{margin-left:0}
 .vote-modal-open{overflow:hidden}
 [hidden]{display:none!important}
+
+.vote-emblem-wrap{position:relative;width:145px;max-width:100%;height:108px;border:1px solid #f1e0e9;border-radius:13px;background:linear-gradient(135deg,#fce5ef,#fffafb);margin:13px 0;overflow:hidden}
+.vote-emblem-wrap .vote-emblem{position:absolute;inset:0;width:100%;height:100%;max-width:100%;object-fit:contain;border:0;margin:0;background:#fff}
+.vote-emblem-fallback{display:grid;place-items:center;height:100%;font-size:23px;font-weight:900;color:#8d2e57;letter-spacing:-.03em}
+.vote-upload-label{display:block;margin:10px 0;color:#8d2e57;font-size:11px;font-weight:750}
+.vote-upload-input{display:block;margin-top:6px;max-width:100%;font-size:11px}
