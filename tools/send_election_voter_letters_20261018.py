@@ -1,0 +1,179 @@
+#!/usr/bin/env python3
+"""One-time, at-most-once voting thank-you letters; no balance mutations."""
+from __future__ import annotations
+import argparse
+import html
+import json
+import os
+import sys
+import time
+import urllib.error
+import urllib.request
+from collections import Counter
+
+EXPECTED = 39
+LEDGER = "election_voter_thanks_20261018"
+
+def bot_api(token, method, payload=None):
+    data = json.dumps(payload, ensure_ascii=False).encode() if payload is not None else None
+    request = urllib.request.Request(
+        f"https://api.telegram.org/bot{token}/{method}",
+        data=data, headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=17) as response:
+            result = json.loads(response.read())
+    except urllib.error.HTTPError as exc:
+        # NEVER log the full exception: its URL contains the bot token.
+        raise RuntimeError(f"telegram_http_{exc.code}") from None
+    except (urllib.error.URLError, TimeoutError, OSError):
+        raise RuntimeError("telegram_delivery_uncertain") from None
+    except (ValueError, UnicodeError):
+        raise RuntimeError("telegram_invalid_response") from None
+    if result.get("ok") is not True:
+        raise RuntimeError(f"telegram_api_{result.get('error_code', 'unknown')}")
+    return result
+
+def render_letter(telegram_id, first_name, last_name):
+    name = " ".join(v.strip() for v in (first_name or "", last_name or "") if v and v.strip())
+    name = html.escape(name or "участник")
+    mention = f'<a href="tg://user?id={telegram_id}">{name}</a>'
+    return (
+        "🐾 <b>NYAN ELECTIONS | ЛИЧНОЕ ПИСЬМО</b>\n\n"
+        f"Многоуважаемый {mention}!\n\n"
+        "Благодарим вас за участие в голосовании Nyan Elections. "
+        "Ваш голос учтён. В знак признательности на ваш кошелёк "
+        "уже начислено <b>200 🐾</b>.\n\n"
+        "Спасибо, что участвуете в жизни Nyan Wallet!\n\n"
+        "С уважением, команда Nyan Wallet."
+    )
+
+def recipients(conn):
+    with conn.cursor() as cur:
+        cur.execute("SELECT id FROM election_seasons ORDER BY id DESC LIMIT 1")
+        row = cur.fetchone()
+        if not row:
+            raise RuntimeError("season_not_found")
+        season = row[0]
+        cur.execute("""
+            SELECT v.telegram_id, u.first_name, u.last_name
+              FROM election_votes v JOIN users u USING (telegram_id)
+             WHERE v.season_id = %s ORDER BY v.telegram_id
+        """, (season,))
+        rows = cur.fetchall()
+        if len(rows) != EXPECTED or len({r[0] for r in rows}) != EXPECTED:
+            raise RuntimeError(f"voters_{len(rows)}_expected_{EXPECTED}")
+        cur.execute("""
+            SELECT count(DISTINCT v.telegram_id)
+              FROM election_votes v
+             WHERE v.season_id = %s
+               AND EXISTS (
+                SELECT 1 FROM transactions t
+                 WHERE t.telegram_id = v.telegram_id
+                   AND t.amount = 200
+                   AND lower(coalesce(t.description, '')) LIKE '%%голосование в выборах%%'
+               )
+        """, (season,))
+        paid = cur.fetchone()[0]
+        if paid != EXPECTED:
+            raise RuntimeError(f"credited_{paid}_expected_{EXPECTED}")
+    return season, rows
+
+def create_ledger(conn):
+    with conn.cursor() as cur:
+        cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS {LEDGER} (
+                season_id integer NOT NULL,
+                telegram_id bigint NOT NULL,
+                status varchar(24) NOT NULL,
+                attempted_at timestamptz NOT NULL,
+                delivered_at timestamptz,
+                message_id bigint,
+                error_code varchar(80),
+                PRIMARY KEY (season_id, telegram_id)
+            )
+        """)
+
+def claim(conn, season, uid):
+    # Commit BEFORE Telegram request: do not send twice after a timeout/crash.
+    with conn.transaction():
+        with conn.cursor() as cur:
+            cur.execute(f"""
+                INSERT INTO {LEDGER} (season_id, telegram_id, status, attempted_at)
+                VALUES (%s, %s, 'attempted', now())
+                ON CONFLICT (season_id, telegram_id) DO NOTHING
+                RETURNING telegram_id
+            """, (season, uid))
+            return cur.fetchone() is not None
+
+def finish(conn, season, uid, status, message_id, error):
+    with conn.transaction():
+        with conn.cursor() as cur:
+            cur.execute(f"""
+                UPDATE {LEDGER} SET status=%s, message_id=%s, error_code=%s,
+                    delivered_at=CASE WHEN %s='sent' THEN now() ELSE NULL END
+                WHERE season_id=%s AND telegram_id=%s AND status='attempted'
+            """, (status, message_id, error, status, season, uid))
+
+def main():
+    arg = argparse.ArgumentParser()
+    arg.add_argument("--send", action="store_true")
+    live = arg.parse_args().send
+    dsn = os.getenv("DATABASE_URL", "")
+    token = os.getenv("BOT_TOKEN", "")
+    if not dsn.startswith(("postgres://", "postgresql://", "postgresql+psycopg://")):
+        print("STOP: DATABASE_URL missing or invalid")
+        return 2
+    if live and not token:
+        print("STOP: BOT_TOKEN missing")
+        return 2
+    if dsn.startswith("postgresql+psycopg://"):
+        dsn = dsn.replace("postgresql+psycopg://", "postgresql://", 1)
+    try:
+        import psycopg
+        with psycopg.connect(dsn, connect_timeout=12, autocommit=True) as conn:
+            season, rows = recipients(conn)
+            print(f"PRECHECK: season={season} voters={len(rows)} credited={EXPECTED}")
+            if not live:
+                print("DRY RUN: no messages or database changes")
+                return 0
+            bot = bot_api(token, "getMe").get("result", {})
+            if str(bot.get("username", "")).lower() != "nyancash_bot":
+                print("STOP: expected @nyancash_bot; refusing to use another bot")
+                return 2
+            create_ledger(conn)
+            counts = Counter()
+            for uid, first, last in rows:
+                if not claim(conn, season, uid):
+                    counts["previous"] += 1
+                    continue
+                status, message_id, err = "uncertain", None, None
+                try:
+                    response = bot_api(token, "sendMessage", {
+                        "chat_id": uid,
+                        "text": render_letter(uid, first, last),
+                        "parse_mode": "HTML",
+                        "link_preview_options": {"is_disabled": True},
+                    })
+                    message_id = response.get("result", {}).get("message_id")
+                    status = "sent" if isinstance(message_id, int) else "uncertain"
+                except RuntimeError as exc:
+                    err = str(exc)[:80]
+                    status = "failed" if err in ("telegram_http_400", "telegram_http_403") else "uncertain"
+                finish(conn, season, uid, status, message_id, err)
+                counts[status] += 1
+                time.sleep(0.4)
+            with conn.cursor() as cur:
+                cur.execute(f"SELECT status, count(*) FROM {LEDGER} WHERE season_id=%s GROUP BY status", (season,))
+                history = dict(cur.fetchall())
+            print("THIS_RUN:", json.dumps(counts, ensure_ascii=False, sort_keys=True))
+            print("TOTAL_LEDGER:", json.dumps(history, ensure_ascii=False, sort_keys=True))
+            return 0 if history.get("sent", 0) == EXPECTED else 1
+    except Exception as exc:
+        # psycopg exceptions may include a connection string; never print them.
+        detail = str(exc) if isinstance(exc, RuntimeError) else "database_or_runtime_error"
+        print(f"STOP: {type(exc).__name__}: {detail}")
+        return 2
+
+if __name__ == "__main__":
+    sys.exit(main())
