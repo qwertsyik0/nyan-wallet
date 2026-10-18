@@ -188,12 +188,30 @@ def main():
                 ("connection refused", "connection_refused"),
                 ("timeout expired", "connection_timeout"),
                 ("timed out", "connection_timeout"),
+                ("certificate verify failed", "tls_certificate_verification"),
+                ("ssl connection has been closed unexpectedly", "tls_peer_closed_early"),
+                ("ssl syscall error", "tls_socket_error"),
+                ("tlsv1 alert", "tls_alert"),
+                ("does not support ssl", "server_has_no_tls"),
+                ("sslmode", "tls_mode_invalid"),
                 ("ssl", "tls_error"),
                 ("does not exist", "database_or_schema_not_found"),
                 ("permission denied", "permission_denied"),
             )
             detail = next((label for signature, label in signatures if signature in msg), "database_or_runtime_error")
         sqlstate = getattr(exc, "sqlstate", None)
+        if stage == "connect":
+            from urllib.parse import urlsplit, parse_qs
+            import socket
+            u = urlsplit(dsn)
+            hostname = u.hostname or ""
+            query = parse_qs(u.query)
+            print(f"CONNECTION_CONFIG: render_host={hostname.endswith('.render.com')} internal_host={hostname.endswith('.internal')} port={u.port or 5432} sslmode={query.get('sslmode', ['unset'])[0]} password_present={bool(u.password)}")
+            try:
+                answers = socket.getaddrinfo(hostname, u.port or 5432, type=socket.SOCK_STREAM)
+                print("DNS_CHECK:", "ok" if answers else "empty", "IPv4", any(row[0] == socket.AF_INET for row in answers), "IPv6", any(row[0] == socket.AF_INET6 for row in answers))
+            except OSError:
+                print("DNS_CHECK: failed")
         print(f"STOP: stage={stage} type={type(exc).__name__} category={detail} sqlstate={sqlstate or 'none'}")
         return 2
 
