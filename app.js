@@ -70,6 +70,7 @@ let selectedOwnerUserBlocked = false;
 let initialLoadFinished = false;
 let walletLoadAttempt = 0;
 let walletLoadController = null;
+let walletFailureDiagnostic = "";
 const WALLET_BOOT_TIMEOUT_MS = 25000;
 const WALLET_RETRY_DELAYS_MS = [2500, 4000, 6500, 10000, 15000];
 const loadingStatusEl = document.getElementById("loading-status");
@@ -866,7 +867,8 @@ function scheduleWalletRetry() {
     const showCountdown = () => {
         const seconds = Math.max(0, Math.ceil((retryAt - Date.now()) / 1000));
         const message = "соединение временно недоступно";
-        const detail = "автоматическая проверка через " + seconds + " с · попытка " + (walletFailureCount + 1);
+        const detail = "автоматическая проверка через " + seconds + " с · попытка " + (walletFailureCount + 1)
+            + (walletFailureDiagnostic ? "\nдиагностика: " + walletFailureDiagnostic : "");
         if (!initialLoadFinished) {
             updateBootStatus(message, detail, true);
         } else {
@@ -907,10 +909,14 @@ async function loadWallet() {
     walletLoadController?.abort();
     const controller = new AbortController();
     walletLoadController = controller;
-    const timeout = window.setTimeout(() => controller.abort(), WALLET_BOOT_TIMEOUT_MS);
     const isBoot = !initialLoadFinished;
     let loadedSuccessfully = false;
     let apiResponseReceived = false;
+    const requestStarted = Date.now();
+    let requestPhase = "ожидание ответа";
+    let responseCode = null;
+    let timeoutTriggered = false;
+    const timeoutId = window.setTimeout(() => { timeoutTriggered = true; controller.abort(); }, WALLET_BOOT_TIMEOUT_MS);
 
     if (isBoot) {
         window.__nyanBootRecovering = true;
@@ -928,8 +934,11 @@ async function loadWallet() {
             cache: "no-store",
             signal: controller.signal,
         });
+        responseCode = response.status;
+        requestPhase = "чтение ответа";
         const data = await readJson(response);
         apiResponseReceived = true;
+        requestPhase = "обработка данных";
 
         if (attempt !== walletLoadAttempt) return;
 
@@ -954,6 +963,7 @@ async function loadWallet() {
         walletFailureCount = 0;
         window.__nyanBootRecovering = false;
         window.__nyanWalletReady = true;
+        walletFailureDiagnostic = "";
         loadedSuccessfully = true;
         window.dispatchEvent(new CustomEvent("nyan-wallet-ready", {
             detail: { user: data.user },
@@ -961,6 +971,16 @@ async function loadWallet() {
     } catch (error) {
         if (attempt !== walletLoadAttempt) return;
         console.error("Nyan Wallet API error:", error);
+        const seconds = Math.max(1, Math.round((Date.now() - requestStarted) / 1000));
+        const errorName = String(error?.name || "Error").slice(0, 32);
+        const outcome = responseCode === null ? "без HTTP-ответа" : "HTTP " + responseCode;
+        walletFailureDiagnostic = [
+            "v3",
+            requestPhase,
+            outcome,
+            timeoutTriggered ? "тайм-аут" : errorName,
+            seconds + " с"
+        ].join(" · ");
 
         // A TypeError in UI rendering after HTTP 200 is not a network failure.
         // Do not trap the user in a bogus connection-retry loop.
@@ -978,7 +998,7 @@ async function loadWallet() {
             if (isBoot) {
                 updateBootStatus(
                     "не удалось открыть кошелёк",
-                    error?.message || "Проверьте, что кошелёк открыт через Telegram, и попробуйте снова.",
+                    (error?.message || "Проверьте, что кошелёк открыт через Telegram, и попробуйте снова.") + "\n" + walletFailureDiagnostic,
                     true
                 );
             } else {
@@ -986,7 +1006,7 @@ async function loadWallet() {
             }
         }
     } finally {
-        window.clearTimeout(timeout);
+        window.clearTimeout(timeoutId);
         if (walletLoadController === controller) walletLoadController = null;
         if (loadedSuccessfully && attempt === walletLoadAttempt) {
             finishInitialLoad();
