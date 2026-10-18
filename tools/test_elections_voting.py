@@ -201,4 +201,30 @@ next_season = success(post(1, "/owner/seasons", {"title": "Следующий с
 assert next_season["phase"] == "registration"
 assert success(get(2))["my_vote_party_id"] is None
 
+# Update party emblem without touching vote totals or party programs.
+# Restore campaign state on a fresh standalone season for this test.
+with SessionLocal.begin() as session:
+    season = session.get(elections.ElectionSeason, next_season["season_id"])
+    season.phase = "campaign"
+    season.updated_at = datetime.now(timezone.utc)
+    session.add(elections.ElectionParty(
+        id=500, season_id=season.id, chair_id=2,
+        name="Эмблема партии", name_key="эмблема партии",
+        short_name="ЭП", short_key="эп",
+        program="Программа для испытания эмблемы на избирательной странице.",
+        status="approved", submitted_at=datetime.now(timezone.utc),
+    ))
+import base64
+import io
+from PIL import Image
+buffer = io.BytesIO()
+Image.new("RGB", (30, 30), (240, 130, 170)).save(buffer, format="PNG")
+picture = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
+success(post(2, "/owner/voting/parties/500/emblem", {"emblem_data": picture}), 403)
+assert success(post(1, "/owner/voting/parties/500/emblem", {"emblem_data": picture}))["party_id"] == 500
+assert success(get(1))["ballot"][0]["emblem_url"] == "/api/elections/parties/500/emblem"
+with SessionLocal() as session:
+    assert session.get(elections.ElectionPartyEmblem, 500).image_data
+print("OK: owner-only emblem upload, no ballot vote modifications")
+
 print("OK: signed ballots, excluded parties, one immutable vote, anti-ban, archive and next season")

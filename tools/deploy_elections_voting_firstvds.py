@@ -24,7 +24,7 @@ import urllib.request
 from pathlib import Path
 
 SERVICE = "nyan-wallet"
-PINNED_CODE_COMMIT = "a3a112e111942423c198065c5cf34e5ddcf2a33b"
+PINNED_CODE_COMMIT = "2e9d4be29439f8edcc066a080be4ac16f217df47"
 REMOTE_MODULE_URL = (
     "https://raw.githubusercontent.com/qwertsyik0/nyan-wallet/"
     + PINNED_CODE_COMMIT + "/server/elections_voting.py"
