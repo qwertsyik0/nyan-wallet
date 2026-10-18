@@ -202,7 +202,6 @@ function finishInitialLoad() {
     initialLoadFinished = true;
     loadingView?.classList.add("hidden");
     if (
-        !window.__nyanMaintenanceBlocked &&
         !window.__nyanGiveawayDeepLinkActive &&
         !window.__nyanPaymentDeepLinkActive &&
         !window.__nyanPromoDeepLinkActive &&
@@ -216,8 +215,6 @@ function finishInitialLoad() {
 // module left only the loading screen visible, never trap the user there.
 window.addEventListener("nyan-wallet-ready", () => {
     window.setTimeout(() => {
-        if (window.__nyanMaintenanceBlocked) return;
-
         const loadingVisible = loadingView && !loadingView.classList.contains("hidden");
         if (!loadingVisible) return;
 
@@ -862,7 +859,6 @@ function updateBootStatus(message, detail, allowManualRetry = false) {
 }
 
 function scheduleWalletRetry() {
-    if (window.__nyanMaintenanceBlocked) return;
     clearWalletRetrySchedule();
     walletFailureCount += 1;
     const delay = WALLET_RETRY_DELAYS_MS[Math.min(walletFailureCount - 1, WALLET_RETRY_DELAYS_MS.length - 1)];
@@ -885,7 +881,6 @@ function scheduleWalletRetry() {
     walletRetryTicker = window.setInterval(showCountdown, 1000);
     walletRetryTimer = window.setTimeout(() => {
         clearWalletRetrySchedule();
-        if (window.__nyanMaintenanceBlocked) return;
         void loadWallet();
     }, delay);
 }
@@ -916,7 +911,7 @@ async function loadWallet() {
     const isBoot = !initialLoadFinished;
     let loadedSuccessfully = false;
 
-    if (isBoot && !window.__nyanMaintenanceBlocked) {
+    if (isBoot) {
         window.__nyanBootRecovering = true;
         loadingView?.classList.remove("hidden");
         if (walletFailureCount > 0) {
@@ -936,20 +931,10 @@ async function loadWallet() {
 
         if (attempt !== walletLoadAttempt) return;
 
-        if (response.status === 503 && data?.detail === "maintenance") {
-            clearWalletRetrySchedule();
-            // A maintenance response is authoritative: do not show the
-            // offline retry screen instead of the dedicated maintenance UI.
-            window.dispatchEvent(new CustomEvent("nyan-maintenance-required", {
-                detail: data.maintenance || {},
-            }));
-            return;
-        }
-
         const apiDetail = data?.detail;
         if (!response.ok) {
             const message = typeof apiDetail === "object" ? apiDetail?.message : apiDetail;
-            const error = new Error(message || "Не удалось загрузить кошелёк");
+            const error = new Error(message === "maintenance" ? "Сервер временно недоступен" : (message || "Не удалось загрузить кошелёк"));
             error.retryable = response.status >= 500 || response.status === 408 || response.status === 429;
             throw error;
         }
@@ -1010,7 +995,7 @@ loadingRetryEl?.addEventListener("click", () => {
 });
 
 window.addEventListener("online", () => {
-    if (walletFailureCount > 0 && !window.__nyanMaintenanceBlocked) {
+    if (walletFailureCount > 0) {
         void loadWallet();
     }
 });
