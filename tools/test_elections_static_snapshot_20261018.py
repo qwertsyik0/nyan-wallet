@@ -25,7 +25,7 @@ assert "Не обновляется автоматически" in snapshot
 assert "67 голосов" in snapshot
 assert "Обновлено:" in snapshot
 assert "00:00 19.10.2026" in snapshot
-assert 'datetime="2026-10-19T00:00:00+03:00"' in snapshot
+assert "<strong>00:00 19.10.2026</strong>" in snapshot
 assert "Народный Союз Нян" in snapshot
 assert "Independent Femboys 🐾" in snapshot
 assert "35 голосов" in snapshot
