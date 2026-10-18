@@ -1,0 +1,28 @@
+/* Nyan Elections ballot: preserve the existing pink/berry wallet design. */
+.vote-parties,.vote-results{display:grid;gap:12px}
+.vote-party{border:1px solid #f0d9e5;border-radius:19px;background:#fffbfd;padding:15px;box-shadow:0 3px 11px rgba(114,34,70,.035)}
+.vote-party-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.vote-party-name{margin:0 0 5px;color:#782449;font-size:16px;font-weight:850;line-height:1.35;overflow-wrap:anywhere}
+.vote-chair{font-size:11px;color:#a4758c}
+.vote-emblem{display:block;max-width:100%;width:145px;height:108px;object-fit:contain;margin:13px 0;border:1px solid #f1e0e9;border-radius:13px;background:#fff}
+.vote-summary,.vote-full-program{font-size:13px;line-height:1.65;color:#74425d;white-space:pre-wrap;overflow-wrap:anywhere;margin:12px 0}
+.vote-details{border-top:1px solid #f1e0e9;padding-top:10px}
+.vote-details summary{font-size:12px;color:#8d2e57;font-weight:800;cursor:pointer;list-style-position:inside}
+.vote-pick{display:block;width:100%;margin-top:13px}
+.vote-selected{margin-top:13px;padding:12px;border-radius:12px;background:#fae6ef;color:#782449;font-size:12px;font-weight:850;text-align:center}
+.vote-result{padding:12px;border:1px solid #f1e0e9;border-radius:14px;background:#fffbfd}
+.vote-result-top{display:flex;justify-content:space-between;gap:8px;align-items:baseline;font-size:12px;color:#782449}
+.vote-result-top strong{overflow-wrap:anywhere}
+.vote-result-top span{font-weight:850;white-space:nowrap}
+.vote-bar{margin-top:10px;height:9px;overflow:hidden;border-radius:8px;background:#f5e2eb}
+.vote-bar-fill{height:100%;background:linear-gradient(90deg,#ba648a,#84294f);border-radius:inherit}
+#vote-owner-action{width:100%;margin-top:4px}
+.vote-overlay{position:fixed;inset:0;z-index:80;background:rgba(63,24,44,.4);display:flex;align-items:center;justify-content:center;padding:22px}
+.vote-confirm-card{max-width:410px;width:100%;padding:24px 21px;border-radius:25px;background:#fffcfd;box-shadow:0 24px 70px rgba(54,19,36,.23)}
+.vote-confirm-card h2{font-size:23px;color:#782449;margin:9px 0}
+.vote-confirm-card p{font-size:13px;line-height:1.7;color:#86536e}
+.vote-confirm-actions{display:flex;gap:8px;margin-top:20px}
+.vote-confirm-actions .el-button{flex:1;min-width:0}
+.vote-confirm-actions .el-button+.el-button{margin-left:0}
+.vote-modal-open{overflow:hidden}
+[hidden]{display:none!important}

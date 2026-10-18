@@ -145,6 +145,26 @@ function render(){
   const publicParties=(state.parties||[]).filter(p=>!partyHiddenFromList(p));
   $("el-phase").textContent=season?season.title+" · "+(phaseLabels[season.phase]||season.phase):"Сезон пока не объявлен";
   $("el-party-count").textContent=String(publicParties.length);
+  const voteSection=$("el-vote-entry"),voteDescription=$("el-vote-description"),voteLink=$("el-vote-link");
+  voteSection.hidden=!season || !["campaign","voting","results","closed"].includes(season.phase);
+  voteLink.hidden=!season || !["voting","results","closed"].includes(season.phase) && !(state.is_owner && season.phase==="campaign");
+  if(season?.phase==="voting"){
+    voteDescription.textContent="Голосование открыто. Изучи программы и отдай один голос за выбранную партию.";
+    voteLink.textContent="Проголосовать →";
+  }else if(["results","closed"].includes(season?.phase)){
+    voteDescription.textContent="Голосование завершено. Официальные результаты опубликованы.";
+    voteLink.textContent="Посмотреть результаты →";
+  }else{
+    voteDescription.textContent=state.is_owner
+      ?"Проверь бюллетень и открой голосование, когда будешь готов."
+      :"Дебаты завершены. Открытие голосования объявит владелец.";
+    voteLink.textContent="Предпросмотр бюллетеня →";
+  }
+  if(!voteLink.hidden){
+    const destination=new URL("./elections-vote.html",location.href);
+    destination.search=location.search;destination.hash=location.hash;
+    voteLink.href=destination.toString();
+  }
   reset(parties);
   if(!publicParties.length)parties.append(make("p","el-muted",season?"Одобренных партий пока нет.":"Выборы пока не объявлены."));
   else for(const item of publicParties)parties.append(partyCard(item));

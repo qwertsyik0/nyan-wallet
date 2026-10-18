@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Голосование — Nyan Elections</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./elections.css?v=20261018-vote1">
+  <link rel="stylesheet" href="./elections-vote.css?v=20261018-vote1">
+</head>
+<body>
+  <div class="el-app">
+    <header class="el-header">
+      <button id="vote-back" class="el-back" type="button" aria-label="Назад к выборам">‹</button>
+      <div><span class="el-brand">Nyan Wallet</span><span class="el-subtitle">NYAN ELECTIONS · 18 октября</span></div>
+      <span class="el-icon" aria-hidden="true">✦</span>
+    </header>
+    <main>
+      <section class="el-hero">
+        <span class="el-kicker">OFFICIAL BALLOT</span>
+        <h1>Голосование</h1>
+        <p>Изучи программы партий и сделай свой выбор. Один человек — один голос.</p>
+        <div id="vote-phase" class="el-phase">проверяем статус</div>
+      </section>
+      <p id="vote-alert" class="el-alert" role="alert" hidden></p>
+      <div id="vote-loading" class="el-loading" role="status">Подключаемся к Nyan Elections…</div>
+      <section id="vote-intro" class="el-section" hidden>
+        <h2 id="vote-intro-title">Бюллетень</h2>
+        <p id="vote-intro-desc" class="el-muted"></p>
+        <button id="vote-refresh" class="el-button secondary" type="button">Обновить статус</button>
+      </section>
+      <section id="vote-list" class="el-section" hidden>
+        <h2 id="vote-list-title">Выбери партию</h2>
+        <div id="vote-parties" class="vote-parties"></div>
+      </section>
+      <section id="vote-results" class="el-section" hidden>
+        <h2>Официальные результаты</h2>
+        <p id="vote-results-total" class="el-muted"></p>
+        <div id="vote-result-list" class="vote-results"></div>
+      </section>
+      <section id="vote-owner" class="el-section" hidden>
+        <h2>Управление голосованием</h2>
+        <p id="vote-owner-note" class="el-muted"></p>
+        <button id="vote-owner-action" class="el-button" type="button" hidden></button>
+      </section>
+    </main>
+    <footer>Nyan Elections · Nyan Wallet</footer>
+  </div>
+  <div id="vote-confirm" class="vote-overlay" hidden>
+    <div class="vote-confirm-card" role="dialog" aria-modal="true" aria-labelledby="vote-confirm-title">
+      <span class="el-kicker">NYAN ELECTIONS</span>
+      <h2 id="vote-confirm-title">Подтвердить выбор</h2>
+      <p id="vote-confirm-text"></p>
+      <div class="vote-confirm-actions">
+        <button id="vote-cancel" class="el-button secondary" type="button">Отмена</button>
+        <button id="vote-submit" class="el-button" type="button">Подтвердить</button>
+      </div>
+    </div>
+  </div>
+  <script src="./elections-vote.js?v=20261018-vote1"></script>
+</body>
+</html>
