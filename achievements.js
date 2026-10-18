@@ -1,5 +1,5 @@
 const tgAch = window.Telegram?.WebApp;
-const API_ACH = "https://nyan-wallet.tail327bb6.ts.net";
+const API_ACH = "https://nyan-wallet-153-76-175-145.sslip.io";
 let achievementsState = null;
 
 function achHeaders(json = false) {

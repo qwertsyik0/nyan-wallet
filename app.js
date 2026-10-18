@@ -3,7 +3,7 @@ const appealDeepLinkActive = (() => {
     const params = new URLSearchParams(window.location.search);
     return params.has("appeals") || params.has("appeal") || params.has("ownerAppeal");
 })();
-const API_BASE = "https://nyan-wallet.tail327bb6.ts.net";
+const API_BASE = "https://nyan-wallet-153-76-175-145.sslip.io";
 
 if (tg) {
     tg.ready();
