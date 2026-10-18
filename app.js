@@ -70,7 +70,7 @@ let selectedOwnerUserBlocked = false;
 let initialLoadFinished = false;
 let walletLoadAttempt = 0;
 let walletLoadController = null;
-const WALLET_BOOT_TIMEOUT_MS = 9000;
+const WALLET_BOOT_TIMEOUT_MS = 25000;
 const WALLET_RETRY_DELAYS_MS = [2500, 4000, 6500, 10000, 15000];
 const loadingStatusEl = document.getElementById("loading-status");
 const loadingHintEl = document.getElementById("loading-hint");
@@ -910,6 +910,7 @@ async function loadWallet() {
     const timeout = window.setTimeout(() => controller.abort(), WALLET_BOOT_TIMEOUT_MS);
     const isBoot = !initialLoadFinished;
     let loadedSuccessfully = false;
+    let apiResponseReceived = false;
 
     if (isBoot) {
         window.__nyanBootRecovering = true;
@@ -928,6 +929,7 @@ async function loadWallet() {
             signal: controller.signal,
         });
         const data = await readJson(response);
+        apiResponseReceived = true;
 
         if (attempt !== walletLoadAttempt) return;
 
@@ -960,7 +962,10 @@ async function loadWallet() {
         if (attempt !== walletLoadAttempt) return;
         console.error("Nyan Wallet API error:", error);
 
-        const temporary = isTemporaryWalletError(error);
+        // A TypeError in UI rendering after HTTP 200 is not a network failure.
+        // Do not trap the user in a bogus connection-retry loop.
+        const temporary = error?.retryable === true ||
+            (!apiResponseReceived && isTemporaryWalletError(error));
         if (!currentUser) {
             balanceEl.textContent = "—";
             currencyNameEl.textContent = "данные временно недоступны";
@@ -973,7 +978,7 @@ async function loadWallet() {
             if (isBoot) {
                 updateBootStatus(
                     "не удалось открыть кошелёк",
-                    "Проверьте, что кошелёк открыт через Telegram, и попробуйте снова.",
+                    error?.message || "Проверьте, что кошелёк открыт через Telegram, и попробуйте снова.",
                     true
                 );
             } else {

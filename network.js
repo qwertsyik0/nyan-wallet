@@ -66,7 +66,7 @@
         const signal = requestSignal(input, init);
 
         // The wallet bootstrap has its own bounded retry and status screen.
-        // Avoid nesting the generic retries inside the nine-second boot timeout.
+        // Avoid nesting the generic retries inside the wallet bootstrap timeout.
         if (!url || url.origin !== API_ORIGIN || !SAFE_METHODS.has(method) ||
             (method === "GET" && url.pathname === "/api/me")) {
             return nativeFetch(input, init);
