@@ -1,0 +1,53 @@
+name: Check one-time voter letter bridge
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/check-voter-letter-bridge.yml"
+      - "tools/nyan_voter_letters_bridge_20261018.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Compile and test 39-recipient transfer and HTML escaping
+        run: |
+          python -m py_compile tools/nyan_voter_letters_bridge_20261018.py
+          python - <<'PY'
+          import importlib.util, json, zlib, base64
+          spec = importlib.util.spec_from_file_location("bridge", "tools/nyan_voter_letters_bridge_20261018.py")
+          m = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(m)
+          rows = [{"id": 10001+i, "first": "<Иван>", "last": "&Мария"} for i in range(39)]
+          m.validate_rows(rows)
+          payload = {"campaign": m.CAMPAIGN, "season": m.SEASON_ID, "recipients": rows}
+          code = base64.urlsafe_b64encode(zlib.compress(json.dumps(payload, ensure_ascii=False).encode())).decode()
+          assert m.decode_code(code) == rows
+          rendered = m.message(10001, "<Иван>", "&Мария")
+          assert 'tg://user?id=10001' in rendered
+          assert "&lt;Иван&gt;" in rendered and "&amp;Мария" in rendered
+          assert "200 🐾" in rendered
+          try:
+              m.validate_rows(rows[:38])
+          except RuntimeError:
+              pass
+          else:
+              raise AssertionError("38 recipients must be rejected")
+          try:
+              m.validate_rows(rows[:-1] + [rows[0]])
+          except RuntimeError:
+              pass
+          else:
+              raise AssertionError("duplicate recipients must be rejected")
+          print("PASS: bridge syntax, transfer, count, duplicates and escaping")
+          PY
