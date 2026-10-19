@@ -60,12 +60,12 @@ jobs:
           node --check wallet_launch_recovery_20261019.js
           node --check app.js
           node tools/test_wallet_launch_recovery_20261019.cjs
-      - name: Prevent stale Elections HTML in Telegram Mini App
+      - name: Verify completed Elections and historical owner views are retired
         run: |
           python tools/test_elections_fresh_navigation_20261019.py
           node --check home_v2.js
           node --check elections-vote.js
-      - name: Verify frozen Elections voting preview (74 votes)
+      - name: Verify archived Elections snapshot (97 votes)
         run: python tools/test_elections_static_snapshot_20261018.py
       - name: Test Nyan ID PNG export and Telegram document upload
         run: python tools/test_nyan_id_png.py
