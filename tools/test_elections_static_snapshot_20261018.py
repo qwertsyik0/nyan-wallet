@@ -1,4 +1,4 @@
-"""Regression test: public Elections snapshot is intentionally frozen at 67 votes (updated 00:00 19.10.2026).
+"""Regression test: public Elections snapshot is intentionally frozen at 68 votes (updated 08:00 19.10.2026).
 
 This test reads only static client files; it never connects to a database or Telegram.
 """
@@ -22,18 +22,18 @@ assert not re.search(r"<section[^>]*\bhidden\b", snapshot.split(">", 1)[0])
 
 assert "Предварительные результаты" in snapshot
 assert "Не обновляется автоматически" in snapshot
-assert "67 голосов" in snapshot
+assert "68 голосов" in snapshot
 assert "Обновлено:" in snapshot
-assert "00:00 19.10.2026" in snapshot
-assert "<strong>00:00 19.10.2026</strong>" in snapshot
+assert "08:00 19.10.2026" in snapshot
+assert "<strong>08:00 19.10.2026</strong>" in snapshot
 assert "Народный Союз Нян" in snapshot
 assert "Independent Femboys 🐾" in snapshot
 assert "35 голосов" in snapshot
-assert "32 голоса" in snapshot
+assert "33 голоса" in snapshot
 
-total = 35 + 32
-assert total == 67
-for votes, value, text in ((35, "52.24", "52,24%"), (32, "47.76", "47,76%")):
+total = 35 + 33
+assert total == 68
+for votes, value, text in ((35, "51.47", "51,47%"), (33, "48.53", "48,53%")):
     actual = (Decimal(votes) * 100 / Decimal(total)).quantize(
         Decimal("0.01"), rounding=ROUND_HALF_UP
     )
@@ -49,4 +49,4 @@ assert ".el-snapshot-party" in css
 assert ".el-snapshot-timestamp" in css
 assert "elections.css?v=20261019-vote-snapshot-2" in html
 assert "Окончательные итоги" not in snapshot  # The copy describes later publication in lowercase.
-print("PASS: static 67-vote snapshot (35/32) updated 00:00 19.10.2026")
+print("PASS: static 68-vote snapshot (35/33) updated 08:00 19.10.2026")
