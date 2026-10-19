@@ -33,6 +33,8 @@
             }
           }
           if (current.hash) target.hash = current.hash;
+          // New URL per opening bypasses Telegram WebView cache for static previews.
+          target.searchParams.set("snapshot", String(Date.now()));
           window.location.replace(target.toString());
           return;
         }
@@ -446,7 +448,7 @@
 <script src="./about.js?v=20260917-1"></script>
 <script src="./privacy.js?v=20260921-1"></script>
 <script src="./interface_shell.js?v=20261005-1"></script>
-<script src="./home_v2.js?v=20261016-elections-home1"></script>
+<script src="./home_v2.js?v=20261019-elections-fresh-snapshot1"></script>
 <script src="./nyan_id.js?v=20261018-direct-https-v1"></script>
 <script src="./finance-workspace-entry.js?v=20261018-direct-https-v1"></script>
 </body>
