@@ -22,9 +22,6 @@ const historyEl = document.querySelector(".history");
 const walletView = document.getElementById("wallet-view");
 const earnView = document.getElementById("earn-view");
 const ownerView = document.getElementById("owner-view");
-const ownerSurveyView = document.getElementById("owner-survey-view");
-const ownerSurveyOpen = document.getElementById("owner-survey-open");
-const ownerSurveyBack = document.getElementById("owner-survey-back");
 const earnButton = document.getElementById("earn-button");
 const earnBack = document.getElementById("earn-back");
 const ownerButton = document.getElementById("owner-button");
@@ -59,10 +56,6 @@ const ownerPromoCreate = document.getElementById("owner-promo-create");
 const ownerPromoStatus = document.getElementById("owner-promo-status");
 const ownerPromoList = document.getElementById("owner-promo-list");
 
-const ownerSurveyStatus = document.getElementById("owner-survey-status");
-const ownerSurveySummary = document.getElementById("owner-survey-summary");
-const ownerSurveyComments = document.getElementById("owner-survey-comments");
-const ownerSurveyParticipants = document.getElementById("owner-survey-participants");
 
 let currentUser = null;
 let selectedOwnerUserId = null;
@@ -239,7 +232,6 @@ function showWalletView() {
     loadingView?.classList.add("hidden");
     earnView.classList.add("hidden");
     ownerView.classList.add("hidden");
-    ownerSurveyView?.classList.add("hidden");
     walletView.classList.remove("hidden");
     window.scrollTo({ top: 0, behavior: "smooth" });
 
@@ -256,18 +248,6 @@ function openEarnView() {
     tg?.HapticFeedback?.impactOccurred?.("light");
 }
 
-function openOwnerSurveyView() {
-    if (!currentUser?.is_owner) return;
-    walletView.classList.add("hidden");
-    earnView.classList.add("hidden");
-    ownerView.classList.add("hidden");
-    ownerSurveyView?.classList.remove("hidden");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    tg?.BackButton?.show?.();
-    tg?.HapticFeedback?.impactOccurred?.("light");
-    loadOwnerSurveyResults();
-}
-
 function openOwnerView() {
     if (!currentUser?.is_owner) return;
 
@@ -281,27 +261,15 @@ function openOwnerView() {
 
     loadOwnerUsers();
     loadOwnerPromos();
-    loadOwnerSurveyResults();
 }
 
 earnButton?.addEventListener("click", openEarnView);
 earnBack?.addEventListener("click", showWalletView);
 ownerButton?.addEventListener("click", openOwnerView);
 ownerBack?.addEventListener("click", showWalletView);
-ownerSurveyOpen?.addEventListener("click", openOwnerSurveyView);
-ownerSurveyBack?.addEventListener("click", openOwnerView);
-document.getElementById("finance-applications-open")?.addEventListener("click", () => {
-    if (!currentUser?.is_owner) return;
-    const url = "https://t.me/nyancash_bot?startapp=finance_review";
-    if (tg?.openTelegramLink) tg.openTelegramLink(url);
-    else window.open(url, "_blank", "noopener,noreferrer");
-});
-
 if (tg?.BackButton?.onClick) {
     tg.BackButton.onClick(() => {
-        if (ownerSurveyView && !ownerSurveyView.classList.contains("hidden")) {
-            openOwnerView();
-        } else if (!earnView.classList.contains("hidden") || !ownerView.classList.contains("hidden")) {
+        if (!earnView.classList.contains("hidden") || !ownerView.classList.contains("hidden")) {
             showWalletView();
         }
     });
@@ -1024,141 +992,5 @@ window.addEventListener("online", () => {
         void loadWallet();
     }
 });
-
-const SURVEY_TITLES = {
-    useful: "Насколько полезен Nyan Wallet?",
-    most_used: "Чем пользуются чаще всего?",
-    missing: "Чего больше всего не хватает?",
-    separate_channel: "Нужен ли отдельный канал Nyan Wallet?",
-    updates: "Что интереснее видеть в новостях?",
-};
-
-function surveyPercentBar(option) {
-    const row = document.createElement("div");
-    row.className = "owner-survey-option";
-
-    const top = document.createElement("div");
-    top.className = "owner-survey-option-top";
-
-    const label = document.createElement("span");
-    label.textContent = option.label;
-
-    const value = document.createElement("strong");
-    value.textContent = `${option.count} · ${option.percent}%`;
-
-    const track = document.createElement("div");
-    track.className = "owner-survey-track";
-
-    const fill = document.createElement("div");
-    fill.className = "owner-survey-fill";
-    fill.style.width = `${Math.max(0, Math.min(100, Number(option.percent) || 0))}%`;
-
-    top.append(label, value);
-    track.appendChild(fill);
-    row.append(top, track);
-    return row;
-}
-
-async function loadOwnerSurveyResults() {
-    if (!currentUser?.is_owner || !tg?.initData || !ownerSurveyStatus) return;
-
-    ownerSurveyStatus.textContent = "Загружаем результаты…";
-    ownerSurveySummary.innerHTML = "";
-    ownerSurveyComments.innerHTML = "";
-    ownerSurveyParticipants.innerHTML = "";
-
-    try {
-        const response = await fetch(`${API_BASE}/api/owner/wallet-survey/results`, {
-            headers: authHeaders(),
-            cache: "no-store",
-        });
-        const data = await readJson(response);
-        if (!response.ok) throw new Error(data?.detail || "Не удалось загрузить результаты опроса");
-
-        ownerSurveyStatus.textContent = data.total
-            ? `Прошли: ${data.total} · выдано: ${data.total_rewards} 🐾`
-            : "Пока никто не прошёл опрос";
-
-        const stats = document.createElement("div");
-        stats.className = "owner-survey-stats";
-
-        const totalCard = document.createElement("div");
-        totalCard.className = "owner-survey-stat";
-        totalCard.innerHTML = `<span>участников</span><strong>${data.total}</strong>`;
-
-        const rewardCard = document.createElement("div");
-        rewardCard.className = "owner-survey-stat";
-        rewardCard.innerHTML = `<span>выдано</span><strong>${data.total_rewards} 🐾</strong>`;
-
-        stats.append(totalCard, rewardCard);
-        ownerSurveySummary.appendChild(stats);
-
-        for (const [field, options] of Object.entries(data.questions || {})) {
-            const block = document.createElement("div");
-            block.className = "owner-survey-block";
-
-            const title = document.createElement("div");
-            title.className = "owner-survey-question";
-            title.textContent = SURVEY_TITLES[field] || field;
-            block.appendChild(title);
-
-            for (const option of options) block.appendChild(surveyPercentBar(option));
-            ownerSurveySummary.appendChild(block);
-        }
-
-        const commentsTitle = document.createElement("div");
-        commentsTitle.className = "owner-survey-section-title";
-        commentsTitle.textContent = `Комментарии (${(data.comments || []).length})`;
-        ownerSurveyComments.appendChild(commentsTitle);
-
-        if (!(data.comments || []).length) {
-            const empty = document.createElement("div");
-            empty.className = "owner-survey-empty";
-            empty.textContent = "Комментариев пока нет";
-            ownerSurveyComments.appendChild(empty);
-        } else {
-            for (const item of data.comments) {
-                const card = document.createElement("div");
-                card.className = "owner-survey-comment";
-
-                const head = document.createElement("div");
-                head.className = "owner-survey-comment-head";
-                head.textContent = `${item.name} · ${formatDate(item.created_at)}`;
-
-                const text = document.createElement("div");
-                text.className = "owner-survey-comment-text";
-                text.textContent = item.comment;
-
-                card.append(head, text);
-                ownerSurveyComments.appendChild(card);
-            }
-        }
-
-        const participantsTitle = document.createElement("div");
-        participantsTitle.className = "owner-survey-section-title";
-        participantsTitle.textContent = `Участники (${(data.participants || []).length})`;
-        ownerSurveyParticipants.appendChild(participantsTitle);
-
-        for (const item of data.participants || []) {
-            const row = document.createElement("div");
-            row.className = "owner-survey-participant";
-
-            const left = document.createElement("div");
-            left.innerHTML = `<strong></strong><span></span>`;
-            left.querySelector("strong").textContent = item.name;
-            left.querySelector("span").textContent = `${formatDate(item.created_at)} · +${item.reward_amount} 🐾`;
-
-            const channel = document.createElement("div");
-            channel.className = "owner-survey-participant-answer";
-            const answer = item.answers?.separate_channel;
-            channel.textContent = answer === "yes" ? "канал: да" : answer === "no" ? "канал: нет" : "канал: не уверен";
-
-            row.append(left, channel);
-            ownerSurveyParticipants.appendChild(row);
-        }
-    } catch (error) {
-        ownerSurveyStatus.textContent = error.message || "Не удалось загрузить результаты опроса";
-    }
-}
 
 loadWallet();
