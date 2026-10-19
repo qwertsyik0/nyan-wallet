@@ -8,6 +8,8 @@ on:
       - "elections.html"
       - "elections.css"
       - "tools/test_elections_static_snapshot_20261018.py"
+      - "tools/test_elections_fresh_navigation_20261019.py"
+      - "elections-vote.html"
       - "tools/test_wallet_launch_recovery_20261019.cjs"
       - "*.js"
       - "tools/install_giveaway_bot.py"
@@ -58,7 +60,12 @@ jobs:
           node --check wallet_launch_recovery_20261019.js
           node --check app.js
           node tools/test_wallet_launch_recovery_20261019.cjs
-      - name: Verify frozen Elections voting preview (67 votes)
+      - name: Prevent stale Elections HTML in Telegram Mini App
+        run: |
+          python tools/test_elections_fresh_navigation_20261019.py
+          node --check home_v2.js
+          node --check elections-vote.js
+      - name: Verify frozen Elections voting preview (74 votes)
         run: python tools/test_elections_static_snapshot_20261018.py
       - name: Test Nyan ID PNG export and Telegram document upload
         run: python tools/test_nyan_id_png.py
