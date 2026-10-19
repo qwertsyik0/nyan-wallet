@@ -68,12 +68,6 @@
       home.id = "nyan-home-v2";
       home.className = "nyan-home-v2";
       home.innerHTML = `
-        <button id="nyan-home-elections" class="nyan-home-elections" type="button" data-nyan-elections-link aria-label="Открыть раздел выборов">
-          <span class="nyan-home-elections-icon" aria-hidden="true">🗳</span>
-          <span class="nyan-home-elections-content"><strong>Выборы</strong><small>партии, программы и участие</small></span>
-          <span class="nyan-home-elections-arrow" aria-hidden="true">›</span>
-        </button>
-
         <section class="nyan-home-panel">
           <div class="nyan-home-panel-head">
             <div class="nyan-home-panel-title">Сегодня</div>
@@ -113,18 +107,6 @@
       `;
 
       home.addEventListener("click", (event) => {
-        const elections = event.target.closest("[data-nyan-elections-link]");
-        if (elections) {
-          // Keep signed Telegram launch data and any active Mini App query/hash.
-          const current = new URL(window.location.href);
-          const destination = new URL("./elections.html", current.href);
-          destination.search = current.search;
-          destination.hash = current.hash;
-          // Always request the current manually published snapshot on entry.
-          destination.searchParams.set("snapshot", String(Date.now()));
-          window.location.assign(destination.href);
-          return;
-        }
         const button = event.target.closest("[data-home-target]");
         if (!button) return;
         const target = button.dataset.homeTarget;
