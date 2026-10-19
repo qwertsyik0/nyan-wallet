@@ -66,23 +66,23 @@ for ns in (legacy_ns,new_ns):
 index=(ROOT/"index.html").read_text(encoding="utf-8")
 page=(ROOT/"elections.html").read_text(encoding="utf-8")
 js=(ROOT/"elections.js").read_text(encoding="utf-8")
-assert 'startParam === "elections"' in index
-assert 'new URL("./elections.html", window.location.href)' in index
-assert 'target.hash = current.hash' in index, "Telegram launch hash is not preserved"
+home_script=(ROOT/"home_v2.js").read_text(encoding="utf-8")
+home_style=(ROOT/"home_v2.css").read_text(encoding="utf-8")
+
+# The completed election is archived. Historical Telegram messages and tools
+# may still refer to its page, but Wallet must not advertise it.
+assert 'startParam === "elections"' not in index
+assert 'new URL("./elections.html", window.location.href)' not in index
+assert 'id="nyan-home-elections"' not in home_script
+assert 'data-nyan-elections-link' not in home_script
+assert 'new URL("./elections.html", current.href)' not in home_script
+assert ".nyan-home-elections{" in home_style  # Harmless legacy styles.
+assert "home_v2.js?v=20261019-retire-elections-owner-archive1" in index
+assert "home_v2.css?v=20261016-elections-home1" in index
 assert 'elections.js?' in page and 'elections.css?' in page
 assert 'X-Telegram-Init-Data' in js and 'if(!tg?.initData)' in js
 assert "/api/elections" in js
-assert "startapp=elections" not in js, "Avoid nested Mini App loops"
-home_script=(ROOT/"home_v2.js").read_text(encoding="utf-8")
-home_style=(ROOT/"home_v2.css").read_text(encoding="utf-8")
-assert 'id="nyan-home-elections"' in home_script, "Elections button missing from main wallet screen"
-assert 'data-nyan-elections-link' in home_script
-assert 'new URL("./elections.html", current.href)' in home_script, "Home link does not navigate to Elections"
-assert 'destination.search = current.search' in home_script
-assert 'destination.hash = current.hash' in home_script, "Telegram launch hash lost from wallet navigation"
-assert ".nyan-home-elections{" in home_style
-assert "home_v2.js?v=20261019-elections-fresh-snapshot1" in index
-assert "home_v2.css?v=20261016-elections-home1" in index
-assert 'class="nyan-home-primary"' not in home_script, "Large action tiles recreated"
+assert "startapp=elections" not in js
+assert 'class="nyan-home-primary"' not in home_script
 
-print("OK: private broadcast Mini App, channel URL deep links, and Elections page all agree.")
+print("OK: completed Elections removed from Wallet while archived pages and Telegram notices remain intact.")
