@@ -81,7 +81,7 @@ assert 'new URL("./elections.html", current.href)' in home_script, "Home link do
 assert 'destination.search = current.search' in home_script
 assert 'destination.hash = current.hash' in home_script, "Telegram launch hash lost from wallet navigation"
 assert ".nyan-home-elections{" in home_style
-assert "home_v2.js?v=20261016-elections-home1" in index
+assert "home_v2.js?v=20261019-elections-fresh-snapshot1" in index
 assert "home_v2.css?v=20261016-elections-home1" in index
 assert 'class="nyan-home-primary"' not in home_script, "Large action tiles recreated"
 
