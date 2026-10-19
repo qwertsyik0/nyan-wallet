@@ -497,7 +497,7 @@ jobs:
               assert item in ui, item
           print("Owner-only antifraud scan, pair lookup, safe scoring and UI OK")
           PY
-      - name: Audit financial recruitment submission and owner review
+      - name: Audit archived financial recruitment data model and disabled routes
         run: |
           python - <<'PY'
           import ast
@@ -523,16 +523,16 @@ jobs:
           assert 'Literal[True]' in source and "with_for_update()" in source
           assert source.count('core.require_owner(user)') == 2
           init = Path("server/__init__.py").read_text(encoding="utf-8")
-          assert "register_finance_recruitment(backend_app.app)" in init
+          assert "register_finance_recruitment(backend_app.app)" not in init
           index = Path("index.html").read_text(encoding="utf-8")
-          assert '"finance_admin"' in index and './finance-apply.html' in index
+          assert 'startParam === "finance_admin"' not in index and 'id="finance-applications-open"' not in index
           for name in ("finance-apply", "finance-review"):
               html = Path(name + ".html").read_text(encoding="utf-8")
               js = Path(name + ".js").read_text(encoding="utf-8")
               assert name + ".js?v=" in html
               assert 'X-Telegram-Init-Data' in js
               assert 'https://' in js and 'nyan-wallet-api.onrender.com' not in js
-          print("Financial recruitment routes, Telegram auth and owner-only review OK")
+          print("Financial recruitment archived: schema retained, routes disabled, finance workspace preserved")
           PY
       - name: Verify info-channel subscription is optional
         run: |
