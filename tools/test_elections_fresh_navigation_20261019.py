@@ -1,26 +1,28 @@
-"""Regression guard: opening Elections must bypass a stale Telegram WebView HTML cache."""
+"""Regression guard: completed Elections and historical owner views are not in the Wallet UI.
+
+Historical records remain on the backend until the owner authorizes their deletion.
+"""
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 home = (root / "home_v2.js").read_text(encoding="utf-8")
 index = (root / "index.html").read_text(encoding="utf-8")
-vote = (root / "elections-vote.js").read_text(encoding="utf-8")
-ballot = (root / "elections-vote.html").read_text(encoding="utf-8")
+wallet = (root / "app.js").read_text(encoding="utf-8")
 elections = (root / "elections.html").read_text(encoding="utf-8")
 
-assert 'target.searchParams.set("snapshot", String(Date.now()))' in index
-assert 'destination.searchParams.set("snapshot", String(Date.now()))' in home
-assert 'url.searchParams.set("snapshot",String(Date.now()))' in vote
-assert 'home_v2.js?v=20261019-elections-fresh-snapshot1' in index
-assert 'elections-vote.js?v=20261019-election-snapshot-fresh1' in ballot
+assert 'id="nyan-home-elections"' not in home
+assert 'data-nyan-elections-link' not in home
+assert 'new URL("./elections.html", current.href)' not in home
+assert 'startParam === "elections"' not in index
+assert 'new URL("./elections.html", window.location.href)' not in index
+assert 'id="owner-survey-open"' not in index
+assert 'id="finance-applications-open"' not in index
+assert 'id="owner-survey-view"' not in index
 
-# Query cache-busters must not strip the Telegram launch hash or signed context.
-assert 'target.hash = current.hash;' in index
-assert 'destination.hash = current.hash;' in home
-assert 'url.hash=location.hash;' in vote
-
-assert '97 голосов' in elections
-assert '50 голосов' in elections and '47 голосов' in elections
-assert '51,55%' in elections and '48,45%' in elections
-assert '15:40 19.10.2026' in elections
-print("PASS: fresh Elections navigation, signed Telegram context and 15:40 snapshot")
+# Actual trainee workflows must not be affected by retiring candidate review.
+assert 'id="owner-finance-workspace"' in index
+assert 'finance_workspace' in index
+assert "home_v2.js?v=20261019-retire-elections-owner-archive1" in index
+assert "97 голосов" in elections and "15:40 19.10.2026" in elections
+assert "loadWallet();" in wallet
+print("PASS: completed Elections and historical owner sections absent from Wallet, finance workspace intact")
