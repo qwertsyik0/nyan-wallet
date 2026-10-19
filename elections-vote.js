@@ -249,6 +249,7 @@ $("vote-refresh").addEventListener("click",load);
 $("vote-back").addEventListener("click",()=>{
   const url=new URL("./elections.html",location.href);
   url.search=location.search;url.hash=location.hash;
+  url.searchParams.set("snapshot",String(Date.now()));
   location.assign(url.toString());
 });
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!busy)load();});
