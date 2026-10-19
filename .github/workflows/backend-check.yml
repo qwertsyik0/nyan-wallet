@@ -9,6 +9,8 @@ on:
       - "elections.css"
       - "tools/test_elections_static_snapshot_20261018.py"
       - "tools/test_elections_fresh_navigation_20261019.py"
+      - "tools/test_retired_data_purge_20261019.py"
+      - "tools/purge_retired_nyan_data_20261019.sh"
       - "elections-vote.html"
       - "tools/test_wallet_launch_recovery_20261019.cjs"
       - "*.js"
@@ -65,6 +67,10 @@ jobs:
           python tools/test_elections_fresh_navigation_20261019.py
           node --check home_v2.js
           node --check elections-vote.js
+      - name: Check retired feature database purge safety
+        run: |
+          bash -n tools/purge_retired_nyan_data_20261019.sh
+          python tools/test_retired_data_purge_20261019.py
       - name: Verify archived Elections snapshot (97 votes)
         run: python tools/test_elections_static_snapshot_20261018.py
       - name: Test Nyan ID PNG export and Telegram document upload
