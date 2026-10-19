@@ -23,33 +23,6 @@
 
         const startParam = values.map(v => String(v || "").trim().toLowerCase()).find(Boolean) || "";
 
-        if (startParam === "elections" || startParam === "election") {
-          // Main Mini App route preserves the signed Telegram launch context.
-          const target = new URL("./elections.html", window.location.href);
-          const current = new URL(window.location.href);
-          for (const [key, value] of current.searchParams.entries()) {
-            if (!["startapp", "tgWebAppStartParam"].includes(key)) {
-              target.searchParams.set(key, value);
-            }
-          }
-          if (current.hash) target.hash = current.hash;
-          // New URL per opening bypasses Telegram WebView cache for static previews.
-          target.searchParams.set("snapshot", String(Date.now()));
-          window.location.replace(target.toString());
-          return;
-        }
-
-        if (startParam === "games" || startParam === "election_games") {
-          const target = new URL("./elections-games.html", window.location.href);
-          const current = new URL(window.location.href);
-          for (const [key, value] of current.searchParams.entries()) {
-            if (!["startapp", "tgWebAppStartParam"].includes(key)) target.searchParams.set(key, value);
-          }
-          if (current.hash) target.hash = current.hash;
-          window.location.replace(target.toString());
-          return;
-        }
-
         if (startParam === "nyanid" || startParam === "nyan_id") {
           const target = new URL("./nyan-id.html", window.location.href);
           const current = new URL(window.location.href);
@@ -241,12 +214,6 @@
             </div>
         </div>
 
-        <button id="owner-survey-open" class="owner-grant-button" type="button" style="width:100%;margin:0 0 14px">
-            Результаты опроса
-        </button>
-        <button id="finance-applications-open" class="owner-grant-button" type="button" style="width:100%;margin:0 0 14px">
-            Анкеты финансового администратора
-        </button>
         <button id="owner-finance-workspace" class="owner-grant-button" type="button" style="width:100%;margin:0 0 14px" hidden>
             Управление финансами · согласование заявок
         </button>
@@ -332,25 +299,6 @@
         </section>
     </main>
 
-
-    <main id="owner-survey-view" class="view hidden">
-        <div class="subpage-header">
-            <button id="owner-survey-back" class="back-button" type="button" aria-label="Назад">‹</button>
-            <div>
-                <div class="page-title">Опрос Nyan Wallet</div>
-                <div class="page-subtitle">статистика и ответы участников</div>
-            </div>
-        </div>
-
-        <section id="owner-survey-section" class="admin-section">
-            <div class="owner-title">Результаты опроса</div>
-            <div class="owner-subtitle">актуальные ответы участников</div>
-            <div id="owner-survey-status" class="owner-status" aria-live="polite">Загружаем…</div>
-            <div id="owner-survey-summary"></div>
-            <div id="owner-survey-comments"></div>
-            <div id="owner-survey-participants"></div>
-        </section>
-    </main>
 
     <main id="earn-view" class="view hidden">
         <div class="subpage-header">
@@ -448,7 +396,7 @@
 <script src="./about.js?v=20260917-1"></script>
 <script src="./privacy.js?v=20260921-1"></script>
 <script src="./interface_shell.js?v=20261005-1"></script>
-<script src="./home_v2.js?v=20261019-elections-fresh-snapshot1"></script>
+<script src="./home_v2.js?v=20261019-retire-elections-owner-archive1"></script>
 <script src="./nyan_id.js?v=20261018-direct-https-v1"></script>
 <script src="./finance-workspace-entry.js?v=20261018-direct-https-v1"></script>
 </body>
