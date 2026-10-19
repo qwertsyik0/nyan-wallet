@@ -19,8 +19,8 @@ assert 'target.hash = current.hash;' in index
 assert 'destination.hash = current.hash;' in home
 assert 'url.hash=location.hash;' in vote
 
-assert '80 голосов' in elections
-assert '44 голоса' in elections and '36 голосов' in elections
-assert '55,00%' in elections and '45,00%' in elections
-assert '11:20 19.10.2026' in elections
-print("PASS: fresh Elections navigation, signed Telegram context and 11:20 snapshot")
+assert '97 голосов' in elections
+assert '50 голосов' in elections and '47 голосов' in elections
+assert '51,55%' in elections and '48,45%' in elections
+assert '15:40 19.10.2026' in elections
+print("PASS: fresh Elections navigation, signed Telegram context and 15:40 snapshot")
