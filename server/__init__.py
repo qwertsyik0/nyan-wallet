@@ -83,14 +83,11 @@ else:
     print_recent_wallet_transfers_20261011()
     register_broadcast(backend_app.app)
     register_maintenance(backend_app.app)
-    register_wallet_survey(backend_app.app)
     register_suggestions(backend_app.app)
-    register_finance_recruitment(backend_app.app)
-    register_finance_stage2(backend_app.app)
+    # 2026-10-19: Elections, the old wallet survey and financial-admin
+    # recruitment are retired. Keep ORM module imports above for safe schema
+    # restoration and keep finance_workspace for active trainees/requests.
     register_finance_workspace(backend_app.app)
-    register_elections(backend_app.app)
-    register_elections_voting(backend_app.app)
-    send_survey_channel_followups_20261011()
     register_user_bans(backend_app.app)
     register_promo_delayed_fee(backend_app.app)
     sync_bot_menu_buttons()
