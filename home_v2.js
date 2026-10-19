@@ -120,6 +120,8 @@
           const destination = new URL("./elections.html", current.href);
           destination.search = current.search;
           destination.hash = current.hash;
+          // Always request the current manually published snapshot on entry.
+          destination.searchParams.set("snapshot", String(Date.now()));
           window.location.assign(destination.href);
           return;
         }
