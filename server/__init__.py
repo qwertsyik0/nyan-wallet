@@ -8,6 +8,7 @@ if not DATABASE_URL.startswith(("postgres://", "postgresql://", "postgresql+psyc
     raise RuntimeError("DATABASE_URL должен указывать на PostgreSQL")
 
 from . import backend_app as backend_app
+from .quote_reflection import register_quote_reflection
 from .root_health import register_root_health
 from .extended_features import register_extended_features
 from .promo_notify import register_promo_notify
@@ -83,6 +84,7 @@ else:
     print_recent_wallet_transfers_20261011()
     register_broadcast(backend_app.app)
     register_maintenance(backend_app.app)
+    register_quote_reflection(backend_app.app)
     register_suggestions(backend_app.app)
     # 2026-10-19: Elections, the old wallet survey and financial-admin
     # recruitment are retired. Keep ORM module imports above for safe schema

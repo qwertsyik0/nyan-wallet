@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#fff9fc">
+  <title>Одна цитата — Nyan Wallet</title>
+  <meta name="description" content="Прочитай цитату, поделись своим пониманием и получи 200 лапкоинов.">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root { color-scheme:light; --berry:#762442;--berry-deep:#64213c;--pink:#b56b8b;--text:#6b4055;--muted:#a57a90;--line:#efd9e3;--paper:#fffcfd;--soft:#fff3f8 }
+    *{box-sizing:border-box}
+    html{background:#fff9fc}
+    body{margin:0;min-height:100vh;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:var(--text);background:radial-gradient(ellipse 85% 42% at 50% -8%,#ffe4ee 0,rgba(255,239,246,.25) 75%,transparent),linear-gradient(180deg,#fffcfd,#fff7fa)}
+    main{max-width:620px;margin:0 auto;padding:31px 18px calc(44px + env(safe-area-inset-bottom))}
+    .brand{text-align:center;color:var(--berry);font-size:12px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}
+    h1{font-size:clamp(29px,7vw,39px);line-height:1.07;letter-spacing:-.055em;text-align:center;color:var(--berry);margin:15px auto 26px;font-weight:900}
+    .quote{position:relative;padding:34px 25px 30px;border:1px solid #eccedc;border-radius:24px;background:rgba(255,255,255,.86);box-shadow:0 14px 44px rgba(115,37,73,.07),inset 0 0 0 5px rgba(255,241,247,.65);text-align:center}
+    .quote::before{content:"“";position:absolute;left:50%;transform:translateX(-50%);top:-18px;color:#bc7897;font-family:Georgia,serif;font-size:56px;line-height:1;background:#fff7fa;padding:0 12px}
+    blockquote{font-size:clamp(17px,3.9vw,21px);font-weight:660;letter-spacing:-.02em;line-height:1.78;color:var(--berry-deep);margin:0;text-wrap:pretty}
+    .question{margin:30px 0 12px;text-align:center;font-size:20px;color:var(--berry);font-weight:850;letter-spacing:-.035em}
+    .intro{text-align:center;margin:0 auto 18px;font-size:13px;line-height:1.5;color:var(--muted);max-width:360px}
+    .options{display:grid;gap:10px}
+    .choice{display:flex;align-items:flex-start;gap:13px;background:var(--paper);border:1px solid var(--line);border-radius:17px;padding:16px;cursor:pointer;transition:background .16s,border-color .16s;line-height:1.53;font-size:14px;font-weight:600}
+    .choice input{margin:2px 0 0;width:17px;height:17px;flex:0 0 17px;accent-color:#8c3157}
+    .choice:has(input:checked){background:#fff0f6;border-color:#bc7e9c;box-shadow:inset 0 0 0 1px rgba(188,126,156,.16)}
+    .actions{margin-top:20px}
+    button.submit{width:100%;min-height:52px;border:0;border-radius:16px;background:var(--berry);color:#fff;font:inherit;font-weight:850;font-size:15px;cursor:pointer;box-shadow:0 9px 25px rgba(127,37,73,.14)}
+    button.submit:disabled{opacity:.52;cursor:default}
+    .reward{text-align:center;margin:13px 0;color:#a16b83;font-size:12px;font-weight:650}
+    .message{min-height:19px;text-align:center;color:#9c416b;font-size:13px;line-height:1.5;margin:14px 0 0}
+    .done{margin-top:24px;text-align:center;background:rgba(255,255,255,.88);border:1px solid var(--line);border-radius:22px;padding:28px 22px}
+    .done strong{display:block;font-size:26px;color:var(--berry);letter-spacing:-.035em}
+    .done p{margin:9px 0 0;color:var(--text);line-height:1.55;font-size:14px}
+    .back{display:block;width:fit-content;margin:24px auto 0;color:#9a6380;font-size:13px;text-decoration:none;font-weight:750}
+    [hidden]{display:none!important}
+    @media(max-width:360px){.quote{padding:34px 16px 24px}.choice{padding:14px}blockquote{font-size:17px}}
+  </style>
+</head>
+<body>
+  <main>
+    <div class="brand">Nyan Wallet</div>
+    <h1>одна цитата.<br>четыре взгляда.</h1>
+
+    <section class="quote" aria-label="Цитата">
+      <blockquote>Ты можешь годами строить мост из собственных усилий, выстилая его кирпичами терпения и бессонных ночей, и мир молча пройдёт по нему, принимая это как должное. Но стоит тебе оступиться всего лишь раз — и все вокруг тут же начнут кричать о том, что мост рухнул, забывая, что под твоими ногами не было ничего, кроме пустоты и одиночества.</blockquote>
+    </section>
+
+    <section id="interaction">
+      <h2 class="question">как вы поняли эту цитату?</h2>
+      <p class="intro">У каждого может быть своё понимание. Здесь нет неправильного ответа.</p>
+
+      <form id="answers">
+        <div class="options">
+          <label class="choice"><input type="radio" name="answer" value="unseen_effort" required><span>Люди замечают чужие ошибки гораздо чаще, чем долгие годы стараний.</span></label>
+          <label class="choice"><input type="radio" name="answer" value="hidden_loneliness"><span>За чужими успехами нередко скрываются усталость и одиночество.</span></label>
+          <label class="choice"><input type="radio" name="answer" value="one_mistake"><span>Одна неудача не должна перечёркивать всё хорошее, что человек сделал раньше.</span></label>
+          <label class="choice"><input type="radio" name="answer" value="support_people"><span>Нужно чаще ценить усилия других и поддерживать их в трудные моменты.</span></label>
+        </div>
+        <div class="actions"><button id="submit" class="submit" type="submit" disabled>проверяем доступность…</button></div>
+        <p class="reward">за любой ответ · +200 🐾 · один раз на аккаунт</p>
+      </form>
+    </section>
+
+    <section id="done" class="done" hidden aria-live="polite">
+      <strong id="done-title">ответ принят</strong>
+      <p id="done-message">Спасибо, что поделились своим пониманием.</p>
+    </section>
+
+    <div id="message" class="message" role="status" aria-live="polite"></div>
+    <a href="./index.html?quote_back=1" class="back">← вернуться в кошелёк</a>
+  </main>
+  <script>
+    (() => {
+      "use strict";
+      const tg = window.Telegram?.WebApp;
+      const api = "https://nyan-wallet-153-76-175-145.sslip.io";
+      const form = document.getElementById("answers");
+      const button = document.getElementById("submit");
+      const msg = document.getElementById("message");
+      const done = document.getElementById("done");
+      const interaction = document.getElementById("interaction");
+      let busy = false;
+      tg?.ready?.();
+      tg?.expand?.();
+
+      async function request(path, answer) {
+        const response = await fetch(api + path, {
+          method: answer ? "POST" : "GET",
+          headers: { "X-Telegram-Init-Data": tg.initData, ...(answer ? {"Content-Type":"application/json"} : {}) },
+          body: answer ? JSON.stringify({answer}) : undefined,
+          cache: "no-store"
+        });
+        let data = null;
+        try { data = await response.json(); } catch (_) {}
+        if (!response.ok) {
+          const detail = data?.detail;
+          if (response.status === 404) throw Error("Страница готова, но начисление ещё не подключено на сервере.");
+          if (response.status === 503) throw Error("На Nyan Wallet сейчас технические работы. Попробуй позже.");
+          throw Error(typeof detail === "string" ? detail : "Не удалось связаться с сервером.");
+        }
+        return data;
+      }
+
+      function showDone(already) {
+        interaction.hidden = true;
+        done.hidden = false;
+        document.getElementById("done-title").textContent = already ? "вы уже участвовали" : "+200 🐾 начислено";
+        document.getElementById("done-message").textContent = already
+          ? "Ваш ответ уже сохранён, награда была начислена ранее."
+          : "Спасибо за ваш ответ. Награда поступила на баланс Nyan Wallet.";
+        msg.textContent = "";
+      }
+
+      async function check() {
+        if (!tg?.initData) {
+          button.disabled = true;
+          button.textContent = "откройте в Telegram";
+          msg.textContent = "Для получения награды откройте страницу через мини-приложение Nyan Wallet в Telegram.";
+          return;
+        }
+        button.disabled = true;
+        button.textContent = "проверяем участие…";
+        try {
+          const data = await request("/api/quote-reflection/status");
+          if (data.completed) showDone(true);
+          else {
+            button.disabled = false;
+            button.type = "submit";
+            button.textContent = "ответить и получить 200 🐾";
+            msg.textContent = "";
+          }
+        } catch (e) {
+          button.disabled = true;
+          button.textContent = "проверить ещё раз";
+          msg.textContent = e.message || "Нет соединения с сервером.";
+          button.disabled = false;
+          button.type = "button";
+          button.onclick = () => { button.onclick = null; check(); };
+        }
+      }
+
+      form.addEventListener("submit", async event => {
+        event.preventDefault();
+        if (busy || !tg?.initData) return;
+        const answer = new FormData(form).get("answer");
+        if (!answer) { msg.textContent = "Выбери вариант ответа."; return; }
+        busy = true;
+        button.disabled = true;
+        button.textContent = "сохраняем ответ…";
+        msg.textContent = "";
+        try {
+          const data = await request("/api/quote-reflection/submit", answer);
+          tg?.HapticFeedback?.notificationOccurred?.("success");
+          showDone(data.already_completed);
+        } catch(e) {
+          // The server may have committed even if the response was lost.
+          // Recheck before allowing submission again.
+          try {
+            const status = await request("/api/quote-reflection/status");
+            if (status.completed) { showDone(true); return; }
+          } catch (_) {}
+          msg.textContent = e.message || "Не удалось сохранить ответ.";
+          button.disabled = false;
+          button.textContent = "попробовать снова";
+        } finally { busy = false; }
+      });
+      check();
+    })();
+  </script>
+</body>
+</html>
