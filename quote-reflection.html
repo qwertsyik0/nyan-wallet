@@ -57,7 +57,7 @@
           <label class="choice"><input type="radio" name="answer" value="one_mistake"><span>Одна неудача не должна перечёркивать всё хорошее, что человек сделал раньше.</span></label>
           <label class="choice"><input type="radio" name="answer" value="support_people"><span>Нужно чаще ценить усилия других и поддерживать их в трудные моменты.</span></label>
         </div>
-        <div class="actions"><button id="submit" class="submit" type="submit" disabled>проверяем доступность…</button></div>
+        <div class="actions"><button id="submit" class="submit" type="submit" disabled>проверяем участие…</button></div>
         <p class="reward">за любой ответ · +200 🐾 · один раз на аккаунт</p>
       </form>
     </section>
@@ -85,19 +85,32 @@
       tg?.expand?.();
 
       async function request(path, answer) {
-        const response = await fetch(api + path, {
-          method: answer ? "POST" : "GET",
-          headers: { "X-Telegram-Init-Data": tg.initData, ...(answer ? {"Content-Type":"application/json"} : {}) },
-          body: answer ? JSON.stringify({answer}) : undefined,
-          cache: "no-store"
-        });
-        let data = null;
-        try { data = await response.json(); } catch (_) {}
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 9000);
+        let response, data = null;
+        try {
+          response = await fetch(api + path, {
+            method: answer ? "POST" : "GET",
+            headers: { "X-Telegram-Init-Data": tg.initData, ...(answer ? {"Content-Type":"application/json"} : {}) },
+            body: answer ? JSON.stringify({answer}) : undefined,
+            cache: "no-store",
+            signal: controller.signal
+          });
+          try { data = await response.json(); } catch (_) {}
+        } catch (error) {
+          if (controller.signal.aborted) {
+            throw Error("Сервер не ответил за 9 секунд. Проверь соединение и нажми «проверить ещё раз».");
+          }
+          throw Error("Нет связи с сервером Nyan Wallet. Проверь интернет и попробуй снова.");
+        } finally {
+          clearTimeout(timer);
+        }
         if (!response.ok) {
           const detail = data?.detail;
-          if (response.status === 404) throw Error("Страница готова, но начисление ещё не подключено на сервере.");
+          if (response.status === 404) throw Error("Начисление ещё не подключено на сервере. Сообщи администрации.");
           if (response.status === 503) throw Error("На Nyan Wallet сейчас технические работы. Попробуй позже.");
-          throw Error(typeof detail === "string" ? detail : "Не удалось связаться с сервером.");
+          if (response.status === 401 || response.status === 403) throw Error("Не удалось подтвердить Telegram. Закрой мини-приложение и открой заново.");
+          throw Error(typeof detail === "string" ? detail : "Сервер не смог проверить участие.");
         }
         return data;
       }
