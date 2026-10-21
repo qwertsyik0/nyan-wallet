@@ -114,6 +114,24 @@ function renderWalletBadge(selected) {
     badge.innerHTML = `${achIcon(selected.icon)}<span>${achEsc(selected.title)}</span>`;
 }
 
+function renderPurchasedNameBadge(purchased) {
+    const username = document.getElementById("username");
+    let badge = document.getElementById("ach-purchased-name-badge");
+    if (!purchased || !username) {
+        badge?.remove();
+        return;
+    }
+    if (!badge) {
+        badge = document.createElement("span");
+        badge.id = "ach-purchased-name-badge";
+        badge.className = "ach-wallet-badge";
+        badge.style.cssText = "margin-left:5px;font-size:13px;color:#963458;";
+        username.insertAdjacentElement("afterend", badge);
+    }
+    badge.textContent = String(purchased.symbol || "✦").slice(0,12);
+    badge.title = String(purchased.title || "Особый значок Nyan");
+}
+
 function renderAchievements(data) {
     achievementsState = data;
     const count = document.getElementById("ach-count");
@@ -126,6 +144,7 @@ function renderAchievements(data) {
             : `<div class="adv-sub" style="margin-top:10px">Значок профиля пока не выбран.</div>`;
     }
     renderWalletBadge(data.selected_badge);
+    renderPurchasedNameBadge(data.purchased_badge);
 
     const grid = document.getElementById("ach-grid");
     if (!grid) return;

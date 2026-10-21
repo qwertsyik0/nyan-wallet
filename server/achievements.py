@@ -43,6 +43,18 @@ class AchievementBadge(core.Base):
     selected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class PurchasedNameBadge(core.Base):
+    """Paid cosmetic displayed beside a wallet nickname; unrelated to achievements."""
+    __tablename__ = "purchased_name_badges"
+
+    telegram_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), primary_key=True
+    )
+    symbol: Mapped[str] = mapped_column(String(12), nullable=False)
+    title: Mapped[str] = mapped_column(String(40), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class WalletActivityDay(core.Base):
     __tablename__ = "wallet_activity_days"
     __table_args__ = (UniqueConstraint("telegram_id", "activity_date", name="uq_wallet_activity_day"),)
@@ -326,11 +338,16 @@ def _serialize(session: Session, telegram_id: int, stats: dict[str, int]) -> dic
         source = ACHIEVEMENT_BY_KEY[badge.achievement_key]
         selected = {"key": source["key"], "title": source["title"], "icon": source["icon"], "rarity": source["rarity"]}
 
+    purchased = session.get(PurchasedNameBadge, telegram_id)
     return {
         "items": items,
         "unlocked_count": len(unlock_map),
         "total": len(ACHIEVEMENTS),
         "selected_badge": selected,
+        "purchased_badge": (
+            {"symbol": purchased.symbol, "title": purchased.title}
+            if purchased else None
+        ),
     }
 
 
