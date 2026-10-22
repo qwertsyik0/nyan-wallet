@@ -6,6 +6,8 @@ from datetime import datetime
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Mapped, mapped_column
 
 from . import backend_app as core
@@ -15,7 +17,8 @@ router = APIRouter()
 _REGISTERED = False
 QUOTE_KEY = "bridge_of_effort_20261021"
 REWARD_AMOUNT = 200
-ANSWERS = frozenset({"unseen_effort", "hidden_loneliness", "one_mistake", "support_people"})
+ANSWERS = frozenset({"unseen_effort", "other_opinion", "hidden_loneliness", "one_mistake"})
+REWARD_REASON = "участие в интерактиве «Как вы поняли цитату?»"
 
 
 class QuoteReflectionAnswer(core.Base):
@@ -68,22 +71,31 @@ async def quote_reflection_submit(
     timestamp = core.now_utc()
     with core.SessionLocal() as session:
         with session.begin():
-            # Serialize requests from the same account before checking the one-time record.
+            # Ensure the wallet row exists even when two first-launch requests
+            # arrive simultaneously. ON CONFLICT waits for concurrent inserts.
+            profile = dict(
+                telegram_id=telegram_id,
+                username=tg_user.get("username"),
+                first_name=tg_user.get("first_name") or "Пользователь",
+                last_name=tg_user.get("last_name"),
+                balance=0,
+                created_at=timestamp,
+                last_seen_at=timestamp,
+            )
+            dialect = session.bind.dialect.name
+            if dialect == "postgresql":
+                statement = pg_insert(core.User).values(**profile)
+            elif dialect == "sqlite":  # Local isolated test support.
+                statement = sqlite_insert(core.User).values(**profile)
+            else:
+                raise RuntimeError("Для начислений Nyan Wallet необходим PostgreSQL")
+            session.execute(statement.on_conflict_do_nothing(index_elements=["telegram_id"]))
+
+            # The wallet-row lock serializes all claims, and the composite
+            # primary key enforces one reward per quote and Telegram account.
             user = session.scalar(
                 select(core.User).where(core.User.telegram_id == telegram_id).with_for_update()
             )
-            if user is None:
-                user = core.User(
-                    telegram_id=telegram_id,
-                    username=tg_user.get("username"),
-                    first_name=tg_user.get("first_name") or "Пользователь",
-                    last_name=tg_user.get("last_name"),
-                    balance=0,
-                    created_at=timestamp,
-                    last_seen_at=timestamp,
-                )
-                session.add(user)
-                session.flush()
             if session.get(BlockedUser, telegram_id) is not None:
                 raise HTTPException(status_code=403, detail="Начисление недоступно для заблокированного аккаунта")
 
@@ -104,7 +116,7 @@ async def quote_reflection_submit(
                 telegram_id=telegram_id,
                 amount=REWARD_AMOUNT,
                 operation_type="quote_reflection_reward",
-                description="Размышление о цитате Nyan Wallet",
+                description=REWARD_REASON,
                 created_at=timestamp,
             ))
             # The mini-app inbox provides a record even if Telegram Bot API is unreachable.

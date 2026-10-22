@@ -31,8 +31,10 @@
     .message{min-height:19px;text-align:center;color:#9c416b;font-size:13px;line-height:1.5;margin:14px 0 0}
     .done{margin-top:24px;text-align:center;background:rgba(255,255,255,.88);border:1px solid var(--line);border-radius:22px;padding:28px 22px}
     .done strong{display:block;font-size:26px;color:var(--berry);letter-spacing:-.035em}
+    .done .amount{display:block;margin-top:10px;color:var(--berry);font-size:38px;font-weight:900;letter-spacing:-.05em}
     .done p{margin:9px 0 0;color:var(--text);line-height:1.55;font-size:14px}
     .back{display:block;width:fit-content;margin:24px auto 0;color:#9a6380;font-size:13px;text-decoration:none;font-weight:750}
+    .choice:focus-within{outline:2px solid #ba7598;outline-offset:2px}
     [hidden]{display:none!important}
     @media(max-width:360px){.quote{padding:34px 16px 24px}.choice{padding:14px}blockquote{font-size:17px}}
   </style>
@@ -43,19 +45,19 @@
     <h1>одна цитата.<br>четыре взгляда.</h1>
 
     <section class="quote" aria-label="Цитата">
-      <blockquote>Ты можешь годами строить мост из собственных усилий, выстилая его кирпичами терпения и бессонных ночей, и мир молча пройдёт по нему, принимая это как должное. Но стоит тебе оступиться всего лишь раз — и все вокруг тут же начнут кричать о том, что мост рухнул, забывая, что под твоими ногами не было ничего, кроме пустоты и одиночества.</blockquote>
+      <blockquote>««Ты можешь годами строить мост из собственных усилий, выстилая его кирпичами терпения и бессонных ночей, и мир молча пройдёт по нему, принимая это как должное. Но стоит тебе оступиться всего лишь раз — и все вокруг тут же начнут кричать о том, что мост рухнул, забывая, что под твоими ногами не было ничего, кроме пустоты и одиночества».»</blockquote>
     </section>
 
     <section id="interaction">
-      <h2 class="question">как вы поняли эту цитату?</h2>
+      <h2 class="question">Как вы поняли эту цитату?</h2>
       <p class="intro">У каждого может быть своё понимание. Здесь нет неправильного ответа.</p>
 
       <form id="answers">
         <div class="options">
-          <label class="choice"><input type="radio" name="answer" value="unseen_effort" required><span>Люди замечают чужие ошибки гораздо чаще, чем долгие годы стараний.</span></label>
-          <label class="choice"><input type="radio" name="answer" value="hidden_loneliness"><span>За чужими успехами нередко скрываются усталость и одиночество.</span></label>
-          <label class="choice"><input type="radio" name="answer" value="one_mistake"><span>Одна неудача не должна перечёркивать всё хорошее, что человек сделал раньше.</span></label>
-          <label class="choice"><input type="radio" name="answer" value="support_people"><span>Нужно чаще ценить усилия других и поддерживать их в трудные моменты.</span></label>
+          <label class="choice"><input type="radio" name="answer" value="unseen_effort" required><span>Люди часто воспринимают чужие старания как должное, но замечают даже незначительные ошибки.</span></label>
+          <label class="choice"><input type="radio" name="answer" value="other_opinion"><span>Не стоит зависеть от чужого мнения, потому что окружающие не всегда знают, через что ты прошёл.</span></label>
+          <label class="choice"><input type="radio" name="answer" value="hidden_loneliness"><span>За внешними достижениями человека могут скрываться усталость, одиночество и огромные усилия.</span></label>
+          <label class="choice"><input type="radio" name="answer" value="one_mistake"><span>Даже один неудачный поступок может заставить окружающих забыть всё хорошее, что человек делал раньше.</span></label>
         </div>
         <div class="actions"><button id="submit" class="submit" type="submit" disabled>проверяем участие…</button></div>
         <p class="reward">за любой ответ · +200 🐾 · один раз на аккаунт</p>
@@ -64,6 +66,7 @@
 
     <section id="done" class="done" hidden aria-live="polite">
       <strong id="done-title">ответ принят</strong>
+      <span class="amount">+200 🐾</span>
       <p id="done-message">Спасибо, что поделились своим пониманием.</p>
     </section>
 
@@ -84,6 +87,14 @@
       tg?.ready?.();
       tg?.expand?.();
 
+      // Telegram may omit initData on a same-origin page redirect. The signed
+      // launch payload is kept for this tab; the backend still verifies its HMAC.
+      let initData = tg?.initData || "";
+      try {
+        if (initData) sessionStorage.setItem("nyan_quote_init_data", initData);
+        else initData = sessionStorage.getItem("nyan_quote_init_data") || "";
+      } catch (_) {}
+
       async function request(path, answer) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 9000);
@@ -91,7 +102,7 @@
         try {
           response = await fetch(api + path, {
             method: answer ? "POST" : "GET",
-            headers: { "X-Telegram-Init-Data": tg.initData, ...(answer ? {"Content-Type":"application/json"} : {}) },
+            headers: { "X-Telegram-Init-Data": initData, ...(answer ? {"Content-Type":"application/json"} : {}) },
             body: answer ? JSON.stringify({answer}) : undefined,
             cache: "no-store",
             signal: controller.signal
@@ -118,7 +129,7 @@
       function showDone(already) {
         interaction.hidden = true;
         done.hidden = false;
-        document.getElementById("done-title").textContent = already ? "вы уже участвовали" : "+200 🐾 начислено";
+        document.getElementById("done-title").textContent = already ? "вы уже участвовали" : "ответ принят";
         document.getElementById("done-message").textContent = already
           ? "Ваш ответ уже сохранён, награда была начислена ранее."
           : "Спасибо за ваш ответ. Награда поступила на баланс Nyan Wallet.";
@@ -126,7 +137,7 @@
       }
 
       async function check() {
-        if (!tg?.initData) {
+        if (!initData) {
           button.disabled = true;
           button.textContent = "откройте в Telegram";
           msg.textContent = "Для получения награды откройте страницу через мини-приложение Nyan Wallet в Telegram.";
@@ -138,6 +149,7 @@
           const data = await request("/api/quote-reflection/status");
           if (data.completed) showDone(true);
           else {
+            button.onclick = null;
             button.disabled = false;
             button.type = "submit";
             button.textContent = "ответить и получить 200 🐾";
@@ -155,7 +167,7 @@
 
       form.addEventListener("submit", async event => {
         event.preventDefault();
-        if (busy || !tg?.initData) return;
+        if (busy || !initData) return;
         const answer = new FormData(form).get("answer");
         if (!answer) { msg.textContent = "Выбери вариант ответа."; return; }
         busy = true;

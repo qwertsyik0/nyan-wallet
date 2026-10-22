@@ -89,6 +89,9 @@
         }
 
         if (["quote", "quote_reflection", "quote-reflection", "citation"].includes(startParam) && !new URL(window.location.href).searchParams.has("quote_back")) {
+          try {
+            if (tg?.initData) sessionStorage.setItem("nyan_quote_init_data", tg.initData);
+          } catch (_) {}
           const target = new URL("./quote-reflection.html", window.location.href);
           const current = new URL(window.location.href);
           for (const [key, value] of current.searchParams.entries()) {
