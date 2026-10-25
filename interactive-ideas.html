@@ -16,7 +16,20 @@
       <span class="eyebrow">предложения сообщества</span>
     </header>
 
-    <section class="hero">
+    <section id="owner-panel" class="owner-panel" hidden aria-label="Модерация интерактивов">
+      <div class="section-index">только для владельца</div>
+      <h2>модерация идей</h2>
+      <p class="lead">после одобрения 500 🐾 начисляются автоматически. решение нельзя отменить на этой странице.</p>
+      <div class="filters" role="group" aria-label="Фильтр заявок">
+        <button type="button" class="filter active" data-filter="pending">ожидают</button>
+        <button type="button" class="filter" data-filter="approved">одобрены</button>
+        <button type="button" class="filter" data-filter="rejected">отклонены</button>
+      </div>
+      <div id="owner-list" class="owner-list"></div>
+      <button type="button" id="owner-refresh" class="secondary">обновить список</button>
+    </section>
+
+    <section class="hero" id="hero">
       <span class="hero-label">твоя идея может стать следующей</span>
       <h1>придумай<br>интерактив.</h1>
       <p>предложи игру, квест или необычную активность для Nyan. опиши, как это будет работать, а мы рассмотрим твою задумку.</p>
@@ -72,21 +85,8 @@
       <button type="button" id="retry-status-button" class="secondary">↻ повторить проверку</button>
     </div>
 
-    <section id="owner-panel" class="owner-panel" hidden aria-label="Модерация интерактивов">
-      <div class="section-index">только для владельца</div>
-      <h2>модерация идей</h2>
-      <p class="lead">после одобрения 500 🐾 начисляются автоматически. решение нельзя отменить на этой странице.</p>
-      <div class="filters" role="group" aria-label="Фильтр заявок">
-        <button type="button" class="filter active" data-filter="pending">ожидают</button>
-        <button type="button" class="filter" data-filter="approved">одобрены</button>
-        <button type="button" class="filter" data-filter="rejected">отклонены</button>
-      </div>
-      <div id="owner-list" class="owner-list"></div>
-      <button type="button" id="owner-refresh" class="secondary">обновить список</button>
-    </section>
-
     <footer>NYAN WALLET <span>© NYAN ECOSYSTEM</span></footer>
   </main>
-  <script src="./interactive-ideas.js?v=20261025-4" defer></script>
+  <script src="./interactive-ideas.js?v=20261025-5" defer></script>
 </body>
 </html>
