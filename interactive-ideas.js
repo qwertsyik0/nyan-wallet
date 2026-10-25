@@ -39,7 +39,7 @@
     const attempts = readOnly ? 2 : 1;
     for (let attempt = 0; attempt < attempts; attempt++) {
       const controller = new AbortController();
-      const timeoutMs = readOnly ? (attempt === 0 ? 19000 : 24000) : 30000;
+      const timeoutMs = readOnly ? (attempt === 0 ? 10000 : 16000) : 25000;
       const timer = setTimeout(() => controller.abort(), timeoutMs);
       let response, result;
       try {
