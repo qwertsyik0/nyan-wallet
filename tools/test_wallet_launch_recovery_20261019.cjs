@@ -7,7 +7,7 @@ const js = fs.readFileSync("wallet_launch_recovery_20261019.js", "utf8");
 const html = fs.readFileSync("index.html", "utf8");
 assert.ok(html.includes("wallet_launch_recovery_20261019.js"));
 assert.ok(html.indexOf("wallet_launch_recovery_20261019.js") < html.indexOf("./app.js?"));
-assert.ok(html.includes("app.js?v=20261019-emergency-stable-restore1"));
+assert.ok(html.includes("app.js?v=20261025-no-abort1"));
 
 function fixture(hasLoader = true) {
     let now = 0;
@@ -59,23 +59,23 @@ function fixture(hasLoader = true) {
 }
 
 const app = fixture();
-app.advance(7999);
-assert.equal(app.calls.length, 0, "do not interrupt a normal fast request");
-app.advance(1);
-assert.equal(app.calls.length, 1, "recover without closing WebView after 8 seconds");
+app.win.__nyanWalletLoadInFlight = true;
+app.advance(8000);
+assert.equal(app.calls.length, 0, "8s recovery must not abort an active wallet fetch");
 assert.equal(app.nodes["loading-retry"].hidden, false);
 assert.match(app.nodes["loading-hint"].textContent, /не закрывая/);
 app.advance(12000);
-assert.equal(app.calls.length, 2, "second attempt when connection stays stuck");
+assert.equal(app.calls.length, 0, "20s recovery must not abort an active wallet fetch");
 app.events["window:focus"]();
-assert.equal(app.calls.length, 2, "throttle duplicate page wakeup");
+assert.equal(app.calls.length, 0, "focus must not abort an active fetch");
+app.win.__nyanWalletLoadInFlight = false;
 app.advance(5000);
 app.events["window:focus"]();
-assert.equal(app.calls.length, 3, "recover when returning to a stuck page");
+assert.equal(app.calls.length, 1, "retry an idle stalled boot on page focus");
 app.win.__nyanWalletReady = true;
 app.advance(30000);
 app.events["window:online"]();
-assert.equal(app.calls.length, 3, "no new retries after wallet is ready");
+assert.equal(app.calls.length, 1, "no new retries after wallet is ready");
 app.events["retry:click"]();
 assert.equal(app.reloaded.length, 0, "normal button handled by app.js");
 
