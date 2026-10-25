@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#fff9fc">
+  <meta name="description" content="Предложи свой интерактив для Nyan. Если идея пройдёт модерацию, получи 500 лапкоинов в Nyan Wallet.">
+  <title>Предложить интерактив · Nyan Wallet</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./interactive-ideas.css?v=20261025-1">
+</head>
+<body>
+  <main class="page">
+    <header class="header">
+      <div class="brand">NYAN WALLET</div>
+      <span class="eyebrow">предложения сообщества</span>
+    </header>
+
+    <section class="hero">
+      <span class="hero-label">твоя идея может стать следующей</span>
+      <h1>придумай<br>интерактив.</h1>
+      <p>предложи игру, квест или необычную активность для Nyan. опиши, как это будет работать, а мы рассмотрим твою задумку.</p>
+      <div class="reward-pill"><span>награда за одобренную идею</span><strong>+500 🐾</strong></div>
+    </section>
+
+    <section class="panel auth-panel" id="auth-panel" hidden aria-labelledby="auth-title">
+      <h2 id="auth-title">сначала войди через Telegram</h2>
+      <p>это отдельная веб-страница. вход нужен, чтобы мы знали автора и начислили награду на его Nyan Wallet.</p>
+      <div id="telegram-login" class="login-widget"></div>
+      <p class="tiny">вход подтверждается Telegram. пароль и номер телефона мы не запрашиваем.</p>
+    </section>
+
+    <section class="panel form-panel" id="form-panel" hidden aria-labelledby="form-title">
+      <div class="section-index">01 / твоя заявка</div>
+      <h2 id="form-title">расскажи о задумке</h2>
+      <p class="lead">чем подробнее механика, тем легче нам будет воплотить интерактив.</p>
+      <form id="idea-form" novalidate>
+        <label for="idea-title">название интерактива <span class="required">*</span></label>
+        <input id="idea-title" name="title" type="text" maxlength="100" minlength="5" required
+               autocomplete="off" placeholder="например, город потерянных сигналов">
+        <div class="counter" id="title-count">0 / 100</div>
+
+        <label for="idea-description">описание и правила <span class="required">*</span></label>
+        <textarea id="idea-description" name="description" rows="9" maxlength="4000" minlength="40" required
+                  placeholder="что предстоит делать участникам? как проходят этапы, от чего зависит результат и как выбрать победителей?"></textarea>
+        <div class="counter" id="description-count">0 / 4000</div>
+
+        <label class="agreement">
+          <input id="one-attempt" type="checkbox" required>
+          <span>я понимаю, что отправить идею можно <strong>только один раз</strong>. если её отклонят, повторная заявка будет недоступна.</span>
+        </label>
+
+        <button type="submit" id="send-button" class="primary">отправить на модерацию</button>
+        <p class="form-caption">500 🐾 начисляются только после одобрения владельцем, не за саму отправку.</p>
+      </form>
+    </section>
+
+    <section class="panel result-panel" id="result-panel" hidden aria-live="polite">
+      <span id="result-label" class="section-index">заявка</span>
+      <h2 id="result-title">проверяем статус…</h2>
+      <p id="result-text"></p>
+      <div id="reward-result" class="reward-result" hidden>+500 🐾</div>
+      <div class="idea-summary" id="idea-summary" hidden>
+        <span>твоя идея</span>
+        <strong id="idea-summary-title"></strong>
+      </div>
+      <p class="moderator-note" id="moderator-note" hidden></p>
+    </section>
+
+    <div id="feedback" class="feedback" role="status" aria-live="polite"></div>
+
+    <section id="owner-panel" class="owner-panel" hidden aria-label="Модерация интерактивов">
+      <div class="section-index">только для владельца</div>
+      <h2>модерация идей</h2>
+      <p class="lead">после одобрения 500 🐾 начисляются автоматически. решение нельзя отменить на этой странице.</p>
+      <div class="filters" role="group" aria-label="Фильтр заявок">
+        <button type="button" class="filter active" data-filter="pending">ожидают</button>
+        <button type="button" class="filter" data-filter="approved">одобрены</button>
+        <button type="button" class="filter" data-filter="rejected">отклонены</button>
+      </div>
+      <div id="owner-list" class="owner-list"></div>
+      <button type="button" id="owner-refresh" class="secondary">обновить список</button>
+    </section>
+
+    <footer>NYAN WALLET <span>© NYAN ECOSYSTEM</span></footer>
+  </main>
+  <script src="./interactive-ideas.js?v=20261025-1" defer></script>
+</body>
+</html>
