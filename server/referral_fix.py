@@ -127,16 +127,18 @@ async def referral_apply_fixed(
     except IntegrityError as exc:
         raise HTTPException(status_code=409, detail="Реферальный код уже использован") from exc
 
-    background_tasks.add_task(
-        send_telegram_message,
-        tg["id"],
-        f"Реферальный код активирован.\nНачислено +{invited_bonus} 🐾.\nБаланс: {balance} 🐾",
-    )
-    background_tasks.add_task(
-        send_telegram_message,
-        inviter_id,
-        f"По вашему реферальному коду пришёл пользователь.\nНачислено +{inviter_bonus} 🐾.",
-    )
+    from .telegram_relay import relay_enabled
+    if not relay_enabled():
+        background_tasks.add_task(
+            send_telegram_message,
+            tg["id"],
+            f"Реферальный код активирован.\nНачислено +{invited_bonus} 🐾.\nБаланс: {balance} 🐾",
+        )
+        background_tasks.add_task(
+            send_telegram_message,
+            inviter_id,
+            f"По вашему реферальному коду пришёл пользователь.\nНачислено +{inviter_bonus} 🐾.",
+        )
     return {
         "ok": True,
         "balance": balance,

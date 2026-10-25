@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
@@ -63,6 +64,7 @@ class PromoLimitUpdateRequest(BaseModel):
 
 
 router = APIRouter()
+LOG = logging.getLogger("nyan_wallet.telegram_notifications")
 
 
 def now_utc() -> datetime:
@@ -106,14 +108,21 @@ def audit(session, action: str, target_telegram_id: int | None = None, details: 
 def send_telegram_message(chat_id: int | None, text: str) -> None:
     if not chat_id or not core.BOT_TOKEN:
         return
+    from .telegram_relay import queue_message, relay_enabled
+    if relay_enabled():
+        try:
+            queue_message(chat_id, text)
+        except Exception:
+            LOG.exception("Could not queue Telegram notification for chat %s", chat_id)
+        return
     try:
         url = f"https://api.telegram.org/bot{core.BOT_TOKEN}/sendMessage"
         payload = urllib.parse.urlencode({"chat_id": str(chat_id), "text": text}).encode()
         request = urllib.request.Request(url, data=payload, method="POST")
         with urllib.request.urlopen(request, timeout=6) as response:
             response.read()
-    except Exception:
-        return
+    except Exception as exc:
+        LOG.warning("Telegram notification failed for chat %s: %s", chat_id, type(exc).__name__)
 
 
 def user_label(user: core.User) -> str:
@@ -438,7 +447,9 @@ async def owner_action_grant(
     if result.get("reason"):
         text += f"\nПричина: {result['reason']}"
     text += f"\nБаланс: {result['balance']} 🐾"
-    background_tasks.add_task(send_telegram_message, result["telegram_id"], text)
+    from .telegram_relay import relay_enabled
+    if not relay_enabled():
+        background_tasks.add_task(send_telegram_message, result["telegram_id"], text)
     return {"ok": True, "grant": result}
 
 
@@ -464,7 +475,9 @@ async def owner_action_debit(
     if result.get("reason"):
         text += f"\nПричина: {result['reason']}"
     text += f"\nБаланс: {result['balance']} 🐾"
-    background_tasks.add_task(send_telegram_message, result["telegram_id"], text)
+    from .telegram_relay import relay_enabled
+    if not relay_enabled():
+        background_tasks.add_task(send_telegram_message, result["telegram_id"], text)
     return {"ok": True, "debit": result}
 
 

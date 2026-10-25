@@ -42,6 +42,12 @@ def _notify_owner_after_audit_insert(mapper, connection, target: AdminAudit) -> 
     if target.details:
         lines.append(target.details)
 
+    from .telegram_relay import queue_audit_notice, relay_enabled
+    if relay_enabled():
+        # Financial actions have a canonical notice sourced from the ledger.
+        if target.action not in {"owner_grant", "owner_debit", "mass_grant"}:
+            queue_audit_notice(connection, target.id, "\n".join(lines))
+        return
     _send_async(core.OWNER_TELEGRAM_ID, "\n".join(lines))
 
 

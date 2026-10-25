@@ -16,6 +16,11 @@ async def promo_redeem_notify(
     result = core.redeem_promo(tg_user, payload.code)
     code = payload.code.strip().upper()
 
+    from .telegram_relay import relay_enabled
+    if relay_enabled():
+        # The transaction INSERT already queued notices for user and owner.
+        return {"ok": True, **result}
+
     background_tasks.add_task(
         send_telegram_message,
         tg_user["id"],

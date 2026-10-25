@@ -675,8 +675,10 @@ async def referral_apply(payload: ReferralPayload, background_tasks: BackgroundT
             audit(session, "referral_applied", invited.telegram_id, f"Код {ref.code} · пригласил ID {inviter.telegram_id}")
             balance = invited.balance
             inviter_id = inviter.telegram_id
-    background_tasks.add_task(send_telegram_message, tg["id"], f"Реферальный код активирован.\nНачислено +{b} 🐾.\nБаланс: {balance} 🐾")
-    background_tasks.add_task(send_telegram_message, inviter_id, f"По вашему реферальному коду пришёл пользователь.\nНачислено +{a} 🐾.")
+    from .telegram_relay import relay_enabled
+    if not relay_enabled():
+        background_tasks.add_task(send_telegram_message, tg["id"], f"Реферальный код активирован.\nНачислено +{b} 🐾.\nБаланс: {balance} 🐾")
+        background_tasks.add_task(send_telegram_message, inviter_id, f"По вашему реферальному коду пришёл пользователь.\nНачислено +{a} 🐾.")
     return {"ok": True, "balance": balance, "invited_bonus": b, "inviter_bonus": a}
 
 
@@ -859,8 +861,10 @@ async def owner_mass_grant(payload: MassGrantPayload, background_tasks: Backgrou
                 session.add(core.Transaction(telegram_id=user.telegram_id, amount=payload.amount, operation_type="mass_grant", description=reason, created_at=timestamp))
                 granted.append({"telegram_id": user.telegram_id, "username": user.username, "balance": user.balance})
             audit(session, "mass_grant", None, f"{len(granted)} пользователей · +{payload.amount} 🐾 · {reason}")
-    for item in granted:
-        background_tasks.add_task(send_telegram_message, item["telegram_id"], f"Вам начислено +{payload.amount} 🐾.\nПричина: {reason}\nБаланс: {item['balance']} 🐾")
+    from .telegram_relay import relay_enabled
+    if not relay_enabled():
+        for item in granted:
+            background_tasks.add_task(send_telegram_message, item["telegram_id"], f"Вам начислено +{payload.amount} 🐾.\nПричина: {reason}\nБаланс: {item['balance']} 🐾")
     return {"ok": True, "granted": granted, "missing": missing}
 
 
