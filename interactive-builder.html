@@ -28,6 +28,7 @@
     </section>
     <section id="studio-owner" class="studio-owner" hidden>
       <div class="studio-section-title"><h2>Управление интерактивами</h2><span>только владелец</span></div>
+      <a class="studio-launch" href="./finance-analytics.html">📊 финансовая аналитика ↗</a>
       <div class="studio-card">
         <form id="studio-form" autocomplete="off">
           <h3 id="studio-form-title">Новый интерактив</h3>
@@ -47,10 +48,21 @@
           </div>
           <label id="studio-text-field" hidden>Правильный текст ответа<input id="studio-correct-text" maxlength="500" placeholder="Одно слово или короткая фраза"></label>
           <p id="studio-manual-hint" class="studio-hint" hidden>Участник отправит текст, а ты решишь, одобрить его или отказать. Только после одобрения появится награда.</p>
+          <label>Доступ
+            <select id="studio-visibility">
+              <option value="public">публичный интерактив</option>
+              <option value="closed">закрытый тест (только приглашённые)</option>
+            </select>
+          </label>
+          <label id="studio-tester-field" hidden>Telegram ID тестировщиков, каждый с новой строки
+            <textarea id="studio-tester-ids" rows="3" placeholder="123456789&#10;987654321"></textarea>
+            <span class="studio-hint">При закрытом тестировании награда равна 0 🐾. Остальные не увидят задание даже по ссылке.</span>
+          </label>
           <div class="studio-grid">
             <label>Награда, 🐾<input id="studio-reward" type="number" min="0" max="500" value="50" required></label>
             <label>Победителей максимум<input id="studio-max-winners" type="number" min="1" max="500" value="20" required></label>
           </div>
+          <label>Начало (необязательно)<input id="studio-starts-at" type="datetime-local"></label>
           <label>До какого времени (необязательно)<input id="studio-ends-at" type="datetime-local"></label>
           <div class="studio-form-buttons">
             <button id="studio-save" class="studio-primary" type="submit">сохранить черновик</button>
@@ -62,7 +74,7 @@
       <div class="studio-section-title"><h2>Мои интерактивы</h2><span id="studio-owner-count">—</span></div>
       <div id="studio-owner-list" class="studio-stack"><div class="studio-placeholder">получаем список…</div></div>
       <section id="studio-review" class="studio-card" hidden>
-        <div class="studio-section-title"><h2 id="studio-review-title">Ответы участников</h2><button id="studio-review-close" type="button">закрыть</button></div>
+        <div class="studio-section-title"><h2 id="studio-review-title">Участники</h2><button id="studio-review-close" type="button">закрыть</button></div>
         <div id="studio-review-list" class="studio-stack"></div>
       </section>
     </section>
@@ -85,6 +97,6 @@
     <p id="studio-global-status" class="studio-global-status" aria-live="polite"></p>
     <footer>nyan wallet / с любовью к вашим идеям ♡</footer>
   </main>
-  <script src="./interactive-builder.js?v=20261025-2"></script>
+  <script src="./interactive-builder.js?v=20261026-v2"></script>
 </body>
 </html>
