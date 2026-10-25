@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#fff7fb">
+  <title>Nyan Studio · интерактивы</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./interactive-builder.css?v=20261025-1">
+</head>
+<body>
+  <main class="studio">
+    <header class="studio-header">
+      <span class="studio-symbol">✳</span>
+      <div><div class="studio-brand">Nyan Studio</div><div class="studio-caption">интерактивы от Нян</div></div>
+      <a class="studio-home" href="./index.html">кошелёк ↗</a>
+    </header>
+    <section class="studio-intro">
+      <p class="eyebrow">NYAN WALLET / STUDIO</p>
+      <h1>Маленькая игра.<br><span>Настоящие лапкоины.</span></h1>
+      <p>Выбери интерактив, выполни задание и получи награду. На каждую игру даётся одна попытка.</p>
+    </section>
+    <section id="studio-login" class="studio-card" hidden>
+      <h2>Войти через Telegram</h2>
+      <p>Чтобы начисления попадали именно на твой кошелёк, нужен подтверждённый вход.</p>
+      <div id="studio-widget"></div>
+      <p class="studio-hint">Если вход не открывается, попробуй кнопку Web App в @nyancash_bot.</p>
+    </section>
+    <section id="studio-owner" class="studio-owner" hidden>
+      <div class="studio-section-title"><h2>Управление интерактивами</h2><span>только владелец</span></div>
+      <div class="studio-card">
+        <form id="studio-form" autocomplete="off">
+          <h3 id="studio-form-title">Новый интерактив</h3>
+          <label>Название<input id="studio-title" minlength="5" maxlength="110" placeholder="Тайна Нян" required></label>
+          <label>Описание<textarea id="studio-description" minlength="10" maxlength="1500" rows="2" placeholder="Что предстоит участникам?" required></textarea></label>
+          <label>Вопрос или задание<textarea id="studio-prompt" minlength="5" maxlength="2000" rows="3" placeholder="Что именно должен сделать участник?" required></textarea></label>
+          <label>Тип проверки
+            <select id="studio-kind">
+              <option value="choice">выбор ответа (автоматически)</option>
+              <option value="text">короткий ответ (автоматически)</option>
+              <option value="manual">творческое задание (ручная модерация)</option>
+            </select>
+          </label>
+          <div id="studio-choice-fields">
+            <label>Варианты ответа, каждый с новой строки<textarea id="studio-choices" rows="5" placeholder="Первый вариант&#10;Второй вариант&#10;Третий вариант"></textarea></label>
+            <label>Номер правильного варианта (начиная с 1)<input id="studio-correct-index" type="number" min="1" max="6" value="1"></label>
+          </div>
+          <label id="studio-text-field" hidden>Правильный текст ответа<input id="studio-correct-text" maxlength="500" placeholder="Одно слово или короткая фраза"></label>
+          <p id="studio-manual-hint" class="studio-hint" hidden>Участник отправит текст, а ты решишь, одобрить его или отказать. Только после одобрения появится награда.</p>
+          <div class="studio-grid">
+            <label>Награда, 🐾<input id="studio-reward" type="number" min="0" max="500" value="50" required></label>
+            <label>Победителей максимум<input id="studio-max-winners" type="number" min="1" max="500" value="20" required></label>
+          </div>
+          <label>До какого времени (необязательно)<input id="studio-ends-at" type="datetime-local"></label>
+          <div class="studio-form-buttons">
+            <button id="studio-save" class="studio-primary" type="submit">сохранить черновик</button>
+            <button id="studio-cancel-edit" type="button" hidden>отмена</button>
+          </div>
+        </form>
+        <div id="studio-create-feedback" class="studio-feedback" aria-live="polite"></div>
+      </div>
+      <div class="studio-section-title"><h2>Мои интерактивы</h2><span id="studio-owner-count">—</span></div>
+      <div id="studio-owner-list" class="studio-stack"><div class="studio-placeholder">получаем список…</div></div>
+      <section id="studio-review" class="studio-card" hidden>
+        <div class="studio-section-title"><h2 id="studio-review-title">Ответы участников</h2><button id="studio-review-close" type="button">закрыть</button></div>
+        <div id="studio-review-list" class="studio-stack"></div>
+      </section>
+    </section>
+    <section id="studio-participant">
+      <div class="studio-section-title"><h2>Доступные интерактивы</h2><button id="studio-reload" type="button">↻ обновить</button></div>
+      <div id="studio-list" class="studio-stack"><div class="studio-placeholder">загружаем интерактивы…</div></div>
+      <section id="studio-play" class="studio-card" hidden>
+        <button id="studio-back" type="button" class="studio-back">← к списку</button>
+        <span id="studio-play-reward" class="studio-reward">+50 🐾</span>
+        <h2 id="studio-play-title"></h2>
+        <p id="studio-play-description"></p>
+        <div id="studio-play-question" class="studio-question"></div>
+        <div id="studio-play-result" class="studio-result" hidden></div>
+        <form id="studio-answer-form">
+          <div id="studio-answer-input"></div>
+          <button id="studio-send" type="submit" class="studio-primary">отправить ответ</button>
+        </form>
+      </section>
+    </section>
+    <p id="studio-global-status" class="studio-global-status" aria-live="polite"></p>
+    <footer>nyan wallet / с любовью к вашим идеям ♡</footer>
+  </main>
+  <script src="./interactive-builder.js?v=20261025-1"></script>
+</body>
+</html>
