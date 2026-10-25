@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+import logging
+from datetime import datetime, timezone
+from typing import Literal
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
@@ -21,6 +23,7 @@ from .user_bans import BlockedUser
 
 router = APIRouter()
 _REGISTERED = False
+LOG = logging.getLogger("nyan_wallet.studio")
 
 
 class Activity(core.Base):
@@ -59,6 +62,17 @@ class ActivityAnswer(core.Base):
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class ActivityAccess(core.Base):
+    """Additive settings: older activities stay public without a row."""
+    __tablename__ = "nyan_activity_access"
+    activity_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("nyan_activities.id", ondelete="CASCADE"), primary_key=True,
+    )
+    visibility: Mapped[str] = mapped_column(String(12), nullable=False, default="public")
+    tester_ids_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    starts_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class ActivityCreate(BaseModel):
     # Datetime values arrive as ISO strings in the Web App's JSON payload.
     model_config = ConfigDict(extra="forbid")
@@ -71,6 +85,9 @@ class ActivityCreate(BaseModel):
     reward: int = Field(ge=0, le=500)
     max_winners: int = Field(ge=1, le=500)
     ends_at: datetime | None = None
+    visibility: Literal["public", "closed"] = "public"
+    tester_ids: list[int] = Field(default_factory=list, max_length=100)
+    starts_at: datetime | None = None
 
 
 class ActivityStatus(BaseModel):
@@ -105,7 +122,8 @@ def _clean(value: str) -> str:
     return " ".join(value.split())
 
 
-def _activity_json(row: Activity, owner: bool = False, answer: ActivityAnswer | None = None) -> dict:
+def _activity_json(row: Activity, owner: bool = False, answer: ActivityAnswer | None = None,
+                   access: ActivityAccess | None = None) -> dict:
     data = {
         "id": row.id, "title": row.title, "description": row.description,
         "prompt": row.prompt, "kind": row.kind, "choices": json.loads(row.choices_json),
@@ -114,10 +132,46 @@ def _activity_json(row: Activity, owner: bool = False, answer: ActivityAnswer | 
         "ends_at": row.ends_at.isoformat() if row.ends_at else None,
         "created_at": row.created_at.isoformat(),
         "my_answer": _answer_json(answer) if answer else None,
+        "visibility": access.visibility if access else "public",
+        "starts_at": access.starts_at.isoformat() if access and access.starts_at else None,
     }
     if owner:
         data["correct_answer"] = row.answer_key
+        data["tester_ids"] = json.loads(access.tester_ids_json) if access else []
     return data
+
+
+def _access_allowed(access: ActivityAccess | None, telegram_id: int) -> bool:
+    return not access or access.visibility == "public" or int(telegram_id) in json.loads(access.tester_ids_json)
+
+
+def _aware(value: datetime) -> datetime:
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+
+
+def _active_time(activity: Activity, access: ActivityAccess | None, timestamp: datetime) -> bool:
+    return ((activity.ends_at is None or _aware(activity.ends_at) > timestamp)
+            and (access is None or access.starts_at is None or _aware(access.starts_at) <= timestamp))
+
+
+def _save_access(session, activity_id: int, payload: ActivityCreate):
+    access = session.get(ActivityAccess, activity_id)
+    if access is None:
+        access = ActivityAccess(activity_id=activity_id)
+        session.add(access)
+    access.visibility = payload.visibility
+    access.tester_ids_json = json.dumps(sorted(set(payload.tester_ids)))
+    access.starts_at = payload.starts_at
+    return access
+
+
+def _queue_notice(session, key: str, recipient: int | None, body: str) -> None:
+    """Notifications share the answer transaction and do not send network requests."""
+    if not recipient:
+        return
+    from .telegram_relay import TelegramRelayMessage, _new_message, relay_enabled
+    if relay_enabled():
+        session.add(TelegramRelayMessage(**_new_message(key, int(recipient), body)))
 
 
 def _answer_json(row: ActivityAnswer) -> dict:
@@ -202,6 +256,19 @@ def _validate_activity_payload(payload: ActivityCreate) -> list[str]:
             raise HTTPException(status_code=400, detail="Нужна дата с часовым поясом")
         if payload.ends_at <= core.now_utc():
             raise HTTPException(status_code=400, detail="Дата окончания уже прошла")
+    if payload.starts_at and payload.starts_at.tzinfo is None:
+        raise HTTPException(status_code=400, detail="Для даты начала нужен часовой пояс")
+    if payload.starts_at and payload.ends_at and payload.starts_at >= payload.ends_at:
+        raise HTTPException(status_code=400, detail="Начало должно быть раньше окончания")
+    if any(type(uid) is not int or uid <= 0 for uid in payload.tester_ids):
+        raise HTTPException(status_code=400, detail="Некорректный ID тестировщика")
+    if payload.visibility == "closed":
+        if not payload.tester_ids:
+            raise HTTPException(status_code=400, detail="Добавь хотя бы одного тестировщика")
+        if payload.reward != 0:
+            raise HTTPException(status_code=400, detail="В закрытом тесте награда должна быть 0 🐾")
+    elif payload.tester_ids:
+        raise HTTPException(status_code=400, detail="Список тестировщиков доступен только закрытому тесту")
     return choices
 
 
@@ -225,14 +292,19 @@ def list_activities(
             )
         ).all() if ids else []
         by_id = {r.activity_id: r for r in responses}
+        accesses = session.scalars(
+            select(ActivityAccess).where(ActivityAccess.activity_id.in_(ids))
+        ).all() if ids else []
+        by_access = {access.activity_id: access for access in accesses}
         return {
             "ok": True, "is_owner": owner,
             "activities": [
-                _activity_json(item, owner, by_id.get(item.id))
+                _activity_json(item, owner, by_id.get(item.id), by_access.get(item.id))
                 for item in items
                 if owner or (
                     (item.status == "published" and
-                     (item.ends_at is None or item.ends_at > timestamp))
+                     _active_time(item, by_access.get(item.id), timestamp) and
+                     _access_allowed(by_access.get(item.id), tg_user["id"]))
                     or by_id.get(item.id) is not None
                 )
             ],
@@ -256,9 +328,14 @@ def activity_detail(
                 ActivityAnswer.telegram_id == tg_user["id"],
             )
         )
+        access = session.get(ActivityAccess, activity_id)
+        if not owner and not _access_allowed(access, tg_user["id"]):
+            raise HTTPException(status_code=404, detail="Интерактив недоступен")
+        if not owner and not _active_time(activity, access, core.now_utc()) and answer is None:
+            raise HTTPException(status_code=404, detail="Интерактив пока недоступен")
         if not owner and activity.status != "published" and answer is None:
             raise HTTPException(status_code=404, detail="Интерактив недоступен")
-        return {"ok": True, "activity": _activity_json(activity, owner, answer)}
+        return {"ok": True, "activity": _activity_json(activity, owner, answer, access)}
 
 
 @router.post("/api/owner/activities")
@@ -280,7 +357,8 @@ def create_activity(
         )
         session.add(item)
         session.flush()
-        result = _activity_json(item, owner=True)
+        access = _save_access(session, item.id, payload)
+        result = _activity_json(item, owner=True, access=access)
     return {"ok": True, "activity": result}
 
 
@@ -309,8 +387,9 @@ def edit_activity(
         item.reward = payload.reward
         item.max_winners = payload.max_winners
         item.ends_at = payload.ends_at
+        access = _save_access(session, item.id, payload)
         session.flush()
-        result = _activity_json(item, owner=True)
+        result = _activity_json(item, owner=True, access=access)
     return {"ok": True, "activity": result}
 
 
@@ -329,7 +408,7 @@ def set_activity_status(
         if payload.action == "publish":
             if item.status != "draft":
                 raise HTTPException(status_code=409, detail="Опубликовать можно только черновик")
-            if item.ends_at and item.ends_at <= core.now_utc():
+            if item.ends_at and _aware(item.ends_at) <= core.now_utc():
                 raise HTTPException(status_code=409, detail="Срок интерактива истёк")
             item.status = "published"
         else:
@@ -353,8 +432,13 @@ def submit_answer(
         raise HTTPException(status_code=400, detail="Напиши ответ")
     with core.SessionLocal.begin() as session:
         item = session.scalar(select(Activity).where(Activity.id == activity_id).with_for_update())
-        if not item or item.status != "published" or (item.ends_at and item.ends_at <= now):
+        if not item or item.status != "published" or (item.ends_at and _aware(item.ends_at) <= now):
             raise HTTPException(status_code=409, detail="Приём ответов закрыт")
+        access = session.get(ActivityAccess, activity_id)
+        if not _access_allowed(access, tg_user["id"]):
+            raise HTTPException(status_code=404, detail="Интерактив недоступен")
+        if not _active_time(item, access, now):
+            raise HTTPException(status_code=409, detail="Интерактив ещё не начался или уже завершён")
         user = _ensure_user(session, tg_user, now)
         if session.get(BlockedUser, user.telegram_id) is not None:
             raise HTTPException(status_code=403, detail="Участие заблокировано")
@@ -379,6 +463,12 @@ def submit_answer(
         )
         session.add(row)
         session.flush()
+        if item.kind == "manual":
+            _queue_notice(
+                session, f"studio:answer:{row.id}:owner", core.OWNER_TELEGRAM_ID,
+                f"✳ Nyan Studio\nНовый ответ на «{item.title}» (№{item.id}).\n"
+                f"Участник: {user.telegram_id}\nОткрой Nyan Studio для модерации.",
+            )
         if item.kind == "choice":
             correct = answer_text == item.answer_key
         elif item.kind == "text":
@@ -402,23 +492,32 @@ def submit_answer(
 @router.get("/api/owner/activities/{activity_id}/answers")
 def owner_activity_answers(
     activity_id: int,
+    before_id: int | None = None,
+    limit: int = 300,
     x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
 ):
     _auth(x_telegram_init_data, owner=True)
+    if limit < 1 or limit > 300 or (before_id is not None and before_id < 1):
+        raise HTTPException(status_code=422, detail="Некорректная страница ответов")
     with core.SessionLocal() as session:
         if not session.get(Activity, activity_id):
             raise HTTPException(status_code=404, detail="Интерактив не найден")
-        rows = session.execute(
+        query = (
             select(ActivityAnswer, core.User)
             .join(core.User, core.User.telegram_id == ActivityAnswer.telegram_id)
             .where(ActivityAnswer.activity_id == activity_id)
-            .order_by(ActivityAnswer.id.desc()).limit(300)
-        ).all()
+            .order_by(ActivityAnswer.id.desc()).limit(limit + 1)
+        )
+        if before_id is not None:
+            query = query.where(ActivityAnswer.id < before_id)
+        rows = session.execute(query).all()
+        more = len(rows) > limit
+        rows = rows[:limit]
         return {"ok": True, "answers": [
             {**_answer_json(answer), "telegram_id": user.telegram_id,
              "username": user.username, "first_name": user.first_name}
             for answer, user in rows
-        ]}
+        ], "next_cursor": rows[-1][0].id if more and rows else None}
 
 
 @router.post("/api/owner/activities/{activity_id}/answers/{answer_id}/review")
@@ -447,9 +546,18 @@ def review_activity_answer(
         )
         if payload.decision == "approve":
             _award(session, item, row, user, now)
+            if item.reward == 0:
+                _queue_notice(
+                    session, f"studio:answer:{row.id}:approved", user.telegram_id,
+                    f"✳ Nyan Studio\nТвой ответ на «{item.title}» одобрен. Это был тест без награды.",
+                )
         else:
             row.status = "rejected"
             row.reviewed_at = now
+            _queue_notice(
+                session, f"studio:answer:{row.id}:rejected", user.telegram_id,
+                f"✳ Nyan Studio\nТвой ответ на «{item.title}» отклонён. Повторная попытка недоступна.",
+            )
         session.flush()
         result = _answer_json(row)
     return {"ok": True, "answer": result}
@@ -459,6 +567,6 @@ def register_interactive_builder(app) -> None:
     global _REGISTERED
     if _REGISTERED:
         return
-    core.Base.metadata.create_all(core.engine, tables=[Activity.__table__, ActivityAnswer.__table__])
+    core.Base.metadata.create_all(core.engine, tables=[Activity.__table__, ActivityAnswer.__table__, ActivityAccess.__table__])
     app.include_router(router)
     _REGISTERED = True
