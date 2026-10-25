@@ -13,6 +13,7 @@
     ["giveaways", "✦", "Розыгрыши", "nyg-my-button"],
     ["purchases", "▤", "Покупки", "nyg-my-purchases-button"],
     ["appeals", "✉", "Обращения", "appeals-button"],
+    ["studio", "✳", "Интерактивы", "nyan-studio-link"],
   ];
 
   let scheduled = false;
@@ -110,6 +111,10 @@
         const button = event.target.closest("[data-home-target]");
         if (!button) return;
         const target = button.dataset.homeTarget;
+        if (target === "nyan-studio-link") {
+          window.location.assign("./interactive-builder.html");
+          return;
+        }
         if (target) proxyClick(target);
       });
     }
@@ -181,7 +186,8 @@
       if (!homeButton) continue;
       // Never offer a dead action before its original handler exists.
       const hide = !proxy || proxy.hidden || proxy.disabled;
-      if (homeButton.hidden !== Boolean(hide)) homeButton.hidden = Boolean(hide);
+      const unavailable = target === "nyan-studio-link" ? false : hide;
+      if (homeButton.hidden !== Boolean(unavailable)) homeButton.hidden = Boolean(unavailable);
     }
 
     const unreadSource = document.getElementById("adv-unread-badge");
