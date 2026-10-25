@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#fff7fb">
   <title>Nyan Studio · интерактивы</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="./interactive-builder.css?v=20261025-1">
+  <link rel="stylesheet" href="./interactive-builder.css?v=20261025-2">
 </head>
 <body>
   <main class="studio">
@@ -21,10 +21,10 @@
       <p>Выбери интерактив, выполни задание и получи награду. На каждую игру даётся одна попытка.</p>
     </section>
     <section id="studio-login" class="studio-card" hidden>
-      <h2>Войти через Telegram</h2>
-      <p>Чтобы начисления попадали именно на твой кошелёк, нужен подтверждённый вход.</p>
-      <div id="studio-widget"></div>
-      <p class="studio-hint">Если вход не открывается, попробуй кнопку Web App в @nyancash_bot.</p>
+      <h2>Открыть в Telegram</h2>
+      <p>Для участия открой эту страницу через мини-приложение. Так Telegram безопасно подтвердит кошелёк, и награда попадёт нужному человеку.</p>
+      <a class="studio-launch" href="https://t.me/nyancash_bot?startapp=studio">открыть в Telegram ↗</a>
+      <p class="studio-hint">Также можно воспользоваться кнопкой Web App из рассылки. Ничего подключать в BotFather не нужно.</p>
     </section>
     <section id="studio-owner" class="studio-owner" hidden>
       <div class="studio-section-title"><h2>Управление интерактивами</h2><span>только владелец</span></div>
@@ -85,6 +85,6 @@
     <p id="studio-global-status" class="studio-global-status" aria-live="polite"></p>
     <footer>nyan wallet / с любовью к вашим идеям ♡</footer>
   </main>
-  <script src="./interactive-builder.js?v=20261025-1"></script>
+  <script src="./interactive-builder.js?v=20261025-2"></script>
 </body>
 </html>
