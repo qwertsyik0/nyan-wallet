@@ -15,6 +15,7 @@
   let busy = false;
   let moderatorBusy = false;
   let activeFilter = "pending";
+  let uiRevision = 0;
 
   tg?.ready?.();
   tg?.expand?.();
@@ -25,6 +26,26 @@
   let useMini = Boolean(miniInitData);
   try { session = miniInitData || sessionStorage.getItem("nyan_ideas_browser_auth") || ""; }
   catch (_) { session = miniInitData; }
+
+  // First paint does not depend on a network round-trip. Keep the most recent
+  // server-confirmed status per Telegram account for slow mobile connections.
+  const tgUserId = Number(tg?.initDataUnsafe?.user?.id || 0);
+  const ideaCacheKey = tgUserId > 0 && miniInitData ? `nyan_ideas_last_confirmed_v1_${tgUserId}` : "";
+  function readSavedIdea() {
+    if (!ideaCacheKey) return null;
+    try {
+      const item = JSON.parse(localStorage.getItem(ideaCacheKey) || "null");
+      return item && Number.isInteger(item.id) && ["pending", "approved", "rejected"].includes(item.status) ? item : null;
+    } catch (_) { return null; }
+  }
+  function saveIdea(item) {
+    if (!ideaCacheKey) return;
+    try { localStorage.setItem(ideaCacheKey, JSON.stringify(item)); } catch (_) {}
+  }
+  function forgetSavedIdea() {
+    if (!ideaCacheKey) return;
+    try { localStorage.removeItem(ideaCacheKey); } catch (_) {}
+  }
 
   function setFeedback(message) { feedback.textContent = message || ""; }
   function show(id) {
@@ -116,7 +137,8 @@
     setFeedback(message || "");
   }
 
-  function setResult(idea) {
+  function setResult(idea, verified = true) {
+    if (verified) saveIdea(idea);
     retryStatus.hidden = true;
     show("result-panel");
     const title = $("result-title");
@@ -147,17 +169,23 @@
     }
   }
 
-  async function refreshMine() {
+  async function refreshMine({ background = false } = {}) {
+    const revision = uiRevision;
     retryStatus.hidden = true;
-    setFeedback("проверяем заявку…");
+    setFeedback(background ? "обновляем статус в фоне…" : "проверяем заявку…");
     try {
       const data = await request("/api/interactive-ideas/me");
+      if (revision !== uiRevision) return;
       if (data.idea) setResult(data.idea);
-      else show("form-panel");
+      else {
+        forgetSavedIdea();
+        show("form-panel");
+      }
       ownerPanel.hidden = !data.is_owner;
       if (data.is_owner) await refreshModeration();
       setFeedback("");
     } catch (error) {
+      if (revision !== uiRevision) return;
       if (error.status === 401 && !miniInitData) {
         session = "";
         try { sessionStorage.removeItem("nyan_ideas_browser_auth"); } catch (_) {}
@@ -167,18 +195,18 @@
         session = "";
         showLogin("сессия Telegram устарела. открой страницу заново из Telegram.");
       } else {
-        // Do not leave the user with an endless spinner. The database may
-        // already contain their submission even if the network stalled.
-        ownerPanel.hidden = true;
-        show("result-panel");
-        $("result-label").textContent = "проверка статуса";
-        $("result-title").textContent = "связь прервалась";
-        $("result-text").textContent = "статус заявки пока не удалось загрузить. если ты уже отправлял идею, не отправляй её заново.";
-        $("reward-result").hidden = true;
-        $("moderator-note").hidden = true;
-        $("idea-summary").hidden = true;
+        // Network errors must never hide an already usable form or discard
+        // anything a participant typed while the check was in flight.
+        const saved = readSavedIdea();
+        if (!background) {
+          if (saved) setResult(saved, false);
+          else show("form-panel");
+        }
         retryStatus.hidden = false;
-        setFeedback(error.message || "Не удалось получить статус заявки.");
+        setFeedback((saved
+          ? "показан последний подтверждённый статус, пока связь нестабильна. "
+          : "связь нестабильна, но форму можно заполнить. сервер проверит, отправлял ли ты заявку раньше. ")
+          + (error.message || "попробуй обновить статус."));
       }
     }
   }
@@ -204,6 +232,7 @@
       return;
     }
     if (!window.confirm("Отправить идею на модерацию? Это единственная попытка, даже если в итоге будет отказ.")) return;
+    uiRevision++;
     busy = true;
     sendButton.disabled = true;
     sendButton.textContent = "отправляем…";
@@ -317,6 +346,10 @@
   $("owner-refresh").addEventListener("click", refreshModeration);
   $("retry-status-button").addEventListener("click", refreshMine);
 
-  if (currentHeader()) refreshMine();
-  else showLogin("");
+  if (currentHeader()) {
+    const remembered = readSavedIdea();
+    if (remembered) setResult(remembered, false);
+    else show("form-panel");
+    refreshMine({ background: true });
+  } else showLogin("");
 })();
