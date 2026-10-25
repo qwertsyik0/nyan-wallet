@@ -10,6 +10,7 @@
   const descriptionInput = $("idea-description");
   const sendButton = $("send-button");
   const ownerPanel = $("owner-panel");
+  const hero = $("hero");
   const retryStatus = $("retry-status");
   let session = "";
   let busy = false;
@@ -24,6 +25,9 @@
   // server-signed session issued only after Telegram Login Widget verification.
   const miniInitData = tg?.initData || "";
   let useMini = Boolean(miniInitData);
+  // Only a UI hint to render the owner's moderation first. The server still
+  // verifies signed Telegram data and denies all non-owner requests.
+  const isOwnerHint = Boolean(miniInitData) && Number(tg?.initDataUnsafe?.user?.id) === 6289461565;
   try { session = miniInitData || sessionStorage.getItem("nyan_ideas_browser_auth") || ""; }
   catch (_) { session = miniInitData; }
 
@@ -181,8 +185,12 @@
         forgetSavedIdea();
         show("form-panel");
       }
+      const ownerAlreadyOpen = !ownerPanel.hidden;
       ownerPanel.hidden = !data.is_owner;
-      if (data.is_owner) await refreshModeration();
+      hero.hidden = Boolean(data.is_owner);
+      // On the owner's first launch moderation was requested in parallel
+      // with /me; do not wait for /me to begin loading it a second time.
+      if (data.is_owner && !ownerAlreadyOpen) await refreshModeration();
       setFeedback("");
     } catch (error) {
       if (revision !== uiRevision) return;
@@ -347,9 +355,19 @@
   $("retry-status-button").addEventListener("click", refreshMine);
 
   if (currentHeader()) {
-    const remembered = readSavedIdea();
-    if (remembered) setResult(remembered, false);
-    else show("form-panel");
-    refreshMine({ background: true });
+    if (isOwnerHint) {
+      // First screen for the owner: actual moderation, fetched immediately.
+      // There is no initial wait for the separate account-status request.
+      hero.hidden = true;
+      ownerPanel.hidden = false;
+      show("");
+      refreshModeration();
+      refreshMine();
+    } else {
+      const remembered = readSavedIdea();
+      if (remembered) setResult(remembered, false);
+      else show("form-panel");
+      refreshMine({ background: true });
+    }
   } else showLogin("");
 })();
