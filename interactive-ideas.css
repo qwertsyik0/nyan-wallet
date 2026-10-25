@@ -35,6 +35,7 @@ button{font:inherit;cursor:pointer}
 .primary:active{transform:translateY(1px)}.primary:disabled{opacity:.48;cursor:not-allowed;transform:none}
 .form-caption{font-size:11px;text-align:center;color:#ac8698;line-height:1.6;margin:13px auto 0;max-width:440px}
 .feedback{min-height:22px;text-align:center;color:#a0476c;margin:14px 10px 0;font-size:13px;line-height:1.6}
+.retry-status{max-width:350px;margin:12px auto 0}
 .result-panel{text-align:center}.result-panel h2{margin:15px 0}.result-panel>p{margin:0 auto;max-width:470px;font-size:14px;line-height:1.7;color:#86556c}
 .reward-result{margin:19px auto;color:var(--berry);font-size:42px;font-weight:900;letter-spacing:-.065em}
 .idea-summary{border-radius:15px;margin-top:22px;padding:14px 17px;border:1px solid #efdae4;background:#fff7fa;text-align:left}
