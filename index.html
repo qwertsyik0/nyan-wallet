@@ -115,6 +115,17 @@
           return;
         }
 
+        if (["studio", "interactive_builder", "interactive-builder"].includes(startParam)) {
+          const target = new URL("./interactive-builder.html", window.location.href);
+          const current = new URL(window.location.href);
+          for (const [key, value] of current.searchParams.entries()) {
+            if (!["startapp", "tgWebAppStartParam"].includes(key)) target.searchParams.set(key, value);
+          }
+          if (current.hash) target.hash = current.hash;
+          window.location.replace(target.toString());
+          return;
+        }
+
         if (startParam === "survey" || startParam === "wallet_survey" || startParam === "wallet-survey") {
           const target = new URL("./wallet-survey.html", window.location.href);
           const current = new URL(window.location.href);
@@ -138,6 +149,7 @@
     <link rel="stylesheet" href="./home_v2.css?v=20261016-elections-home1">
     <link rel="stylesheet" href="./interface_shell.css?v=20261016-cascade-fix1">
     <link rel="stylesheet" href="./nyan_id.css?v=20261015-png3">
+    <link rel="stylesheet" href="./profile_overview.css?v=20261025-1">
 </head>
 <body>
 
@@ -390,8 +402,8 @@
 
 <script src="./network.js?v=20261018-direct-https-v1"></script>
 <script src="./ban_notice.js?v=20261018-direct-https-v1"></script>
-<script src="./wallet_launch_recovery_20261019.js?v=20261019-1"></script>
-<script src="./app.js?v=20261019-emergency-stable-restore1"></script>
+<script src="./wallet_launch_recovery_20261019.js?v=20261025-no-abort1"></script>
+<script src="./app.js?v=20261025-no-abort1"></script>
 <script src="./owner_permissions.js?v=20261018-direct-https-v1"></script>
 <script src="./antifraud.js?v=20261018-direct-https-v1"></script>
 <script src="./daily_tasks.js?v=20261018-direct-https-v1"></script>
@@ -410,8 +422,9 @@
 <script src="./about.js?v=20260917-1"></script>
 <script src="./privacy.js?v=20260921-1"></script>
 <script src="./interface_shell.js?v=20261005-1"></script>
-<script src="./home_v2.js?v=20261019-retire-elections-owner-archive1"></script>
+<script src="./home_v2.js?v=20261025-studio1"></script>
 <script src="./nyan_id.js?v=20261018-direct-https-v1"></script>
 <script src="./finance-workspace-entry.js?v=20261018-direct-https-v1"></script>
+<script src="./profile_overview.js?v=20261025-1"></script>
 </body>
 </html>
