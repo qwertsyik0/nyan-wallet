@@ -69,33 +69,6 @@
     } finally { clearTimeout(timer); }
   }
 
-  function buildWidget() {
-    if ($("studio-widget").querySelector("script")) return;
-    window.onNyanStudioAuth = async user => {
-      try {
-        const response = await fetch(API + "/api/interactive-ideas/auth/widget", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(user),
-        });
-        const data = await response.json();
-        if (!response.ok || !data.session) throw Error(data?.detail || "Войти не удалось");
-        auth = "browser:" + data.session;
-        try { sessionStorage.setItem("nyan_ideas_browser_auth", data.session); } catch (_) {}
-        $("studio-login").hidden = true;
-        await loadActivities();
-      } catch (error) { status(error.message); }
-    };
-    const script = document.createElement("script");
-    script.src = "https://telegram.org/js/telegram-widget.js?22";
-    script.async = true;
-    script.setAttribute("data-telegram-login", "nyancash_bot");
-    script.setAttribute("data-size", "large");
-    script.setAttribute("data-radius", "12");
-    script.setAttribute("data-userpic", "false");
-    script.setAttribute("data-onauth", "onNyanStudioAuth(user)");
-    $("studio-widget").append(script);
-  }
-
   function optionButton(label, handler, cls = "") {
     const button = el("button", cls, label);
     button.type = "button";
@@ -106,7 +79,6 @@
   async function loadActivities() {
     if (!auth) {
       $("studio-login").hidden = false;
-      buildWidget();
       status("Для участия нужно войти через Telegram.");
       return;
     }
@@ -126,7 +98,6 @@
       if (/вход|подпис|Telegram|авторизац/i.test(error.message)) {
         auth = "";
         $("studio-login").hidden = false;
-        buildWidget();
       }
       status("Не удалось получить интерактивы: " + error.message);
       $("studio-list").replaceChildren(el("div", "studio-placeholder", "список недоступен · попробуй обновить"));
@@ -429,7 +400,6 @@
   if (auth) void loadActivities();
   else {
     $("studio-login").hidden = false;
-    buildWidget();
     $("studio-list").replaceChildren(el("div", "studio-placeholder", "Войди через Telegram, чтобы увидеть интерактивы"));
   }
 })();
