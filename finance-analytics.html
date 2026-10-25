@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#fff7fb">
+  <title>Nyan Wallet · финансовая аналитика</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./interactive-builder.css?v=20261025-2">
+  <link rel="stylesheet" href="./finance-analytics.css?v=20261026-v1">
+</head>
+<body>
+  <main class="studio finance-dashboard">
+    <header class="studio-header">
+      <span class="studio-symbol">🐾</span>
+      <div><div class="studio-brand">Nyan Wallet</div><div class="studio-caption">финансовая аналитика · владелец</div></div>
+      <a class="studio-home" href="./interactive-builder.html">Nyan Studio ↗</a>
+    </header>
+    <section class="studio-intro">
+      <p class="eyebrow">NYAN WALLET / FINANCE</p>
+      <h1>Всё о лапкоинах.<br><span>В одном месте.</span></h1>
+      <p>Данные только для владельца. Панель ничего не начисляет и не списывает.</p>
+    </section>
+    <section id="finance-login" class="studio-card" hidden>
+      <h2>Открой через Telegram</h2>
+      <p>Нужна проверенная сессия владельца Nyan Wallet.</p>
+      <a class="studio-launch" href="https://t.me/nyancash_bot?startapp=finance_analytics">открыть в Telegram ↗</a>
+    </section>
+    <section id="finance-content" hidden>
+      <div class="finance-periods" role="group" aria-label="Период отчёта">
+        <button type="button" data-days="1">сегодня</button>
+        <button type="button" data-days="7" aria-pressed="true">7 дней</button>
+        <button type="button" data-days="30">30 дней</button>
+        <button type="button" data-days="0">всё время</button>
+      </div>
+      <div class="finance-kpis">
+        <article class="studio-card"><span>в обращении</span><strong id="finance-circulation">—</strong><small>сумма текущих балансов</small></article>
+        <article class="studio-card"><span>начислено</span><strong id="finance-credited">—</strong><small>кроме внутренних переводов</small></article>
+        <article class="studio-card"><span>списано</span><strong id="finance-debited">—</strong><small>кроме внутренних переводов</small></article>
+        <article class="studio-card"><span>переведено</span><strong id="finance-moved">—</strong><small>между кошельками</small></article>
+      </div>
+      <section class="studio-card finance-details">
+        <h2>Активность</h2>
+        <div class="finance-facts">
+          <div><span>всего кошельков</span><b id="finance-wallets">—</b></div>
+          <div><span>новых за период</span><b id="finance-new">—</b></div>
+          <div><span>активных за период</span><b id="finance-active">—</b></div>
+          <div><span>операций в журнале</span><b id="finance-count">—</b></div>
+          <div><span>количество переводов</span><b id="finance-transfers">—</b></div>
+        </div>
+      </section>
+      <section class="studio-card finance-details">
+        <h2>Начисления и списания по дням</h2>
+        <p>Границы дней по московскому времени. Розовый: начислено, бордовый: списано.</p>
+        <div id="finance-chart" class="finance-chart"></div>
+      </section>
+      <section class="studio-card finance-details">
+        <h2>Источники операций</h2>
+        <div id="finance-categories" class="finance-categories"></div>
+      </section>
+      <p class="finance-footnote">Перевод между участниками не создаёт новых лапкоинов. Показатели начислений и списаний основаны на журнале транзакций; остаток в обращении рассчитан по реальным балансам кошельков.</p>
+    </section>
+    <p id="finance-status" class="studio-global-status" aria-live="polite"></p>
+    <footer>nyan wallet / данные доступны только владельцу ♡</footer>
+  </main>
+  <script src="./finance-analytics.js?v=20261026-v1"></script>
+</body>
+</html>
