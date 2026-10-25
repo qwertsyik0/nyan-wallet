@@ -41,7 +41,7 @@ button{font:inherit;cursor:pointer}
 .idea-summary{border-radius:15px;margin-top:22px;padding:14px 17px;border:1px solid #efdae4;background:#fff7fa;text-align:left}
 .idea-summary span{display:block;color:#af8499;font-size:11px;margin-bottom:5px}.idea-summary strong{display:block;font-size:15px;color:var(--berry);overflow-wrap:anywhere}
 .result-panel .moderator-note{margin:18px auto 0;font-size:13px;color:#8d536e}
-.owner-panel{margin-top:42px;padding-top:30px;border-top:1px solid var(--line)}
+.owner-panel{margin-top:22px;padding-top:26px;border-top:1px solid var(--line)}
 .owner-panel>h2{margin-top:10px}.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
 .filter,.secondary{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:12px;padding:11px 15px;font-weight:760;font-size:12px}
 .filter.active{background:var(--berry);color:#fff;border-color:var(--berry)}
