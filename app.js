@@ -909,6 +909,10 @@ async function loadWallet() {
     walletLoadController?.abort();
     const controller = new AbortController();
     walletLoadController = controller;
+    // The launch recovery script must never abort a healthy /api/me request
+    // simply because a Telegram WebView needed more than eight seconds.
+    window.__nyanWalletLoadInFlight = true;
+    window.__nyanWalletLoadStartedAt = Date.now();
     const isBoot = !initialLoadFinished;
     let loadedSuccessfully = false;
     let apiResponseReceived = false;
@@ -1007,7 +1011,10 @@ async function loadWallet() {
         }
     } finally {
         window.clearTimeout(timeoutId);
-        if (walletLoadController === controller) walletLoadController = null;
+        if (walletLoadController === controller) {
+            walletLoadController = null;
+            window.__nyanWalletLoadInFlight = false;
+        }
         if (loadedSuccessfully && attempt === walletLoadAttempt) {
             finishInitialLoad();
         }
