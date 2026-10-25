@@ -127,11 +127,11 @@
     const card = el("article", "studio-activity");
     const head = el("div", "studio-activity-head");
     head.append(
-      el("span", "studio-label", `№${item.id} · ${{draft:"черновик",published:"опубликован",closed:"закрыт"}[item.status] || item.status}`),
+      el("span", "studio-label", `№${item.id} · ${item.visibility === "closed" ? "закрытый тест · " : ""}${item.status === "published" && item.starts_at && new Date(item.starts_at) > new Date() ? "запланирован" : ({draft:"черновик",published:"опубликован",closed:"закрыт"}[item.status] || item.status)}`),
       el("span", "studio-reward", `+${item.reward} 🐾`)
     );
     card.append(head, el("h3", "", item.title), el("p", "", item.description),
-      el("div", "studio-label", `победителей: ${item.winner_count} / ${item.max_winners}`));
+      el("div", "studio-label", `одобрено: ${item.winner_count} / ${item.max_winners}${item.starts_at ? " · начало " + date(item.starts_at) : ""}`));
     const buttons = el("div", "studio-buttons");
     if (item.status === "draft") {
       buttons.append(optionButton("редактировать", () => editActivity(item)));
@@ -141,9 +141,7 @@
       buttons.append(optionButton("закрыть", () => setStatus(item, "close")));
       buttons.append(optionButton("открыть", () => openActivity(item.id)));
     }
-    if (item.kind === "manual") {
-      buttons.append(optionButton("проверить ответы", () => loadReview(item)));
-    }
+    if (item.status !== "draft") buttons.append(optionButton("участники и ответы", () => loadReview(item)));
     if (item.status !== "draft") {
       buttons.append(optionButton("скопировать ссылку", () => {
         const link = activityUrl(item.id);
@@ -180,6 +178,20 @@
     $("studio-manual-hint").hidden = kind !== "manual";
   }
 
+  function switchVisibility() {
+    const closed = $("studio-visibility").value === "closed";
+    $("studio-tester-field").hidden = !closed;
+    $("studio-reward").disabled = closed;
+    if (closed) $("studio-reward").value = "0";
+  }
+
+  function localDateTime(iso) {
+    if (!iso) return "";
+    const time = new Date(iso);
+    return Number.isFinite(time.getTime())
+      ? new Date(time.getTime() - time.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "";
+  }
+
   function resetForm() {
     editId = null;
     $("studio-form").reset();
@@ -188,6 +200,7 @@
     $("studio-cancel-edit").hidden = true;
     $("studio-create-feedback").textContent = "";
     switchKind();
+    switchVisibility();
   }
   function editActivity(item) {
     editId = item.id;
@@ -198,20 +211,17 @@
     $("studio-choices").value = (item.choices || []).join("\n");
     $("studio-correct-index").value = item.kind === "choice" ? Number(item.correct_answer) + 1 : 1;
     $("studio-correct-text").value = item.kind === "text" ? item.correct_answer || "" : "";
+    $("studio-visibility").value = item.visibility || "public";
+    $("studio-tester-ids").value = (item.tester_ids || []).join("\n");
     $("studio-reward").value = item.reward;
     $("studio-max-winners").value = item.max_winners;
-    if (item.ends_at) {
-      const dt = new Date(item.ends_at);
-      $("studio-ends-at").value = Number.isFinite(dt.getTime())
-        ? new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
-        : "";
-    } else {
-      $("studio-ends-at").value = "";
-    }
+    $("studio-starts-at").value = localDateTime(item.starts_at);
+    $("studio-ends-at").value = localDateTime(item.ends_at);
     $("studio-form-title").textContent = `Редактирование №${item.id}`;
     $("studio-save").textContent = "сохранить изменения";
     $("studio-cancel-edit").hidden = false;
     switchKind();
+    switchVisibility();
     $("studio-form").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -225,14 +235,24 @@
     const correctAnswer = kind === "choice" ? String(Number($("studio-correct-index").value) - 1)
       : kind === "text" ? $("studio-correct-text").value.trim() : null;
     const endValue = $("studio-ends-at").value;
+    const startValue = $("studio-starts-at").value;
+    const visibility = $("studio-visibility").value;
+    const testers = $("studio-tester-ids").value.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
+    if (visibility === "closed" && (!testers.length || testers.some(s => !/^\d{1,16}$/.test(s)))) {
+      $("studio-create-feedback").textContent = "Укажи Telegram ID тестировщиков цифрами.";
+      return;
+    }
     const payload = {
       title: $("studio-title").value.trim(),
       description: $("studio-description").value.trim(),
       prompt: $("studio-prompt").value.trim(), kind, choices,
       correct_answer: correctAnswer,
-      reward: Number($("studio-reward").value),
+      reward: visibility === "closed" ? 0 : Number($("studio-reward").value),
       max_winners: Number($("studio-max-winners").value),
       ends_at: endValue ? new Date(endValue).toISOString() : null,
+      starts_at: startValue ? new Date(startValue).toISOString() : null,
+      visibility,
+      tester_ids: visibility === "closed" ? [...new Set(testers)].map(Number) : [],
     };
     saving = true;
     $("studio-save").disabled = true;
@@ -276,7 +296,8 @@
       const result = $("studio-play-result");
       result.hidden = true;
       const form = $("studio-answer-form");
-      form.hidden = Boolean(selected.my_answer || selected.status !== "published");
+      const notStarted = selected.starts_at && new Date(selected.starts_at) > new Date();
+      form.hidden = Boolean(selected.my_answer || selected.status !== "published" || notStarted);
       if (selected.my_answer) {
         result.hidden = false;
         result.textContent = {
@@ -284,6 +305,9 @@
           approved: `Готово! Награда +${selected.my_answer.reward_amount} 🐾 начислена на кошелёк.`,
           rejected: "Ответ не принят. Повторная попытка в этом интерактиве недоступна.",
         }[selected.my_answer.status] || "Ответ сохранён.";
+      } else if (notStarted) {
+        result.hidden = false;
+        result.textContent = "Интерактив начнётся " + date(selected.starts_at) + ".";
       } else if (selected.status !== "published") {
         result.hidden = false;
         result.textContent = "Интерактив закрыт.";
@@ -342,24 +366,27 @@
     }
   }
 
-  async function loadReview(item) {
+  async function loadReview(item, beforeId = null) {
     reviewActivityId = item.id;
     $("studio-review").hidden = false;
-    $("studio-review-title").textContent = `Ответы · ${item.title}`;
+    $("studio-review-title").textContent = `Участники · ${item.title}`;
     const list = $("studio-review-list");
-    list.replaceChildren(el("div", "studio-placeholder", "загружаем ответы…"));
+    if (!beforeId) list.replaceChildren(el("div", "studio-placeholder", "загружаем ответы…"));
+    else list.querySelector(".studio-more-answers")?.remove();
     try {
-      const data = await api(`/api/owner/activities/${item.id}/answers`);
-      list.replaceChildren();
-      if (!data.answers.length) list.append(el("div", "studio-placeholder", "пока никто не участвовал"));
+      const params = beforeId ? `?limit=80&before_id=${encodeURIComponent(beforeId)}` : "?limit=80";
+      const data = await api(`/api/owner/activities/${item.id}/answers${params}`);
+      if (reviewActivityId !== item.id) return;
+      if (!beforeId) list.replaceChildren();
+      if (!data.answers.length && !beforeId) list.append(el("div", "studio-placeholder", "пока никто не участвовал"));
       for (const response of data.answers) {
         const row = el("div", "studio-respondent");
         row.append(
           el("strong", "", response.username ? "@" + response.username : response.first_name),
-          el("small", "", `ID ${response.telegram_id} · ${date(response.created_at)} · ${response.status}`),
+          el("small", "", `ID ${response.telegram_id} · ${date(response.created_at)} · ${{pending:"ожидает",approved:"одобрено",rejected:"отказ"}[response.status] || response.status}`),
           el("p", "", response.answer)
         );
-        if (response.status === "pending") {
+        if (response.status === "pending" && item.kind === "manual") {
           const buttons = el("div", "studio-buttons");
           buttons.append(
             optionButton("одобрить", () => review(item.id, response.id, "approve"), "primary"),
@@ -368,6 +395,10 @@
           row.append(buttons);
         }
         list.append(row);
+      }
+      if (data.next_cursor) {
+        const next = optionButton("показать ещё участников", () => loadReview(item, data.next_cursor), "studio-more-answers");
+        list.append(next);
       }
       $("studio-review").scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (error) {
@@ -386,6 +417,7 @@
   }
 
   $("studio-kind").addEventListener("change", switchKind);
+  $("studio-visibility").addEventListener("change", switchVisibility);
   $("studio-form").addEventListener("submit", saveActivity);
   $("studio-cancel-edit").addEventListener("click", resetForm);
   $("studio-reload").addEventListener("click", loadActivities);
@@ -397,9 +429,16 @@
   });
 
   switchKind();
+  switchVisibility();
   if (auth) void loadActivities();
   else {
     $("studio-login").hidden = false;
     $("studio-list").replaceChildren(el("div", "studio-placeholder", "Войди через Telegram, чтобы увидеть интерактивы"));
   }
+  // Scheduled games become visible automatically while the Studio tab is open.
+  window.setInterval(() => {
+    if (auth && !document.hidden && $("studio-play").hidden && !saving && !sending && !document.activeElement?.closest("form")) {
+      void loadActivities();
+    }
+  }, 60_000);
 })();
