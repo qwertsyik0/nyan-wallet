@@ -37,6 +37,7 @@ from .suggestions import register_suggestions
 from .interactive_ideas import register_interactive_ideas
 from .interactive_builder import register_interactive_builder
 from .profile_overview import register_profile_overview
+from .finance_analytics import register_finance_analytics
 from .finance_recruitment import register_finance_recruitment
 from .finance_stage2 import register_finance_stage2
 from .finance_workspace import register_finance_workspace
@@ -94,6 +95,7 @@ else:
     register_interactive_ideas(backend_app.app)
     register_interactive_builder(backend_app.app)
     register_profile_overview(backend_app.app)
+    register_finance_analytics(backend_app.app)
     # 2026-10-19: Elections, the old wallet survey and financial-admin
     # recruitment are retired. Keep ORM module imports above for safe schema
     # restoration and keep finance_workspace for active trainees/requests.
