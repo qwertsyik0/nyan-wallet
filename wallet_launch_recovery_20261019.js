@@ -11,7 +11,6 @@
 
     const launchedAt = Date.now();
     let lastAttemptAt = 0;
-    let scheduledAttempts = 0;
     const isReady = () => window.__nyanWalletReady === true ||
         loading.classList.contains("hidden");
 
@@ -26,6 +25,12 @@
 
     function recover() {
         if (isReady() || document.hidden) return;
+        // app.js already owns a 25s timeout and bounded retries. Restarting a
+        // still pending call used to abort good connections at 8s / 20s.
+        if (window.__nyanWalletLoadInFlight === true) {
+            showRecovery();
+            return;
+        }
         const now = Date.now();
         if (now - lastAttemptAt < 4500) return;
         lastAttemptAt = now;
@@ -38,18 +43,15 @@
         }
     }
 
-    // The ordinary boot loader still handles fast connections.
-    // Retry once if the Telegram WebView left its first request suspended.
+    // Show the recovery control early, but leave the active fetch alone.
     window.setTimeout(() => {
         if (isReady()) return;
-        scheduledAttempts += 1;
         recover();
     }, 8000);
 
-    // A second bounded recovery prevents a single dead retry from
-    // trapping the user until they close and reopen the Mini App.
+    // This only starts a fresh attempt if the ordinary boot loader is idle.
     window.setTimeout(() => {
-        if (isReady() || scheduledAttempts === 0) return;
+        if (isReady()) return;
         recover();
     }, 20000);
 
