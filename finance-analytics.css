@@ -1,0 +1,24 @@
+.finance-dashboard{width:min(100% - 30px,860px)}
+.finance-periods{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 18px}
+.finance-periods button{flex:1;min-width:75px;border:1px solid #efd5e1;border-radius:12px;background:#fff;color:#8c4361;font-size:11px;font-weight:800;padding:11px 9px}
+.finance-periods button[aria-pressed="true"]{background:#913153;color:#fff;border-color:#913153}
+.finance-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.finance-kpis .studio-card{margin:0;min-width:0;display:flex;flex-direction:column;gap:7px;padding:17px}
+.finance-kpis span{font-size:11px;font-weight:800;color:#a86d88}
+.finance-kpis strong{font-size:clamp(18px,4.5vw,28px);color:#813251;overflow-wrap:anywhere;letter-spacing:-.04em}
+.finance-kpis small{font-size:10px;color:#ac8b9c}
+.finance-details{margin-top:16px}
+.finance-facts{margin-top:10px}
+.finance-facts>div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #f6e2ed;padding:12px 0;font-size:12px}
+.finance-facts span{color:#967287}.finance-facts b{color:#7b2e4d}
+.finance-chart{margin-top:14px;display:grid;gap:10px}
+.finance-chart-row{display:grid;grid-template-columns:55px minmax(0,1fr) 70px;align-items:center;gap:9px;font-size:10px;color:#9c7890}
+.finance-bar-track{display:flex;flex-direction:column;gap:3px;min-width:0}
+.finance-bar{height:8px;border-radius:4px;min-width:1px}.finance-bar.credit{background:#e5a5c4}.finance-bar.debit{background:#923054}
+.finance-chart-row span:last-child{text-align:right;color:#854660;white-space:nowrap}
+.finance-categories{display:grid;gap:8px;margin-top:12px}
+.finance-category{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #f6e1eb;padding:10px 0;font-size:12px}
+.finance-category span{color:#77516a;overflow-wrap:anywhere}.finance-category small{display:block;color:#b1889c;margin-top:4px}
+.finance-category strong{color:#7d3154;text-align:right;white-space:nowrap}
+.finance-footnote{font-size:11px;color:#a58195;line-height:1.6;margin:22px 3px}
+@media(max-width:450px){.finance-dashboard{width:min(100% - 22px,860px)}.finance-chart-row{grid-template-columns:48px minmax(0,1fr) 60px;gap:5px}.finance-kpis .studio-card{padding:12px}}
