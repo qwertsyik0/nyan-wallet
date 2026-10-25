@@ -10,6 +10,7 @@
   const descriptionInput = $("idea-description");
   const sendButton = $("send-button");
   const ownerPanel = $("owner-panel");
+  const retryStatus = $("retry-status");
   let session = "";
   let busy = false;
   let moderatorBusy = false;
@@ -32,34 +33,52 @@
   function currentHeader() { return useMini ? miniInitData : (session ? "browser:" + session : ""); }
 
   async function request(path, method = "GET", body = null, auth = true) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 13000);
-    let response, result;
-    try {
-      response = await fetch(API + path, {
-        method,
-        headers: {
-          ...(body === null ? {} : { "Content-Type": "application/json" }),
-          ...(auth ? { "X-Telegram-Init-Data": currentHeader() } : {})
-        },
-        body: body === null ? undefined : JSON.stringify(body),
-        cache: "no-store",
-        signal: controller.signal,
-      });
-      try { result = await response.json(); } catch (_) { result = null; }
-    } catch (error) {
-      if (controller.signal.aborted) throw Error("Сервер долго не отвечает. Проверь интернет и попробуй ещё раз.");
-      throw Error("Нет связи с сервером Nyan Wallet. Попробуй позже.");
-    } finally {
-      clearTimeout(timer);
+    // Requests from Telegram's mobile webview sometimes stall even while the
+    // API responds normally. Retrying GET is safe; POST is never repeated.
+    const readOnly = method === "GET";
+    const attempts = readOnly ? 2 : 1;
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      const controller = new AbortController();
+      const timeoutMs = readOnly ? (attempt === 0 ? 19000 : 24000) : 30000;
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      let response, result;
+      try {
+        response = await fetch(API + path, {
+          method,
+          headers: {
+            ...(body === null ? {} : { "Content-Type": "application/json" }),
+            ...(auth ? { "X-Telegram-Init-Data": currentHeader() } : {})
+          },
+          body: body === null ? undefined : JSON.stringify(body),
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        try { result = await response.json(); } catch (_) { result = null; }
+        if (!response.ok) {
+          const err = Error(typeof result?.detail === "string" ? result.detail : "Не удалось выполнить запрос.");
+          err.status = response.status;
+          if (readOnly && attempt + 1 < attempts && [429, 502, 503, 504].includes(response.status)) {
+            await new Promise(resolve => setTimeout(resolve, 350));
+            continue;
+          }
+          throw err;
+        }
+        if (!result || typeof result !== "object") throw Error("Некорректный ответ сервера Nyan Wallet.");
+        return result;
+      } catch (error) {
+        if (error.status) throw error;
+        if (readOnly && attempt + 1 < attempts) {
+          if (path === "/api/interactive-ideas/me") setFeedback("соединение задерживается, пробуем ещё раз…");
+          await new Promise(resolve => setTimeout(resolve, 350));
+          continue;
+        }
+        if (controller.signal.aborted) throw Error("Соединение с сервером прервалось. Попробуй проверить заявку ещё раз.");
+        throw Error("Нет связи с сервером Nyan Wallet. Попробуй проверить заявку ещё раз.");
+      } finally {
+        clearTimeout(timer);
+      }
     }
-    if (!response.ok) {
-      const problem = typeof result?.detail === "string" ? result.detail : "Не удалось выполнить запрос.";
-      const err = Error(problem);
-      err.status = response.status;
-      throw err;
-    }
-    return result;
+    throw Error("Не удалось подключиться к серверу Nyan Wallet.");
   }
 
   function buildWidget() {
@@ -91,12 +110,14 @@
 
   function showLogin(message) {
     ownerPanel.hidden = true;
+    retryStatus.hidden = true;
     show("auth-panel");
     buildWidget();
     setFeedback(message || "");
   }
 
   function setResult(idea) {
+    retryStatus.hidden = true;
     show("result-panel");
     const title = $("result-title");
     const text = $("result-text");
@@ -127,6 +148,7 @@
   }
 
   async function refreshMine() {
+    retryStatus.hidden = true;
     setFeedback("проверяем заявку…");
     try {
       const data = await request("/api/interactive-ideas/me");
@@ -145,6 +167,17 @@
         session = "";
         showLogin("сессия Telegram устарела. открой страницу заново из Telegram.");
       } else {
+        // Do not leave the user with an endless spinner. The database may
+        // already contain their submission even if the network stalled.
+        ownerPanel.hidden = true;
+        show("result-panel");
+        $("result-label").textContent = "проверка статуса";
+        $("result-title").textContent = "связь прервалась";
+        $("result-text").textContent = "статус заявки пока не удалось загрузить. если ты уже отправлял идею, не отправляй её заново.";
+        $("reward-result").hidden = true;
+        $("moderator-note").hidden = true;
+        $("idea-summary").hidden = true;
+        retryStatus.hidden = false;
         setFeedback(error.message || "Не удалось получить статус заявки.");
       }
     }
@@ -282,6 +315,7 @@
     refreshModeration();
   }));
   $("owner-refresh").addEventListener("click", refreshModeration);
+  $("retry-status-button").addEventListener("click", refreshMine);
 
   if (currentHeader()) refreshMine();
   else showLogin("");
