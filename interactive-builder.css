@@ -29,6 +29,7 @@ input,textarea,select{width:100%;border:1px solid #edcfdd;border-radius:12px;bac
 input:focus,textarea:focus,select:focus{border-color:#b34b7a;box-shadow:0 0 0 3px #f3dbe6}
 .studio-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .studio-primary{border:0;border-radius:13px;background:#913153;color:#fff;font-size:12px;font-weight:900;padding:14px 17px;box-shadow:0 9px 22px #8e315238}
+.studio-launch{display:inline-flex;align-items:center;justify-content:center;margin:9px 0 2px;background:#913153;color:#fff;border-radius:13px;padding:13px 18px;text-decoration:none;font-size:12px;font-weight:900}
 .studio-form-buttons{display:flex;align-items:center;gap:10px;margin-top:19px}
 .studio-form-buttons .studio-primary{flex:1}
 .studio-hint{font-size:11px;color:#a77b90;line-height:1.5}
