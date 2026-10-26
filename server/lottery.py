@@ -357,7 +357,7 @@ def list_lotteries(x_telegram_init_data: str | None = Header(default=None, alias
         rows = list(session.scalars(select(LotteryRound).order_by(LotteryRound.id.desc()).limit(60)))
         return {"ok": True, "is_owner": owner,
                 "rounds": [round_json(session, row, tg["id"], owner=owner) for row in rows
-                           if owner or row.status not in {"draft", "cancelled"}]}
+                           if row.status != "archived" and (owner or row.status not in {"draft", "cancelled"})]}
 
 
 @router.get("/api/lottery/{round_id}")
@@ -365,7 +365,7 @@ def lottery_detail(round_id: int, x_telegram_init_data: str | None = Header(defa
     tg = auth(x_telegram_init_data)
     with core.SessionLocal() as session:
         row = session.get(LotteryRound, round_id)
-        if row is None or (row.status in {"draft", "cancelled"} and not core.is_owner(tg["id"])):
+        if row is None or row.status == "archived" or (row.status in {"draft", "cancelled"} and not core.is_owner(tg["id"])):
             raise HTTPException(status_code=404, detail="Лотерея не найдена")
         return {"ok": True, "round": round_json(session, row, tg["id"], owner=core.is_owner(tg["id"]))}
 
@@ -550,6 +550,19 @@ def owner_cancel(round_id: int, x_telegram_init_data: str | None = Header(defaul
         row.status, row.completed_at = "cancelled", now()
         audit(session, row, tg["id"], "cancelled", f"Возвраты участникам: {len(refunds)}")
         return {"ok": True, "status": row.status, "refunds": len(refunds)}
+
+
+@router.post("/api/owner/lottery/rounds/{round_id}/archive")
+def owner_archive(round_id: int, x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data")):
+    tg = auth(x_telegram_init_data, owner=True)
+    with core.SessionLocal.begin() as session:
+        row = lock_round(session, round_id)
+        if row.status not in {"drawn", "cancelled"}:
+            raise HTTPException(status_code=409, detail="В архив можно убрать только завершённый или отменённый тираж")
+        previous = row.status
+        row.status = "archived"
+        audit(session, row, tg["id"], "archived", f"Скрыт из мини-приложения. Предыдущий статус: {previous}. Денежные операции сохранены")
+        return {"ok": True, "status": "archived"}
 
 
 def process_due_rounds() -> None:

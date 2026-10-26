@@ -160,6 +160,10 @@
       actions.append(button("отменить и вернуть 🐾", () => ownerAct(round, "cancel", "Отменить тираж? Все потраченные на билеты лапкоины вернутся участникам."), "lottery-danger"));
     }
     if (round.status === "drawn") actions.append(el("span", "lottery-note", `${round.reserved_winners.length} победителей · продажи ${price(round.gross_sales)}`));
+    if (["drawn", "cancelled"].includes(round.status)) {
+      actions.append(button("убрать в архив", () => ownerAct(round, "archive",
+        "Скрыть тираж из мини-приложения? История покупок, списания и награды сохранятся.")));
+    }
     return actions;
   }
 

@@ -117,6 +117,19 @@ with core.SessionLocal() as session:
         core.Transaction.operation_type.in_(["lottery_ticket", "lottery_prize"]))))
     assert sorted(tx.amount for tx in rows) == [-50, 120]
 
+# Archiving never alters purchased tickets, balances or recorded winners.
+assert act(lottery.owner_archive, base.alice, rid).status_code == 403
+assert act(lottery.owner_archive, base.owner, rid).json()["status"] == "archived"
+assert act(lottery.owner_archive, base.owner, rid).status_code == 409
+assert rid not in [x["id"] for x in invoke(lottery.list_lotteries, base.owner).json()["rounds"]]
+assert rid not in [x["id"] for x in invoke(lottery.list_lotteries, base.alice).json()["rounds"]]
+assert act(lottery.lottery_detail, base.alice, rid).status_code == 404
+with core.SessionLocal() as session:
+    assert session.get(core.User, 1001).balance == 2070
+    assert session.get(core.User, 1002).balance == 1750
+    assert lottery.ticket_count(session, rid) == 4
+    assert len(lottery.all_wins(session, rid)) == 1
+
 # Cancellation restores the exact purchase costs, never more than once.
 cancel_round = create().json()["round"]
 cancel_id = cancel_round["id"]
