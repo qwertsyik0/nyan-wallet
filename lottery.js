@@ -92,9 +92,6 @@
     for (const tier of round.tiers) {
       const tile = el("div", "lottery-ticket");
       tile.append(el("strong", "", tier.name), el("span", "lottery-price", price(tier.price)));
-      if (round.mode === "automatic") {
-        tile.append(el("small", "", `вес в розыгрыше ×${tier.weight}`));
-      }
       if (round.status === "active" && !state.owner && (!round.ends_at || new Date(round.ends_at) > new Date())) {
         const amount = document.createElement("select");
         amount.setAttribute("aria-label", `Количество билетов ${tier.name}`);

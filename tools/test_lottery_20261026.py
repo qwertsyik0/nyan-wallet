@@ -87,7 +87,9 @@ detail = act(lottery.lottery_detail, base.alice, rid).json()["round"]
 assert detail["my_tickets"] == 1 and detail["my_spent"] == 50
 assert "participants" not in detail
 assert "mode" not in detail
+assert "weight" not in detail["tiers"][0]
 assert act(lottery.lottery_detail, base.owner, rid).json()["round"]["mode"] == "manual"
+assert act(lottery.lottery_detail, base.owner, rid).json()["round"]["tiers"][0]["weight"] == 1
 assert act(lottery.owner_close, base.owner, rid).json()["status"] == "closed"
 assert buy(rid, base.alice, tier1, 1, "closed123").status_code == 409
 prize = act(lottery.lottery_detail, base.owner, rid).json()["round"]["prizes"][0]
