@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#fff7fb">
+  <title>Лотерея · Nyan Wallet</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./interactive-builder.css?v=20261025-2">
+  <link rel="stylesheet" href="./lottery.css?v=20261026-1">
+</head>
+<body>
+<main class="studio lottery-app">
+  <header class="studio-header">
+    <span class="studio-symbol">🎫</span>
+    <div><div class="studio-brand">Nyan Lottery</div><div class="studio-caption">лотерея Nyan Wallet</div></div>
+    <a class="studio-home" href="./index.html">кошелёк ↗</a>
+  </header>
+
+  <section class="lottery-hero">
+    <p class="eyebrow">NYAN WALLET / LOTTERY</p>
+    <h1>Выбери билет.<br><span>Испытай удачу.</span></h1>
+    <p>Выбирай билет и участвуй в тираже. Призы и стоимость участия указаны ниже, выигрыш не гарантирован.</p>
+    <div class="lottery-hero-facts"><span>🐾 оплата лапкоинами</span><span>✦ каждый билет участвует</span></div>
+  </section>
+
+  <section id="lottery-login" class="studio-card" hidden>
+    <h2>Открой через Telegram</h2>
+    <p>Для покупки нужна проверенная сессия Telegram. Баланс привязан к твоему кошельку Nyan.</p>
+    <a class="studio-launch" href="https://t.me/nyancash_bot?startapp=lottery">открыть в Telegram ↗</a>
+  </section>
+
+  <section id="lottery-owner" hidden>
+    <div class="studio-section-title"><h2>Управление лотереей</h2><span>только владелец</span></div>
+    <section class="studio-card lottery-owner-panel">
+      <div class="lottery-owner-tabs"><button id="lottery-new-tab" type="button" class="lottery-selected">Новый тираж</button><button id="lottery-admin-list-tab" type="button">Все тиражи</button></div>
+      <form id="lottery-form" autocomplete="off">
+        <h2 id="lottery-form-title">Настройка тиража</h2>
+        <label>Название<input id="lottery-title" maxlength="120" minlength="3" placeholder="Счастливый билет Няника" required></label>
+        <label>Описание<textarea id="lottery-description" rows="2" maxlength="1000" minlength="5" placeholder="Что могут выиграть участники?" required></textarea></label>
+        <div class="studio-grid">
+          <label>Кто выбирает победителей
+            <select id="lottery-mode"><option value="automatic">система, случайно</option><option value="manual">владелец, вручную</option></select>
+          </label>
+          <label>Максимум билетов на человека<input id="lottery-limit" type="number" min="1" max="100" value="20" required></label>
+        </div>
+        <label>Когда закрыть приём билетов<input id="lottery-ends" type="datetime-local"><span class="studio-hint">Обязательно при автоматическом выборе. После срока система разыграет призы сама.</span></label>
+        <div class="lottery-editor-title"><h3>Категории билетов</h3><button id="lottery-add-tier" type="button">＋ билет</button></div>
+        <p class="studio-hint">Цена в 🐾 и вес: билет с весом 5 участвует в выборе в 5 раз сильнее билета с весом 1.</p>
+        <div id="lottery-tier-fields" class="lottery-editor-rows"></div>
+        <div class="lottery-editor-title"><h3>Призы</h3><button id="lottery-add-prize" type="button">＋ приз</button></div>
+        <p class="studio-hint">Укажи приз, сколько 🐾 получит победитель и сколько таких призов разыграть.</p>
+        <div id="lottery-prize-fields" class="lottery-editor-rows"></div>
+        <div class="studio-form-buttons">
+          <button id="lottery-save" class="studio-primary" type="submit">сохранить черновик</button>
+          <button id="lottery-reset" type="button">сбросить</button>
+        </div>
+        <p id="lottery-editor-status" class="studio-feedback" aria-live="polite"></p>
+        <p class="studio-hint">После первой покупки нельзя менять цены, веса или призы текущего тиража. Для новых условий создай следующий.</p>
+      </form>
+      <section id="lottery-admin-panel" hidden>
+        <h2>Все тиражи</h2>
+        <div id="lottery-admin-rounds" class="lottery-stack"></div>
+      </section>
+    </section>
+    <section id="lottery-review" class="studio-card" hidden>
+      <div class="studio-section-title"><h2 id="lottery-review-title">Выбор победителей</h2><button id="lottery-review-close" type="button">закрыть</button></div>
+      <div id="lottery-review-content"></div>
+      <div id="lottery-review-status" class="studio-feedback" aria-live="polite"></div>
+    </section>
+  </section>
+
+  <section class="lottery-play">
+    <div class="studio-section-title"><h2>Тиражи</h2><button id="lottery-reload" type="button">↻ обновить</button></div>
+    <div id="lottery-rounds" class="lottery-stack"><div class="studio-placeholder">Загружаем билеты…</div></div>
+  </section>
+  <p id="lottery-status" class="studio-global-status" role="status" aria-live="polite"></p>
+  <footer>nyan wallet / решает удача ♡</footer>
+</main>
+<script src="./lottery.js?v=20261026-1"></script>
+</body>
+</html>

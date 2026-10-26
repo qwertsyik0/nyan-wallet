@@ -1,0 +1,34 @@
+.lottery-app{max-width:740px}
+.lottery-hero{margin:30px 0 20px;padding:28px 24px 25px;border-radius:26px;border:1px solid #f5d7e4;background:radial-gradient(ellipse at 88% 5%,#f9cadf,transparent 52%),linear-gradient(143deg,#fff,#fff1f8);box-shadow:0 18px 42px #9f4c7020}
+.lottery-hero h1{margin:12px 0 13px}.lottery-hero h1 span{color:#b34976}
+.lottery-hero>p:not(.eyebrow){font-size:13px;color:#986b80;line-height:1.65;max-width:520px}
+.lottery-hero-facts{display:flex;gap:9px;flex-wrap:wrap;margin-top:21px}
+.lottery-hero-facts span{background:#fff9fd;border:1px solid #f2d4e1;border-radius:10px;padding:8px 10px;font-size:10px;font-weight:800;color:#8a3e60}
+.lottery-stack{display:grid;gap:14px}.lottery-round{padding:19px;border:1px solid #f0d7e3;background:#ffffffdb;box-shadow:0 12px 30px #a04d6c13;border-radius:22px}
+.lottery-round-top{display:flex;justify-content:space-between;gap:12px;align-items:start}.lottery-round h3{margin:0;font-size:18px;color:#742845;line-height:1.25}.lottery-round p{font-size:12px;line-height:1.6;color:#a16e87;white-space:pre-wrap}
+.lottery-tag{font-size:10px;font-weight:900;border-radius:99px;background:#fce7f0;border:1px solid #f1cddd;color:#a14169;padding:7px 10px;white-space:nowrap}
+.lottery-rule{font-size:11px;color:#a16c84;margin:9px 0 16px}.lottery-stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.lottery-stats span{font-size:11px;color:#823a59;background:#fff3f8;border:1px solid #f1dce6;padding:7px 10px;border-radius:10px}
+.lottery-tickets{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px;margin-top:15px}
+.lottery-ticket{border-radius:16px;padding:15px;background:radial-gradient(circle at right top,#ffe4ef,#fff9fc 72%);border:1px solid #efd1df;display:grid;gap:7px}
+.lottery-ticket strong{font-size:13px;color:#78344f}.lottery-ticket .lottery-price{font-size:23px;letter-spacing:-.045em;color:#912e58;font-weight:900}.lottery-ticket small{font-size:10px;color:#a7768b}
+.lottery-ticket .lottery-buy{width:100%;border-radius:11px;border:0;background:#8e3156;color:#fff;padding:11px;font-size:11px;font-weight:900}
+.lottery-ticket .lottery-buy:disabled{opacity:.5}.lottery-ticket select{padding:9px 7px;font-size:12px}
+.lottery-prize-list{display:flex;gap:8px;flex-wrap:wrap}.lottery-prize{font-size:11px;color:#8e3a5d;padding:8px 11px;border-radius:10px;border:1px solid #f1d6e3;background:#fff6fb}
+.lottery-subhead{color:#863e5d;font-size:12px;font-weight:900;margin:19px 0 9px}.lottery-winning{margin-top:12px;border-top:1px solid #f2dce6;padding-top:12px;font-size:11px;color:#935470;line-height:1.8}
+.lottery-own-win{font-weight:900;color:#9a2859}
+.lottery-owner-tabs{display:flex;gap:7px;margin-bottom:19px}.lottery-owner-tabs button,.lottery-admin-actions button,.lottery-editor-title button,.lottery-editor-row button,.lottery-review-actions button{border:1px solid #ecd0de;background:#fff5fa;color:#8e3b61;border-radius:11px;padding:9px 12px;font-weight:800;font-size:11px}
+.lottery-owner-tabs .lottery-selected{background:#8c3357;color:#fff;border-color:#8c3357}
+.lottery-owner-panel h2{font-size:16px;margin:0 0 14px}.lottery-editor-title{display:flex;justify-content:space-between;align-items:center;gap:9px;margin-top:24px}
+.lottery-editor-title h3{font-size:14px;color:#7e3451;margin:0}
+.lottery-editor-rows{display:grid;gap:10px;margin-top:11px}
+.lottery-editor-row{display:grid;grid-template-columns:1.6fr 1fr 1fr auto;align-items:end;gap:7px;border:1px solid #f1dce5;background:#fff9fc;border-radius:13px;padding:10px}
+.lottery-editor-row label{margin:0;font-size:10px}.lottery-editor-row input{min-width:0;padding:10px;font-size:11px}
+.lottery-editor-row .lottery-remove{color:#a03b58;padding:10px}
+.lottery-admin-actions{display:flex;gap:8px;flex-wrap:wrap;margin:15px 0 0}.lottery-admin-actions button:disabled{opacity:.5}
+.lottery-confirm{border:0!important;color:white!important;background:#9c355c!important}.lottery-danger{color:#bd345d!important}
+.lottery-person{padding:10px 0;border-bottom:1px solid #f3e0e8;font-size:12px;color:#833856}
+.lottery-slot{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin:12px 0;background:#fff7fa;border:1px solid #f0dae5;border-radius:13px;padding:11px}
+.lottery-slot strong{font-size:11px;color:#823a59}.lottery-slot label{margin:0}.lottery-slot select{padding:9px;font-size:11px}.lottery-slot button{border:0;border-radius:10px;background:#973e61;color:#fff;padding:12px 9px;font-size:11px;font-weight:800}
+.lottery-review-actions{display:flex;gap:10px;margin-top:18px}.lottery-review-actions button{flex:1}.lottery-review-actions .lottery-confirm{padding:13px}
+.lottery-ticket[aria-disabled="true"]{opacity:.75}.lottery-note{font-size:11px;color:#9b7789;line-height:1.6;margin:12px 0}
+@media(max-width:430px){.lottery-hero{padding:22px 18px}.lottery-round{padding:15px}.lottery-editor-row{grid-template-columns:1fr 1fr}.lottery-editor-row label:first-child{grid-column:span 2}.lottery-slot{grid-template-columns:1fr}.lottery-slot button{width:100%}}

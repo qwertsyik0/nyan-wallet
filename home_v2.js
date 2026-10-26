@@ -11,6 +11,7 @@
     ["profile", "◇", "Профиль", "adv-profile-button"],
     ["notifications", "◌", "Уведомления", "adv-notifications-button"],
     ["giveaways", "✦", "Розыгрыши", "nyg-my-button"],
+    ["lottery", "🎫", "Лотерея", "nyan-lottery-link"],
     ["purchases", "▤", "Покупки", "nyg-my-purchases-button"],
     ["appeals", "✉", "Обращения", "appeals-button"],
     ["studio", "✳", "Интерактивы", "nyan-studio-link"],
@@ -115,6 +116,10 @@
           window.location.assign("./interactive-builder.html");
           return;
         }
+        if (target === "nyan-lottery-link") {
+          window.location.assign("./lottery.html");
+          return;
+        }
         if (target) proxyClick(target);
       });
     }
@@ -186,7 +191,7 @@
       if (!homeButton) continue;
       // Never offer a dead action before its original handler exists.
       const hide = !proxy || proxy.hidden || proxy.disabled;
-      const unavailable = target === "nyan-studio-link" ? false : hide;
+      const unavailable = ["nyan-studio-link", "nyan-lottery-link"].includes(target) ? false : hide;
       if (homeButton.hidden !== Boolean(unavailable)) homeButton.hidden = Boolean(unavailable);
     }
 
