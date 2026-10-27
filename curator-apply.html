@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#fff8fb">
+  <meta name="color-scheme" content="light">
+  <title>Анкета куратора · Nyan Shop</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./curator.css?v=20261027-1">
+</head>
+<body>
+  <main class="page">
+    <header class="brand"><span class="brand-paw">🐾</span><strong>NYAN <em>SHOP</em></strong><span class="brand-tag">НАБОР В КОМАНДУ</span></header>
+    <div class="intro"><span class="eyebrow">✦ ОТКРЫТАЯ ВАКАНСИЯ</span><h1>Куратор <i>Nyan Shop</i></h1><p>Контроль команды, отчётов, зарплат в ⭐ и рублях, а также замещение владельца в его отсутствие. Должность оплачиваемая, отбор строгий.</p></div>
+
+    <section id="loading" class="panel status-panel" role="status"><div class="status-icon">◌</div><h2>Проверяем доступ к анкете…</h2></section>
+
+    <section id="warning" class="panel warning-panel" hidden>
+      <div class="warning-box" role="alert">
+        <h2><span aria-hidden="true">⚠</span> ВНИМАНИЕ!</h2>
+        <p><strong>Использование искусственного интеллекта для составления ответов строго запрещено.</strong></p>
+        <p>Все анкеты проверяются лично владельцем Nyan Shop. При наличии признаков использования ИИ владелец вправе отказать в приглашении на собеседование.</p>
+        <p>Отвечайте самостоятельно, честно и подробно. Повторное заполнение после отправки невозможно.</p>
+      </div>
+      <label class="agree"><input id="start-agree" type="checkbox"><span>Я ознакомился(лась) с предупреждением и обязуюсь отвечать самостоятельно</span></label>
+      <button id="start-button" class="primary" disabled>Приступить к анкете <span>→</span></button>
+    </section>
+
+    <section id="form-panel" class="panel" hidden>
+      <div class="form-top"><div><span class="section-kicker">АНКЕТА КАНДИДАТА</span><h2 id="step-title">01. Знакомство</h2></div><span id="step-counter" class="counter">1 / 4</span></div>
+      <div class="progress"><div id="progress-bar"></div></div>
+      <form id="curator-form" novalidate>
+        <section class="step" data-step="0">
+          <p class="step-desc">Контакт в Telegram определяется автоматически. Заполни данные о себе.</p>
+          <label class="field"><span>01. Как к тебе обращаться? <b>*</b></span><input id="display_name" type="text" minlength="2" maxlength="64" autocomplete="nickname" placeholder="Имя или псевдоним" required></label>
+          <label class="field"><span>02. Сколько тебе лет? <b>*</b></span><input id="age" type="number" min="13" max="99" step="1" placeholder="Возраст" required></label>
+          <label class="field"><span>03. Когда сможешь работать? <b>*</b></span><small>Часовой пояс и примерное количество свободного времени в день.</small><input id="timezone" type="text" minlength="2" maxlength="64" placeholder="Например: МСК (UTC+3)" required><input id="availability" type="text" minlength="2" maxlength="100" placeholder="Например: 3–4 часа вечером" required></label>
+        </section>
+        <section class="step" data-step="1" hidden><p class="step-desc">Расскажи о своём опыте и о том, как будешь управлять работой команды.</p><div id="questions-management"></div></section>
+        <section class="step" data-step="2" hidden><p class="step-desc">В этом блоке нет единственного правильного ответа. Важно, как ты рассуждаешь.</p><div id="questions-situations-a"></div></section>
+        <section class="step" data-step="3" hidden><p class="step-desc">Последние ситуации. Подробно опиши последовательность своих действий.</p><div id="questions-situations-b"></div><label class="agree"><input id="submit-agree" type="checkbox" required><span>Я самостоятельно написал(а) ответы и согласен(на) передать их владельцу Nyan Shop для рассмотрения кандидатуры <b>*</b></span></label></section>
+        <p id="form-error" class="form-error" role="status" aria-live="polite"></p>
+        <div class="controls"><button id="prev-step" class="secondary" type="button" hidden>← Назад</button><button id="next-step" class="primary" type="button">Продолжить →</button><button id="submit-form" class="primary" type="submit" hidden>Отправить анкету ↗</button></div>
+      </form>
+      <p class="small-note">Только одна попытка. Черновик автоматически сохраняется на этом устройстве, пока анкета не отправлена.</p>
+    </section>
+
+    <section id="result" class="panel status-panel" role="status" hidden></section>
+    <footer class="footer">NYAN SHOP <span>·</span> КОМАНДА НЯН</footer>
+  </main>
+  <script src="./curator-apply.js?v=20261027-1"></script>
+</body>
+</html>
