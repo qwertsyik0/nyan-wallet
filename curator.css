@@ -1,0 +1,91 @@
+:root{color-scheme:light;--ink:#5b3047;--muted:#987287;--berry:#9b4269;--line:#f0dae4;--pink:#f9e5ed;--paper:#fffdfd}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;min-height:100vh;color:var(--ink);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Arial,sans-serif;background:radial-gradient(ellipse 85% 37% at 50% 0%,#f9dce9a8,transparent 82%),radial-gradient(ellipse 100% 55% at 100% 95%,#fce8f0,transparent 80%),#fff9fc}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
+.page{width:min(100%,690px);margin:0 auto;padding:18px 18px calc(45px + env(safe-area-inset-bottom))}
+.brand{display:flex;align-items:center;gap:10px;padding:1px 0 29px}
+.brand-paw{display:grid;place-items:center;width:38px;height:38px;border-radius:13px;background:#fff;border:1px solid var(--line);font-size:18px;box-shadow:0 8px 22px #ae64801a}
+.brand strong{font-size:13px;font-weight:880;letter-spacing:.12em;white-space:nowrap}
+.brand em{font-style:normal;color:var(--berry)}
+.brand-tag{margin-left:auto;font-size:9px;letter-spacing:.1em;font-weight:800;color:#a5758d;border:1px solid var(--line);background:#ffffffba;border-radius:40px;padding:8px 10px;white-space:nowrap}
+.eyebrow,.section-kicker{font-size:10px;font-weight:840;letter-spacing:.13em;color:#a85479}
+.intro{margin-bottom:24px}
+.intro h1{font-size:clamp(35px,8.6vw,58px);letter-spacing:-.06em;line-height:1.05;margin:13px 0 14px;font-weight:850}
+.intro h1 i{font-style:normal;color:#b85a82}
+.intro p{margin:0;color:#967183;line-height:1.65;font-size:13px;max-width:565px}
+.panel{border-radius:25px;padding:25px 21px;background:#ffffffeb;border:1px solid #edd5df;box-shadow:0 20px 50px #99365e14}
+.warning-box{border:3px solid #dc2626;background:#fff6f6;border-radius:20px;padding:21px 19px;color:#871d2a;box-shadow:0 0 0 4px #fee2e2ad}
+.warning-box h2{display:flex;align-items:center;gap:9px;font-size:23px;color:#bd1628;margin:0 0 15px;font-weight:900;letter-spacing:.025em}
+.warning-box h2 span{font-size:27px}
+.warning-box p{font-size:13px;line-height:1.65;margin:12px 0 0}
+.warning-box strong{color:#a51123;font-size:14px}
+.agree{display:flex;align-items:flex-start;gap:11px;margin:22px 0 15px;background:#fff8fa;padding:14px;border:1px solid var(--line);border-radius:14px;color:#805e70;font-size:12px;line-height:1.55;cursor:pointer}
+.agree input{margin:2px 0 0;width:17px;height:17px;flex:0 0 17px;accent-color:#a24772}
+.agree b{color:#cc577a}
+button.primary,.primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;background:linear-gradient(115deg,#973c67,#c96f97);color:#fff;font-size:13px;font-weight:780;min-height:50px;padding:13px 18px;border-radius:15px;box-shadow:0 12px 25px #9d476c29;transition:opacity .15s,transform .15s}
+.primary:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+.primary:active:not(:disabled),.secondary:active{transform:scale(.98)}
+.warning-panel>.primary{width:100%}
+.secondary{min-height:50px;border-radius:15px;border:1px solid var(--line);background:#fff3f8;color:#8b4166;font-weight:780;font-size:13px;padding:13px 16px}
+.controls{display:flex;gap:10px;margin-top:19px}
+.controls .primary{flex:1}
+.form-top{display:flex;align-items:center;justify-content:space-between;gap:13px}
+.form-top h2{font-size:24px;letter-spacing:-.045em;margin:4px 0 0}
+.counter{font-size:12px;color:#ae8297;font-weight:770;font-variant-numeric:tabular-nums;white-space:nowrap}
+.progress{margin:18px 0 25px;background:#f8e9f0;border-radius:50px;height:6px;overflow:hidden}
+.progress>div{width:25%;height:100%;border-radius:50px;background:linear-gradient(90deg,#ac517c,#d994b1);transition:width .22s ease}
+.step-desc{font-size:13px;line-height:1.6;color:#94778a;margin:0 0 19px}
+.field{display:block;margin-bottom:21px}
+.field>span{display:block;font-size:13px;font-weight:760;line-height:1.5;margin-bottom:9px}
+.field b{color:#c75b82}
+.field small{display:block;margin:-3px 0 9px;font-size:12px;line-height:1.5;color:#9c7c8c}
+.field input,.field textarea{width:100%;display:block;min-height:50px;max-width:100%;border:1px solid #eacfdc;background:#fffdfd;border-radius:14px;padding:14px;font-size:14px;line-height:1.55;outline:none;color:#60384d;transition:border-color .15s,box-shadow .15s}
+.field input+input{margin-top:9px}
+.field textarea{min-height:122px;resize:vertical}
+.field input::placeholder,.field textarea::placeholder{color:#baa1af}
+.field input:focus,.field textarea:focus{border-color:#c9799d;box-shadow:0 0 0 4px #e8b7ce45}
+.field .invalid{border-color:#dc2626!important;box-shadow:0 0 0 3px #fecaca!important}
+.form-error{font-size:12px;font-weight:650;color:#bb2f48;line-height:1.5;min-height:1px;margin:7px 0}
+.small-note{font-size:11px;line-height:1.6;color:#a48a96;border-top:1px solid #f2e2e9;padding-top:17px;margin:20px 0 0}
+.status-panel{text-align:center;padding:34px 23px}
+.status-panel .status-icon{font-size:29px;color:#b45b84;margin-bottom:11px}
+.status-panel h2{font-size:25px;letter-spacing:-.04em;margin:0 0 9px}
+.status-panel p{white-space:pre-line;font-size:13px;color:#937184;line-height:1.7;margin:0 0 17px}
+.status-pill{display:inline-flex;background:#fff0f5;color:#a65076;border-radius:30px;padding:9px 13px;font-size:11px;font-weight:780}
+.status-panel button{margin-top:10px}
+.launch-link{display:block;font-size:13px;color:#9d3762;font-weight:750;margin-top:14px}
+.footer{text-align:center;margin-top:30px;font-weight:720;letter-spacing:.12em;font-size:10px;color:#c098a9}
+.footer span{color:#ad5e80}
+/* Owner review page */
+.review-toolbar{display:flex;gap:9px;align-items:center;margin-bottom:18px}
+.review-toolbar select{min-width:0;flex:1;background:#fff;border:1px solid var(--line);border-radius:13px;padding:12px;color:#83556b;font-weight:720;font-size:13px;outline:none}
+.review-toolbar button{min-height:44px}
+.review-count{color:#9e7488;font-size:12px;margin:0 0 14px;line-height:1.5}
+.application-card{border-radius:20px;padding:17px;margin-bottom:14px;background:#fff;border:1px solid #edd8e2;box-shadow:0 9px 22px #a45c7711}
+.app-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.app-head h3{font-size:17px;letter-spacing:-.03em;margin:0;overflow-wrap:anywhere}
+.app-head .app-num{font-size:11px;font-weight:800;white-space:nowrap;color:#a36c86;background:#fff3f8;border-radius:22px;padding:7px 10px}
+.app-sub{font-size:11px;color:#a37f91;line-height:1.6;margin:8px 0}
+.status-label{display:inline-block;font-size:11px;padding:7px 10px;border-radius:20px;font-weight:740;background:#fce8ef;color:#9d446b}
+.status-label.interview{background:#e3f4e8;color:#257044}
+.status-label.rejected{background:#fde4e5;color:#a62e3e}
+.open-button{width:100%;margin-top:14px}
+.answers-panel{margin-top:18px;border-top:1px solid #f1dfe7;padding-top:18px}
+.answer-item{padding:13px 0;border-bottom:1px solid #f7eaf0}
+.answer-item strong{font-size:12px;line-height:1.55;display:block;color:#8c4566}
+.answer-item p{font-size:13px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0 0;color:#603e50}
+.review-form{display:grid;gap:13px;padding-top:18px}
+.review-form label{display:grid;gap:7px;font-size:12px;font-weight:750;color:#8a5470}
+.review-form textarea,.review-form input{border:1px solid #ebd3df;border-radius:12px;background:#fffafa;padding:12px;font-size:13px;line-height:1.5;color:#603e50;outline:none;width:100%}
+.review-form textarea{resize:vertical;min-height:87px}
+.review-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.review-actions button{border:none;border-radius:12px;padding:13px 8px;color:#fff;font-size:12px;font-weight:750;min-height:45px}
+.review-actions .accept{background:#417f59}
+.review-actions .reject{background:#ba3d50}
+.review-actions button:disabled{opacity:.4;cursor:not-allowed}
+.internal-note{border-radius:12px;background:#fff7ee;padding:12px;margin-top:13px;color:#976643;font-size:12px;line-height:1.6}
+.review-empty{padding:35px 18px;text-align:center;border:1px dashed #e8c5d5;border-radius:20px;background:#fffafd;color:#a5798c;font-size:13px;line-height:1.6}
+@media(max-width:370px){.page{padding-left:12px;padding-right:12px}.panel{padding:22px 15px}.brand-tag{font-size:8px;padding:7px}.warning-box{padding:18px 14px}}
+@media(prefers-reduced-motion:reduce){.progress>div,.primary{transition:none}}
