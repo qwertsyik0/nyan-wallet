@@ -97,16 +97,27 @@
     for (const id of ["prev-step", "next-step", "submit-form"]) $(id).disabled = value;
     $("submit-form").textContent = value ? "Отправляем…" : "Отправить анкету ↗";
   }
-  async function request(path, payload) {
-    const response = await fetch(API + path, {
-      method: payload ? "POST" : "GET",
-      cache: "no-store",
-      headers: { "X-Telegram-Init-Data": tg?.initData || "", ...(payload ? { "Content-Type": "application/json" } : {}) },
-      ...(payload ? { body: JSON.stringify(payload) } : {}),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Сервер временно недоступен");
-    return data;
+  async function request(path, payload, timeoutMs = 12000) {
+    const controller = new AbortController();
+    const deadline = window.setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(API + path, {
+        method: payload ? "POST" : "GET",
+        cache: "no-store",
+        signal: controller.signal,
+        headers: { "X-Telegram-Init-Data": tg?.initData || "", ...(payload ? { "Content-Type": "application/json" } : {}) },
+        ...(payload ? { body: JSON.stringify(payload) } : {}),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : `Ошибка сервера (${response.status})`);
+      return data;
+    } catch (error) {
+      if (error?.name === "AbortError") throw new Error("Сервер слишком долго отвечает. Попробуй ещё раз.");
+      if (error instanceof TypeError) throw new Error("Нет соединения с сервером. Проверь интернет и попробуй ещё раз.");
+      throw error;
+    } finally {
+      window.clearTimeout(deadline);
+    }
   }
   function result(heading, description, row = null, retry = false) {
     const container = $("result");
@@ -133,6 +144,7 @@
   }
   async function checkStatus() {
     show("loading");
+    $("loading").querySelector("h2").textContent = "Проверяем доступ к анкете…";
     if (!tg?.initData) {
       result("Открой через Telegram", "Эта анкета работает только через мини-приложение бота Nyan Wallet.");
       const link = text("a", "launch-link", "Открыть анкету в Telegram ↗");
@@ -140,12 +152,25 @@
       $("result").appendChild(link);
       return;
     }
-    try {
-      const { application } = await request("/api/recruitment/curator/me");
-      if (application) showApplication(application);
-      else show("warning");
-    } catch (error) {
-      result("Не удалось открыть анкету", error?.message || "Проверь подключение и попробуй снова.", null, true);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const { application } = await request("/api/recruitment/curator/me", null, 6500);
+        if (application) showApplication(application);
+        else show("warning");
+        return;
+      } catch (error) {
+        const message = error?.message || "Не удалось связаться с сервером.";
+        if (/сессия устарела|initData|auth_date|подпись Telegram|Telegram hash/i.test(message)) {
+          result("Нужно открыть анкету заново", message + " Закрой мини-приложение и открой его снова через кнопку в чате.");
+          return;
+        }
+        if (attempt === 1) {
+          result("Не удалось проверить доступ", message, null, true);
+          return;
+        }
+        $("loading").querySelector("h2").textContent = "Повторно подключаемся к серверу…";
+        await new Promise(resolve => window.setTimeout(resolve, 450));
+      }
     }
   }
   function confirmSubmit() {
