@@ -45,8 +45,11 @@ assert targets == [
     "adv-profile-button",
     "adv-notifications-button",
     "nyg-my-button",
+    "nyan-lottery-link",
+    "nyan-fortune-link",
     "nyg-my-purchases-button",
     "appeals-button",
+    "nyan-studio-link",
 ], "An action is missing, duplicated or improperly routed in the More menu"
 assert len(set(targets)) == len(targets), "Duplicate actions in More"
 assert 'class="nyan-home-primary"' not in client, "Old big action tiles were recreated"
@@ -56,6 +59,6 @@ assert 'legacyActions.style.setProperty("display", "none", "important");' in cli
 assert '#nyan-home-v2>.nyan-home-primary' in home, "Outdated JS might recreate large action tiles"
 assert 'id="nyan-home-owner"' in client and 'ownerProxy.disabled' in client, "Owner menu access must remain conditional"
 assert '"nyan-home-badge"' in client, "Notification badge must remain available"
-print("OK: all nine actions are compact More entries; original large buttons cannot appear")
+print("OK: all twelve actions are compact More entries; original large buttons cannot appear")
 
 print("OK: old action grid stays hidden; new home navigation keeps original click handlers")
