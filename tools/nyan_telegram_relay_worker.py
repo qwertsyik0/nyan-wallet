@@ -29,6 +29,7 @@ from pathlib import Path
 
 STOP = False
 _ORIGINAL_GETADDRINFO = socket.getaddrinfo
+RICH_MESSAGE_PREFIX = "NYAN_TG_RICH_V1:"
 
 
 def _stop(*_args):
@@ -103,10 +104,55 @@ def request_json(url: str, *, data: dict | None = None, secret: str = "") -> dic
     return answer
 
 
+def telegram_send_payload(chat_id: int, text: str) -> dict:
+    """Build Telegram request; ordinary wallet notifications remain plain text.
+
+    Rich messages are an explicit, constrained outbox envelope used for owner
+    invitations. Never interpret arbitrary user-visible text as Telegram HTML.
+    """
+    result = {"chat_id": int(chat_id), "text": text}
+    if not text.startswith(RICH_MESSAGE_PREFIX):
+        return result
+
+    try:
+        message = json.loads(text[len(RICH_MESSAGE_PREFIX):])
+        if not isinstance(message, dict):
+            raise ValueError("message must be an object")
+        html = message["text"]
+        buttons = message["buttons"]
+        if not isinstance(html, str) or not 1 <= len(html) <= 3800:
+            raise ValueError("invalid rich message text")
+        if not isinstance(buttons, list) or not 1 <= len(buttons) <= 4:
+            raise ValueError("invalid buttons")
+        inline_keyboard = []
+        for button in buttons:
+            if not isinstance(button, dict) or set(button) != {"text", "url"}:
+                raise ValueError("invalid button")
+            title, url = button["text"], button["url"]
+            if (not isinstance(title, str) or not 1 <= len(title) <= 64
+                    or not isinstance(url, str)
+                    or not url.startswith("https://t.me/")
+                    or len(url) > 256):
+                raise ValueError("invalid button fields")
+            inline_keyboard.append([{"text": title, "url": url}])
+        if set(message) != {"text", "buttons"}:
+            raise ValueError("unexpected fields")
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise RelayError("invalid rich message envelope", permanent=True) from exc
+
+    return {
+        "chat_id": int(chat_id),
+        "text": html,
+        "parse_mode": "HTML",
+        "link_preview_options": {"is_disabled": True},
+        "reply_markup": {"inline_keyboard": inline_keyboard},
+    }
+
+
 def send_one(bot_token: str, chat_id: int, text: str) -> int | None:
     answer = request_json(
         f"https://api.telegram.org/bot{bot_token}/sendMessage",
-        data={"chat_id": int(chat_id), "text": text},
+        data=telegram_send_payload(chat_id, text),
     )
     return answer.get("result", {}).get("message_id")
 
