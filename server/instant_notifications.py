@@ -9,6 +9,10 @@ from server.extended_features import AdminAudit, send_telegram_message
 
 _REGISTERED = False
 
+# A reviewed daily task already creates its own ledger transaction. Avoid
+# sending the owner a separate task-completion audit notification as well.
+OWNER_SILENT_AUDIT_ACTIONS = frozenset({"task_approved"})
+
 ACTION_LABELS = {
     "owner_grant": "Начисление лапкоинов",
     "owner_debit": "Списание лапкоинов",
@@ -31,7 +35,7 @@ def _send_async(chat_id: int | None, text: str) -> None:
 
 
 def _notify_owner_after_audit_insert(mapper, connection, target: AdminAudit) -> None:
-    if not core.OWNER_TELEGRAM_ID:
+    if not core.OWNER_TELEGRAM_ID or target.action in OWNER_SILENT_AUDIT_ACTIONS:
         return
 
     title = ACTION_LABELS.get(target.action, target.action)
