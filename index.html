@@ -148,6 +148,28 @@
           return;
         }
 
+        if (["curator_apply", "curator", "nyan_curator"].includes(startParam)) {
+          const target = new URL("./curator-apply.html", window.location.href);
+          const current = new URL(window.location.href);
+          for (const [key, value] of current.searchParams.entries()) {
+            if (!["startapp", "tgWebAppStartParam"].includes(key)) target.searchParams.set(key, value);
+          }
+          if (current.hash) target.hash = current.hash;
+          window.location.replace(target.toString());
+          return;
+        }
+
+        if (["curator_review", "curator_owner"].includes(startParam)) {
+          const target = new URL("./curator-review.html", window.location.href);
+          const current = new URL(window.location.href);
+          for (const [key, value] of current.searchParams.entries()) {
+            if (!["startapp", "tgWebAppStartParam"].includes(key)) target.searchParams.set(key, value);
+          }
+          if (current.hash) target.hash = current.hash;
+          window.location.replace(target.toString());
+          return;
+        }
+
         if (["finance_analytics", "finance-analytics"].includes(startParam)) {
           const target = new URL("./finance-analytics.html", window.location.href);
           const current = new URL(window.location.href);
