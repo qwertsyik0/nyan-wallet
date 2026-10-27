@@ -110,8 +110,8 @@ with core.SessionLocal() as session:
     tx = session.scalars(select(core.Transaction).where(core.Transaction.telegram_id == 1001)).all()
     assert len(tx) == 1 and tx[0].amount == 200 and tx[0].operation_type == "fortune_spin"
     notices = session.scalars(select(relay.TelegramRelayMessage)).all()
-    assert len(notices) == 2  # one user + one owner; both from the same ledger write
-    assert any("+200 🐾" in notice.body for notice in notices)
+    assert len(notices) == 1  # Quiet reward: recipient notified, owner not pinged.
+    assert notices[0].chat_id == 1001 and "+200 🐾" in notices[0].body
 
 with core.SessionLocal.begin() as session:
     old = session.get(fortune.FortuneSpin, first["spin"]["id"])
@@ -128,7 +128,7 @@ assert spin(key="c" * 32)["duplicate"]
 with core.SessionLocal() as session:
     assert session.get(core.User, 1001).balance == 200
     assert session.scalar(select(func.count()).select_from(core.Transaction)) == 1
-    assert session.scalar(select(func.count()).select_from(relay.TelegramRelayMessage)) == 2
+    assert session.scalar(select(func.count()).select_from(relay.TelegramRelayMessage)) == 1
 
 with core.SessionLocal.begin() as session:
     user = core.User(telegram_id=1002, username=None, first_name="Banned", last_name=None,
