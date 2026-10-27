@@ -28,6 +28,12 @@ LOG = logging.getLogger("nyan_wallet.telegram_relay")
 router = APIRouter()
 _REGISTERED = False
 
+# High-frequency game rewards are visible to recipients but do not need an
+# additional Telegram notification to the wallet owner.
+OWNER_SILENT_REWARD_OPERATIONS = frozenset({
+    "daily_task", "achievement", "fortune_spin",
+})
+
 
 def now() -> datetime:
     return datetime.now(timezone.utc)
@@ -93,7 +99,11 @@ def _tx_notice(mapper, connection, target: core.Transaction) -> None:
 
     # The owner sees financial events independently of whether a user can
     # receive bot messages; do not let failed delivery affect the ledger.
-    if core.OWNER_TELEGRAM_ID and int(target.telegram_id) != int(core.OWNER_TELEGRAM_ID):
+    if (
+        core.OWNER_TELEGRAM_ID
+        and int(target.telegram_id) != int(core.OWNER_TELEGRAM_ID)
+        and operation not in OWNER_SILENT_REWARD_OPERATIONS
+    ):
         owner_body = (
             f"🐾 Nyan Wallet\nОперация: {operation}\n"
             f"Telegram ID: {target.telegram_id}\n"
