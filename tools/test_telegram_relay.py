@@ -169,4 +169,77 @@ with SessionLocal() as session:
     assert latest.body == "Проверка обычного уведомления"
     assert latest.state == "pending"
 
-print("PASS: relay transactions atomic, owner/user messages, auth, lease, ACK, retries, generic queue")
+# Repeated automatic rewards must never ping the owner, but each recipient
+# still gets a normal credit notice and the ledger entries remain intact.
+quiet_operations = ("daily_task", "achievement", "fortune_spin")
+with SessionLocal.begin() as session:
+    for operation in quiet_operations:
+        session.add(Transaction(
+            telegram_id=202, amount=25, operation_type=operation,
+            description=f"reward test: {operation}", created_at=datetime.now(timezone.utc),
+        ))
+    session.add(Transaction(
+        telegram_id=202, amount=100, operation_type="owner_grant",
+        description="обычное начисление", created_at=datetime.now(timezone.utc),
+    ))
+
+with SessionLocal() as session:
+    for operation in quiet_operations:
+        transactions = session.scalars(select(Transaction).where(Transaction.operation_type == operation)).all()
+        assert len(transactions) == 1
+        tx = transactions[0]
+        notices = session.scalars(select(relay.TelegramRelayMessage).where(
+            relay.TelegramRelayMessage.source_key.like(f"transaction:{tx.id}:%")
+        )).all()
+        assert len(notices) == 1, operation
+        assert notices[0].chat_id == 202
+        assert "+25 🐾" in notices[0].body
+
+    ordinary = session.scalar(select(Transaction).where(Transaction.operation_type == "owner_grant"))
+    ordinary_notices = session.scalars(select(relay.TelegramRelayMessage).where(
+        relay.TelegramRelayMessage.source_key.like(f"transaction:{ordinary.id}:%")
+    )).all()
+    assert sorted(row.chat_id for row in ordinary_notices) == [1, 202]
+
+
+# An approved daily task can also produce an admin-audit entry; keep these
+# quiet without silencing audit alerts for unrelated administrative actions.
+class AdminAudit(Base):
+    __tablename__ = "admin_audit"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    action: Mapped[str] = mapped_column(String(64))
+    target_telegram_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    details: Mapped[str] = mapped_column(String(200))
+
+
+Base.metadata.create_all(engine)
+extended = types.ModuleType("server.extended_features")
+extended.AdminAudit = AdminAudit
+extended.send_telegram_message = lambda *args, **kwargs: (_ for _ in ()).throw(
+    AssertionError("Direct Telegram sending must not be used with relay enabled")
+)
+sys.modules["server.extended_features"] = extended
+notification_spec = importlib.util.spec_from_file_location(
+    "server.instant_notifications", ROOT / "server/instant_notifications.py"
+)
+notifications = importlib.util.module_from_spec(notification_spec)
+sys.modules["server.instant_notifications"] = notifications
+notification_spec.loader.exec_module(notifications)
+notifications.register_instant_notifications()
+
+with SessionLocal.begin() as session:
+    session.add(AdminAudit(action="task_approved", target_telegram_id=202, details="+25 🐾"))
+    session.add(AdminAudit(action="promo_created", target_telegram_id=202, details="promo"))
+
+with SessionLocal() as session:
+    entries = session.scalars(select(AdminAudit).order_by(AdminAudit.id)).all()
+    muted = session.scalars(select(relay.TelegramRelayMessage).where(
+        relay.TelegramRelayMessage.source_key == f"audit:{entries[0].id}:owner"
+    )).all()
+    assert muted == []
+    kept = session.scalar(select(relay.TelegramRelayMessage).where(
+        relay.TelegramRelayMessage.source_key == f"audit:{entries[1].id}:owner"
+    ))
+    assert kept is not None and kept.chat_id == 1
+
+print("PASS: relay atomicity, user/owner policies, auth, leases, audits, retries")
