@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#fff9fc">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Секретная лавка Няника · Nyan Shop">
+  <title>Чёрный рынок Няника · NYAN SHOP</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./black-market.css?v=20261028-1">
+  <style>.owner-order>span:last-child{text-align:right}.owner-redeem{display:block;margin:6px 0 0 auto;border:1px solid #e1bdcf;background:#fffafd;border-radius:8px;color:#875e79;padding:6px;font-size:10px}.owner-redeem:disabled{color:#a0a0a0}</style>
+</head>
+<body>
+  <main class="market-page">
+    <header class="brand-bar"><span class="brand-paw">✦</span><span>NYAN <b>SHOP</b></span><span class="brand-kicker">СЕКРЕТНАЯ ЛАВКА</span></header>
+
+    <section class="hero" aria-labelledby="market-title">
+      <div class="hero-grain" aria-hidden="true"></div>
+      <div class="hero-top"><span class="eyebrow">ЛАВКА № 00 / ДОСТУП ОГРАНИЧЕН</span><span class="hero-star">✧</span></div>
+      <div class="hero-icon" aria-hidden="true">🐈‍⬛</div>
+      <h1 id="market-title">Чёрный рынок<br><em>Няника</em></h1>
+      <p>некоторые вещи появляются всего на двадцать минут. успей забрать то, чего больше не будет</p>
+      <div class="hero-bottom"><span id="market-badge" class="status-badge">● проверяем лавку</span><span class="hero-seal">NYAN / 2026</span></div>
+    </section>
+
+    <section class="summary" aria-label="Состояние рынка">
+      <div class="summary-card"><span>до закрытия</span><strong id="countdown" class="monospace">--:--</strong><small id="time-description">ожидаем открытия</small></div>
+      <div class="summary-card"><span>твой баланс</span><strong id="balance">— <i>🐾</i></strong><small>списание только после подтверждения</small></div>
+    </section>
+
+    <section id="owner-panel" class="owner-panel" hidden>
+      <div class="owner-title"><span>управление владельца</span><span>только вам</span></div>
+      <p>Сначала проверьте ассортимент. Открытие запускает 20-минутный отсчёт без повторного старта.</p>
+      <div class="owner-actions"><button id="owner-open" type="button">Открыть на 20 минут</button><button id="owner-close" class="owner-close" type="button">Закрыть досрочно</button><button id="owner-orders" class="owner-light" type="button">Посмотреть покупки</button></div>
+      <div id="owner-orders-list" class="owner-orders" hidden></div>
+    </section>
+
+    <section class="catalog" aria-labelledby="catalog-title">
+      <div class="section-head"><div><span class="section-eyebrow">КАТАЛОГ / ВСЕГО 5 ЛОТОВ</span><h2 id="catalog-title">Товары из-под полы</h2></div><div class="tiny-ornament">✳</div></div>
+      <div id="notice" class="notice" role="status" aria-live="polite">Подключаемся к Nyan Wallet…</div>
+      <div id="items" class="items" aria-live="polite"></div>
+      <button id="refresh" class="refresh" type="button">↻ Обновить остатки</button>
+    </section>
+
+    <section class="rules"><span>✦ правила лавки</span><p>только один экземпляр каждого товара на аккаунт. цены указаны в лапкоинах Nyan Wallet. после закрытия покупка невозможна. предметы для интерактива сохраняются за покупателем, а дизайны выдаются сразу</p></section>
+    <footer>NYAN SHOP <span>✦</span> СЛЕДИ ЗА НЯНИКОМ</footer>
+  </main>
+
+  <div id="modal" class="modal" hidden>
+    <div class="modal-backdrop" data-close="true"></div>
+    <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <span class="modal-accent">✦ ПОДТВЕРЖДЕНИЕ ПОКУПКИ</span>
+      <h2 id="modal-title">—</h2>
+      <p id="modal-description"></p>
+      <div class="modal-price"><span>будет списано</span><strong id="modal-price">— 🐾</strong></div>
+      <p id="modal-error" class="modal-error" role="alert"></p>
+      <div class="modal-actions"><button id="modal-cancel" class="modal-cancel" type="button">Отмена</button><button id="modal-buy" class="modal-buy" type="button">Купить за 🐾</button></div>
+    </div>
+  </div>
+  <script src="./black-market.js?v=20261028-1"></script>
+</body>
+</html>
