@@ -28,6 +28,13 @@ function achDate(value) {
     return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
+const LIMITED_PROFILE_BADGES = Object.freeze({
+    nyan_game_unmasker: {
+        image: "./assets/badges/nyan-game-unmasker.webp",
+        total: 2,
+    },
+});
+
 function achIcon(name, extraClass = "") {
     const start = `<svg class="ach-svg ${extraClass}" viewBox="0 0 16 16" aria-hidden="true" shape-rendering="crispEdges">`;
     const end = `</svg>`;
@@ -65,6 +72,7 @@ function addAchStyles() {
       .ach-title{margin-top:5px;font-size:13px;font-weight:850;color:#6d304a;line-height:1.2}.ach-desc{margin-top:5px;font-size:10px;color:#a67589;line-height:1.35;min-height:27px}.ach-reward{margin-top:8px;display:inline-flex;align-items:center;padding:5px 7px;border-radius:999px;background:#fff4f8;color:#922954;font-size:9px;font-weight:800}.ach-reward.badge-only{color:#8d7080;background:#faf5f7}.ach-progress{height:5px;background:#f3e4ea;border-radius:999px;overflow:hidden;margin-top:9px}.ach-progress>span{display:block;height:100%;border-radius:999px;background:#a73a66}.ach-progress-meta{font-size:9px;color:#ae8696;margin-top:4px}.ach-date{font-size:9px;color:#ae8696;margin-top:7px}.ach-selected-mark{position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:#922954;color:#fff;font-size:10px;font-weight:900}
       .ach-wallet-badge{display:inline-flex;align-items:center;gap:5px;margin-top:4px;padding:4px 7px;border-radius:999px;background:#fff0f6;border:1px solid #efd8e2;color:#8b3156;font-size:9px;font-weight:800;vertical-align:middle}.ach-wallet-badge .ach-svg{width:12px;height:12px}.ach-hint{margin-top:10px;font-size:10px;line-height:1.4;color:#a67589}.ach-toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9999;width:min(88vw,340px);padding:12px 14px;border-radius:16px;background:#6f2747;color:#fff;box-shadow:0 12px 35px rgba(67,24,43,.22);font-size:12px;font-weight:700;text-align:center;animation:achIn .2s ease-out}@keyframes achIn{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
       @media(max-width:360px){.ach-grid{grid-template-columns:1fr}}
+      .ach-limited-name-badges{display:inline-flex;align-items:center;gap:4px;margin:2px 0 0 5px;vertical-align:middle}.ach-limited-name-badges img{width:26px;height:26px;display:block;object-fit:contain;filter:drop-shadow(0 2px 3px rgba(139,49,86,.22))}.ach-limited-collection{margin-top:12px;padding:12px;border:1px solid #efd8e2;border-radius:14px;background:linear-gradient(135deg,#fff9fc,#fff7ef)}.ach-limited-collection-title{font-size:11px;font-weight:850;color:#8b3156;margin-bottom:8px}.ach-limited-collection-item{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:800;color:#6d304a}.ach-limited-collection-item img{width:36px;height:36px;object-fit:contain}.ach-limited-collection-item small{display:block;font-size:10px;font-weight:500;color:#a67589;margin-top:3px}
     `;
     document.head.appendChild(style);
 }
@@ -87,6 +95,7 @@ function buildAchievementsUI() {
         <div id="ach-count" class="ach-count">0 / —</div>
       </div>
       <div id="ach-selected"></div>
+      <div id="ach-limited-collection"></div>
       <div id="ach-grid" class="ach-grid"><div class="adv-sub">Загружаем достижения…</div></div>
       <div class="ach-hint">Нажмите на открытый значок, чтобы установить его в профиль. Повторное нажатие снимет значок.</div>`;
 
@@ -132,6 +141,44 @@ function renderPurchasedNameBadge(purchased) {
     badge.title = String(purchased.title || "Особый значок Nyan");
 }
 
+function renderLimitedNameBadges(items) {
+    const username = document.getElementById("username");
+    const collection = document.getElementById("ach-limited-collection");
+    let badges = document.getElementById("ach-limited-name-badges");
+    const known = (Array.isArray(items) ? items : [])
+        .filter(item => Object.prototype.hasOwnProperty.call(LIMITED_PROFILE_BADGES, item.key));
+
+    if (!known.length || !username) {
+        badges?.remove();
+        if (collection) collection.innerHTML = "";
+        return;
+    }
+    if (!badges) {
+        badges = document.createElement("span");
+        badges.id = "ach-limited-name-badges";
+        badges.className = "ach-limited-name-badges";
+        username.insertAdjacentElement("afterend", badges);
+    }
+    badges.replaceChildren();
+    for (const item of known) {
+        const spec = LIMITED_PROFILE_BADGES[item.key];
+        const img = document.createElement("img");
+        img.src = spec.image;
+        img.alt = item.title;
+        img.title = `${item.title} · экземпляр №${item.edition}/${spec.total}`;
+        badges.appendChild(img);
+    }
+    if (collection) {
+        collection.className = "ach-limited-collection";
+        collection.innerHTML = `<div class="ach-limited-collection-title">Лимитированные значки</div>` +
+            known.map(item => {
+                const spec = LIMITED_PROFILE_BADGES[item.key];
+                return `<div class="ach-limited-collection-item"><img src="${spec.image}" alt="">` +
+                    `<div>${achEsc(item.title)}<small>Экземпляр №${Number(item.edition)}/${spec.total} · навсегда</small></div></div>`;
+            }).join("");
+    }
+}
+
 function renderAchievements(data) {
     achievementsState = data;
     const count = document.getElementById("ach-count");
@@ -145,6 +192,7 @@ function renderAchievements(data) {
     }
     renderWalletBadge(data.selected_badge);
     renderPurchasedNameBadge(data.purchased_badge);
+    renderLimitedNameBadges(data.limited_badges);
 
     const grid = document.getElementById("ach-grid");
     if (!grid) return;

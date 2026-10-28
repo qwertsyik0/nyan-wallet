@@ -55,6 +55,20 @@ class PurchasedNameBadge(core.Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class LimitedProfileBadge(core.Base):
+    """Event-exclusive badges, stored separately from purchased name cosmetics."""
+    __tablename__ = "limited_profile_badges"
+    __table_args__ = (UniqueConstraint("badge_key", "edition", name="uq_limited_badge_edition"),)
+
+    telegram_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), primary_key=True
+    )
+    badge_key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    title: Mapped[str] = mapped_column(String(80), nullable=False)
+    edition: Mapped[int] = mapped_column(Integer, nullable=False)
+    acquired_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class WalletActivityDay(core.Base):
     __tablename__ = "wallet_activity_days"
     __table_args__ = (UniqueConstraint("telegram_id", "activity_date", name="uq_wallet_activity_day"),)
@@ -339,6 +353,11 @@ def _serialize(session: Session, telegram_id: int, stats: dict[str, int]) -> dic
         selected = {"key": source["key"], "title": source["title"], "icon": source["icon"], "rarity": source["rarity"]}
 
     purchased = session.get(PurchasedNameBadge, telegram_id)
+    limited = session.scalars(
+        select(LimitedProfileBadge)
+        .where(LimitedProfileBadge.telegram_id == telegram_id)
+        .order_by(LimitedProfileBadge.acquired_at, LimitedProfileBadge.badge_key)
+    ).all()
     return {
         "items": items,
         "unlocked_count": len(unlock_map),
@@ -348,6 +367,10 @@ def _serialize(session: Session, telegram_id: int, stats: dict[str, int]) -> dic
             {"symbol": purchased.symbol, "title": purchased.title}
             if purchased else None
         ),
+        "limited_badges": [
+            {"key": row.badge_key, "title": row.title, "edition": row.edition}
+            for row in limited
+        ],
     }
 
 
