@@ -32,6 +32,27 @@ BASE_COMMIT = "bbab9dd2fc9e00eb91e11d5f6be8a71d1b084c5b"
 RAW = "https://raw.githubusercontent.com/qwertsyik0/nyan-wallet"
 
 
+def prior_release_without_paid_badge(reference: bytes) -> bytes:
+    """Rebuild the exact older 17 October achievements.py from the known baseline."""
+    start = b"class PurchasedNameBadge(core.Base):"
+    stop = b"class WalletActivityDay(core.Base):"
+    if reference.count(start) != 1 or reference.count(stop) != 1:
+        raise RuntimeError("Неизвестная версия старого модуля")
+    first = reference.index(start)
+    last = reference.index(stop, first)
+    legacy = reference[:first] + reference[last:]
+    purchased_get = b"    purchased = session.get(PurchasedNameBadge, telegram_id)\n"
+    purchased_json = (
+        b'        "purchased_badge": (\n'
+        b'            {"symbol": purchased.symbol, "title": purchased.title}\n'
+        b'            if purchased else None\n'
+        b'        ),\n'
+    )
+    if legacy.count(purchased_get) != 1 or legacy.count(purchased_json) != 1:
+        raise RuntimeError("Неизвестный формат старого блока значков")
+    return legacy.replace(purchased_get, b"", 1).replace(purchased_json, b"", 1)
+
+
 def download(revision: str, name: str) -> bytes:
     url = f"{RAW}/{revision}/{name}"
     with urllib.request.urlopen(url, timeout=20) as response:
@@ -110,7 +131,8 @@ def main() -> None:
     after = download(SOURCE_COMMIT, "server/achievements.py")
     award_sql = download(SOURCE_COMMIT, "tools/award_nyan_game_unmasker.sql").decode()
     live = BACKEND.read_bytes()
-    if live not in (before, after):
+    legacy = prior_release_without_paid_badge(before)
+    if live not in (legacy, before, after):
         raise RuntimeError(
             "Серверный achievements.py отличается от проверенной версии. "
             "Ничего не изменено; сначала нужно сравнить локальные изменения."
@@ -124,7 +146,10 @@ def main() -> None:
     if command("systemctl", "is-active", SERVICE) != "active":
         raise RuntimeError("Сервис nyan-wallet не активен; установка остановлена")
     verify_users()
-    print("Модуль:", "уже обновлён" if live == after else "нужно обновить")
+    version = "уже обновлён" if live == after else (
+        "старая версия от 17 октября" if live == legacy else "базовая версия"
+    )
+    print("Модуль:", version)
 
     if args.check:
         print("Проверка ОК. Данные и значки не изменены.")
