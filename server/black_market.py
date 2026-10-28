@@ -204,9 +204,10 @@ def buy(payload: BuyRequest, x_telegram_init_data: str | None = Header(default=N
     telegram = _auth(x_telegram_init_data)
     if not KEY_PATTERN.fullmatch(payload.request_key):
         raise HTTPException(status_code=422, detail="Неверный ключ покупки")
-    now = core.now_utc()
     with core.SessionLocal.begin() as session:
         window = session.scalar(select(MarketWindow).where(MarketWindow.id == ONE_WINDOW).with_for_update())
+        # The deadline must be checked AFTER waiting for the market lock.
+        now = core.now_utc()
         previous = session.scalar(select(MarketPurchase).where(MarketPurchase.telegram_id == telegram["id"], MarketPurchase.request_key == payload.request_key))
         if previous is not None:
             if previous.sku != payload.sku:
@@ -222,7 +223,7 @@ def buy(payload: BuyRequest, x_telegram_init_data: str | None = Header(default=N
             raise HTTPException(status_code=404, detail="Такого товара нет")
         if item.total - item.sold <= 0:
             raise HTTPException(status_code=409, detail="Этот товар закончился")
-        if item.kind == "skin" and (item.skin_id is None or not session.get(WalletSkin, item.skin_id)):
+        if item.kind == "skin" and (item.skin_id is None or not (skin := session.get(WalletSkin, item.skin_id)) or not skin.is_active):
             raise HTTPException(status_code=503, detail="Дизайн временно недоступен")
         if session.scalar(select(MarketPurchase.id).where(MarketPurchase.telegram_id == telegram["id"], MarketPurchase.sku == item.sku)) is not None:
             raise HTTPException(status_code=409, detail="Вы уже купили этот товар")
