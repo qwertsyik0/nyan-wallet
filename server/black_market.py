@@ -186,6 +186,19 @@ def status(x_telegram_init_data: str | None = Header(default=None, alias="X-Tele
         return result
 
 
+@router.get("/api/black-market/catalog")
+def public_catalog():
+    """Public, read-only stock and countdown for channel links outside Telegram."""
+    with core.SessionLocal() as session:
+        data = _serialize_state(session, 0, core.now_utc())
+    return {"ok": True, "server_now": data["server_now"], "is_open": data["is_open"],
+            "has_opened": data["has_opened"], "opens_at": data["opens_at"],
+            "closes_at": data["closes_at"], "ready": data["ready"], "items": [
+                {key: value for key, value in item.items() if key != "purchased"}
+                for item in data["items"]
+            ]}
+
+
 @router.post("/api/black-market/buy")
 def buy(payload: BuyRequest, x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data")):
     telegram = _auth(x_telegram_init_data)

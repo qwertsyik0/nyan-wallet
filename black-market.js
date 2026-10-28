@@ -100,7 +100,7 @@
       const button = node("button", `buy-button${item.purchased ? " is-owned" : ""}`, item.purchased ? "Уже куплено" : item.remaining <= 0 ? "Раскуплено" : "Купить");
       button.type = "button";
       button.dataset.outOfStock = item.remaining <= 0 ? "true" : "false";
-      button.disabled = !isLive() || item.purchased || item.remaining <= 0 || state.blocked || state.balance === null || state.balance < item.price;
+      button.disabled = !authenticated() || !isLive() || item.purchased || item.remaining <= 0 || state.blocked || state.balance === null || state.balance < item.price;
       if (!item.purchased && isLive() && item.remaining > 0 && state.balance !== null && state.balance < item.price) {
         button.textContent = "Не хватает 🐾";
       }
@@ -121,8 +121,10 @@
   }
 
   function render() {
-    $("balance").textContent = state.balance == null ? "нет кошелька" : `${Number(state.balance).toLocaleString("ru-RU")} 🐾`;
+    $("telegram-entry").hidden = authenticated();
+    $("balance").textContent = !authenticated() ? "в Telegram" : state.balance == null ? "нет кошелька" : `${Number(state.balance).toLocaleString("ru-RU")} 🐾`;
     if (state.blocked) info("Этот аккаунт не может участвовать в продаже.", true);
+    else if (!authenticated()) info("Ассортимент доступен для просмотра. Для покупки открой лавку через Nyan Wallet в Telegram.");
     else if (state.balance === null) info("Сначала открой основной Nyan Wallet, чтобы создать кошелёк.", true);
     else if (isLive()) info("Лавка открыта. Остатки обновляются автоматически.");
     else if (state.has_opened) info("Няник закрыл лавку. Все купленные предметы сохранены за вами.");
@@ -136,7 +138,7 @@
     if (loading || buying) return;
     loading = true;
     try {
-      const data = await request("/api/black-market");
+      const data = authenticated() ? await request("/api/black-market") : await publicRequest();
       serverOffset = Date.parse(data.server_now) - Date.now();
       state = data;
       render();
@@ -145,6 +147,18 @@
     } finally {
       loading = false;
     }
+  }
+
+  async function publicRequest() {
+    const abort = new AbortController();
+    const timeout = setTimeout(() => abort.abort(), 14000);
+    try {
+      const response = await fetch(API + "/api/black-market/catalog", { cache: "no-store", signal: abort.signal });
+      if (!response.ok) throw new Error("Рынок пока готовится к открытию.");
+      const data = await response.json();
+      if (!data.ok) throw new Error("Не удалось загрузить рынок");
+      return { ...data, balance: null, is_owner: false, blocked: false, purchases: [] };
+    } finally { clearTimeout(timeout); }
   }
 
   function pending() {
@@ -270,7 +284,8 @@
   $("modal").addEventListener("click", event => { if (event.target?.dataset?.close) hideModal(); });
   $("modal-buy").addEventListener("click", () => void purchase());
   document.addEventListener("keydown", event => { if (event.key === "Escape") hideModal(); });
+  $("telegram-entry").hidden = authenticated();
   setInterval(tick, 250);
-  setInterval(() => { if (authenticated() && !document.hidden) void refresh(true); }, 5000);
+  setInterval(() => { if (!document.hidden) void refresh(true); }, 5000);
   (async () => { if (authenticated() && pending()) await retryPurchase(); await refresh(); })();
 })();
