@@ -5,6 +5,7 @@
   const tg = window.Telegram?.WebApp;
   const $ = id => document.getElementById(id);
   const ICONS = { secret_key: "🗝", nyanik_eye: "👁", backstage: "🎟", midnight: "🖤", dark_nyanik: "👑" };
+  const SKIN_PREVIEWS = { midnight: "black-market-midnight.webp", dark_nyanik: "black-market-dark-nyanik.webp" };
   const PENDING_KEY = "nyan-black-market-pending-v1";
   let state = null;
   let serverOffset = 0;
@@ -93,6 +94,13 @@
       const content = node("div", "item-content");
       const title = node("div", "item-title", item.title);
       const description = node("p", "item-description", item.description);
+      const preview = SKIN_PREVIEWS[item.sku] ? node("img", "skin-preview") : null;
+      if (preview) {
+        preview.src = `./assets/wallet-skins/${SKIN_PREVIEWS[item.sku]}`;
+        preview.alt = `Превью дизайна «${item.title}»`;
+        preview.loading = "lazy";
+        preview.decoding = "async";
+      }
       const tags = node("div", "item-meta");
       tags.append(node("span", "", rare ? "эксклюзивный дизайн" : "предмет интерактива"), node("span", "", `осталось ${item.remaining} из ${item.total}`));
       const line = node("div", "item-buy-line");
@@ -106,7 +114,9 @@
       }
       button.addEventListener("click", () => selectItem(item.sku));
       line.append(price, button);
-      content.append(title, description, tags, line);
+      content.append(title, description);
+      if (preview) content.append(preview);
+      content.append(tags, line);
       card.append(icon, content);
       container.append(card);
     }
