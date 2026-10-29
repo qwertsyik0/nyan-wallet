@@ -218,8 +218,19 @@
       box.append(letter);
       box.append(node("p", "ending-paragraph", "За спиной звенит колокольчик. На прилавке сидит Няник — словно никуда и не уходил."));
       const awards = node("div", "ending-awards");
-      awards.append(node("div", "ending-award", "▣  Хранитель тайны · получено"));
-      if (state.first_witness) awards.append(node("div", "ending-award first", "◉  Первый свидетель · получено"));
+      for (const badge of [
+        { image: "./assets/badges/halloween-keeper-2026.webp", name: "Хранитель тайны" },
+        ...(state.first_witness ? [{ image: "./assets/badges/halloween-first-witness-2026.webp", name: "Первый свидетель", first: true }] : []),
+      ]) {
+        const row = node("div", `ending-award${badge.first ? " first" : ""}`);
+        const img = document.createElement("img");
+        img.src = badge.image;
+        img.alt = "";
+        img.width = 36;
+        img.height = 36;
+        row.append(img, node("span", "", `${badge.name} · получено`));
+        awards.append(row);
+      }
       box.append(awards);
       box.append(node("small", "ending-footnote", "Награды сохранены в достижениях Nyan Wallet. Финальная комната принесла +100 🐾."));
       return;

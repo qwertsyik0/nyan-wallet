@@ -27,7 +27,8 @@ h1,h2,p{margin-top:0}h1,h2{font-family:Georgia,"Times New Roman",serif;font-weig
 .ending .ending-paragraph{font:13px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#5f575b;margin:0 0 14px}
 .ending .ending-letter{margin:15px 0 18px;padding:15px 16px;background:#f8f5f2;border-left:2px solid #704d58;font:italic 16px/1.6 Georgia,"Times New Roman",serif;color:#55444c}
 .ending-awards{display:grid;gap:7px;margin:20px 0 13px}
-.ending-award{border:1px solid #c9b8b6;background:#f8f5f2;border-radius:9px;padding:10px 12px;font-size:12px;font-weight:650;color:#704d58}
+.ending-award{display:flex;align-items:center;gap:10px;border:1px solid #c9b8b6;background:#f8f5f2;border-radius:9px;padding:7px 12px;font-size:12px;font-weight:650;color:#704d58}
+.ending-award img{width:36px;height:36px;flex:none;object-fit:contain}.ending-award span{font:inherit;color:inherit}
 .ending-award.first{background:#e2d7d6;border-color:#bca8ad}
 .ending .ending-footnote{font-size:11px;line-height:1.55;color:#776b70}
 .rules{padding:20px 0;border-top:1px solid var(--line)}.rules h2{font-size:21px;margin-bottom:8px}.rules p{font-size:12px;line-height:1.65;color:var(--muted)}.login{background:#e7dcdb;border:1px solid var(--line);padding:16px;border-radius:12px;text-align:center;font-size:13px}.login a{display:inline-block;background:var(--plum);color:white;text-decoration:none;border-radius:7px;padding:8px 12px}footer{text-align:center;font-size:10px;letter-spacing:.18em;color:var(--muted);padding:22px 0}
