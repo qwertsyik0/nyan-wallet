@@ -3,7 +3,7 @@
 
   const API = "https://nyan-wallet-153-76-175-145.sslip.io";
   const START = Date.parse("2026-10-29T14:00:00Z");
-  const SECRET = Date.parse("2026-10-31T20:00:00Z");
+  const SECRET = Date.parse("2026-10-29T20:00:00Z");
   const END = Date.parse("2026-10-31T21:00:00Z");
   const META = {
     loupe: {icon:"⌕", description:"Небольшая подсказка к выбранной комнате"},
@@ -242,7 +242,7 @@
       box.append(node("small", "", "Ранний доступ владельца. Комната без номера уже открыта."));
       box.append(button("Войти в последнюю комнату", () => selectRoom(6), "secret-button", !secretRoom.accessible));
     } else if (!state.active) {
-      box.append(node("small", "", "Тайная дверь открывается 31 октября в 23:00 МСК"));
+      box.append(node("small", "", "Тайная дверь открывается 29 октября в 23:00 МСК"));
     } else if (Date.now() < SECRET) {
       box.append(node("small", "", "Комната без номера откроется в 23:00 МСК"));
     } else if (!state.secret_unlocked) {

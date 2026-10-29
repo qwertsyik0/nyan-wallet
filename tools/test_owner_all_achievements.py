@@ -6,7 +6,7 @@ import os
 import sys
 import tempfile
 import types
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -63,12 +63,12 @@ class HalloweenRoom(core.Base):
 
 
 def first_witness_id(session):
-    return session.scalar(
+    completions = session.scalars(
         select(HalloweenRoom.telegram_id)
         .where(HalloweenRoom.room == 6, HalloweenRoom.solved_at.is_not(None))
         .order_by(HalloweenRoom.solved_at.asc(), HalloweenRoom.telegram_id.asc())
-        .limit(1)
     )
+    return next((uid for uid in completions if not core.is_owner(uid)), None)
 
 
 halloween = types.ModuleType("server.halloween_2026")
@@ -85,6 +85,7 @@ with core.SessionLocal.begin() as session:
         session.add(core.User(telegram_id=uid, first_name="Тест", last_name=None,
                               username=None, balance=0, created_at=now, last_seen_at=now))
     session.add(HalloweenRoom(telegram_id=900000, room=6, solved_at=now))
+    session.add(HalloweenRoom(telegram_id=900001, room=6, solved_at=now + timedelta(seconds=1)))
 
 with core.SessionLocal() as session:
     owner = ach._serialize(session, 900000, {})
@@ -98,10 +99,10 @@ with core.SessionLocal() as session:
     assert regular["unlocked_count"] == 0
     assert all(not item["unlocked"] for item in regular["items"])
     assert all(item["title"] == "???" for item in regular["items"] if item.get("secret"))
-    assert [reward["key"] for reward in owner["halloween_rewards"]] == [
+    assert [reward["key"] for reward in owner["halloween_rewards"]] == ["halloween_keeper_2026"]
+    assert [reward["key"] for reward in regular["halloween_rewards"]] == [
         "halloween_keeper_2026", "halloween_first_witness_2026"
     ]
-    assert regular["halloween_rewards"] == []
 
 # This test substitutes signed Telegram identity locally; production authentication stays unchanged.
 core.verify_init_data = lambda token: {"id": int(token)}

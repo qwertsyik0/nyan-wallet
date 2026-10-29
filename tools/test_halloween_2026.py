@@ -216,12 +216,22 @@ fail(lambda: halloween.halloween_unlock(x_telegram_init_data=token(1002)), 409)
 assert halloween.halloween_unlock(x_telegram_init_data=token(900000))["state"]["secret_unlocked"]
 owner_secret = answer(6, halloween._puzzle(900000, 6)[1], uid=900000)
 assert owner_secret["correct"] and owner_secret["reward"] == 100
-assert owner_secret["state"]["final_badge"] and owner_secret["state"]["first_witness"]
-assert status(1001)["final_badge"] and not status(1001)["first_witness"]
+assert owner_secret["state"]["final_badge"] and not owner_secret["state"]["first_witness"]
+assert status(1001)["final_badge"] and status(1001)["first_witness"]
 assert answer(6, halloween._puzzle(900000, 6)[1], uid=900000)["already_completed"]
 with core.SessionLocal() as session:
     assert session.get(core.User, 900000).balance == 100
+    assert halloween.first_witness_id(session) == 1001
     assert session.get(halloween.HalloweenInventory, (900000, "key")) is None
     assert session.scalar(select(func.count()).select_from(core.Transaction).where(core.Transaction.telegram_id == 900000)) == 1
 
-print("OK: signed auth, one-time grants, 5 rooms + secret, owner-only early access, event windows, clues, idempotent buys/answers, five-minute retry, ban, balance")
+clock[0] = halloween.SECRET_AT + timedelta(minutes=1)
+for room in range(1, 6):
+    assert answer(room, halloween._puzzle(1002, room)[1], uid=1002)["correct"]
+assert buy("key", uid=1002)["state"]["inventory"]["key"] == 1
+assert halloween.halloween_unlock(x_telegram_init_data=token(1002))["state"]["secret_unlocked"]
+second = answer(6, halloween._puzzle(1002, 6)[1], uid=1002)
+assert second["correct"] and second["state"]["final_badge"] and not second["state"]["first_witness"]
+assert status(1001)["first_witness"] and not status(900000)["first_witness"]
+
+print("OK: signed auth, one-time grants, first regular witness, later regular completion, owner-only early access, event windows, clues, idempotent buys/answers, five-minute retry, ban, balance")

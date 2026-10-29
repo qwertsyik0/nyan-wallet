@@ -28,7 +28,7 @@ router = APIRouter()
 _REGISTERED = False
 UTC = timezone.utc
 START_AT = datetime(2026, 10, 29, 14, 0, tzinfo=UTC)  # Oct 29, 17:00 MSK
-SECRET_AT = datetime(2026, 10, 31, 20, 0, tzinfo=UTC)  # Oct 31, 23:00 MSK
+SECRET_AT = datetime(2026, 10, 29, 20, 0, tzinfo=UTC)  # Oct 29, 23:00 MSK
 END_AT = datetime(2026, 10, 31, 21, 0, tzinfo=UTC)  # Nov 1, 00:00 MSK
 MAX_BALANCE = 2_147_483_647
 REWARDS = {1: 40, 2: 50, 3: 60, 4: 100, 5: 150, 6: 100}
@@ -239,13 +239,13 @@ def _solved(session, uid: int) -> dict[int, HalloweenRoom]:
 
 
 def first_witness_id(session) -> int | None:
-    """The earliest persisted sixth-room completion wins, including past solves."""
-    return session.scalar(
+    """Earliest regular participant to finish room 6. Owner previews do not compete."""
+    completions = session.scalars(
         select(HalloweenRoom.telegram_id)
         .where(HalloweenRoom.room == 6, HalloweenRoom.solved_at.is_not(None))
         .order_by(HalloweenRoom.solved_at.asc(), HalloweenRoom.telegram_id.asc())
-        .limit(1)
     )
+    return next((uid for uid in completions if not core.is_owner(uid)), None)
 
 
 def _can_enter(room: int, solved: dict, player: HalloweenPlayer | None, now: datetime, uid: int) -> bool:
