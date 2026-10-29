@@ -27,6 +27,28 @@ SERVICE = "nyan-wallet"
 
 EVENT_PATCHES = (
     (
+        'SECRET_AT = datetime(2026, 10, 31, 20, 0, tzinfo=UTC)  # Oct 31, 23:00 MSK',
+        'SECRET_AT = datetime(2026, 10, 29, 20, 0, tzinfo=UTC)  # Oct 29, 23:00 MSK',
+    ),
+    (
+        'def first_witness_id(session) -> int | None:\n'
+        '    """The earliest persisted sixth-room completion wins, including past solves."""\n'
+        '    return session.scalar(\n'
+        '        select(HalloweenRoom.telegram_id)\n'
+        '        .where(HalloweenRoom.room == 6, HalloweenRoom.solved_at.is_not(None))\n'
+        '        .order_by(HalloweenRoom.solved_at.asc(), HalloweenRoom.telegram_id.asc())\n'
+        '        .limit(1)\n'
+        '    )',
+        'def first_witness_id(session) -> int | None:\n'
+        '    """Earliest regular participant to finish room 6. Owner previews do not compete."""\n'
+        '    completions = session.scalars(\n'
+        '        select(HalloweenRoom.telegram_id)\n'
+        '        .where(HalloweenRoom.room == 6, HalloweenRoom.solved_at.is_not(None))\n'
+        '        .order_by(HalloweenRoom.solved_at.asc(), HalloweenRoom.telegram_id.asc())\n'
+        '    )\n'
+        '    return next((uid for uid in completions if not core.is_owner(uid)), None)',
+    ),
+    (
         '        badge = session.get(HalloweenBadge, uid) is not None\n'
         '        final_completed = 6 in solved\n'
         '        first_witness = final_completed and first_witness_id(session) == uid',
