@@ -13,13 +13,14 @@
     ["giveaways", "✦", "Розыгрыши", "nyg-my-button"],
     ["lottery", "🎫", "Лотерея", "nyan-lottery-link"],
     ["fortune", "🎡", "Колесо фортуны", "nyan-fortune-link"],
-    ["halloween", "◈", "Ночь Няника · 31 октября", "nyan-halloween-link"],
+    ["halloween", "", "Ночь Няника · 29–31 октября", "nyan-halloween-link"],
     ["purchases", "▤", "Покупки", "nyg-my-purchases-button"],
     ["appeals", "✉", "Обращения", "appeals-button"],
     ["studio", "✳", "Интерактивы", "nyan-studio-link"],
   ];
 
   let scheduled = false;
+  const pumpkinIcon = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7c-.3-2.1.4-3.5 2.6-4"/><path d="M12 7c-2.8-2.4-7.7-1-8.7 3.4-1 4.6 1.3 9.2 5.3 9.2 1.4 0 2.5-.6 3.4-.6s2 .6 3.4.6c4 0 6.3-4.6 5.3-9.2C19.7 6 14.8 4.6 12 7Z"/><path d="M9.4 7.5c-2.4 3.7-2.2 8.1.2 11.4M14.6 7.5c2.4 3.7 2.2 8.1-.2 11.4"/></svg>`;
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -101,7 +102,7 @@
           </div>
           <div class="nyan-home-more">
             ${MORE_ACTIONS.map(([key, icon, label, target]) => `
-              <button type="button" class="nyan-home-more-button" data-home-target="${escapeHtml(target)}" data-home-secondary="${escapeHtml(key)}"><span class="nyan-home-more-icon" aria-hidden="true">${escapeHtml(icon)}</span><span class="nyan-home-more-label">${escapeHtml(label)}</span></button>
+              <button type="button" class="nyan-home-more-button" data-home-target="${escapeHtml(target)}" data-home-secondary="${escapeHtml(key)}"><span class="nyan-home-more-icon" aria-hidden="true">${key === "halloween" ? pumpkinIcon : escapeHtml(icon)}</span><span class="nyan-home-more-label">${escapeHtml(label)}</span></button>
             `).join("")}
             <button id="nyan-home-owner" class="nyan-home-more-button" type="button" data-home-target="owner-button" hidden>
               <span class="nyan-home-more-icon" aria-hidden="true">⚙</span><span class="nyan-home-more-label">Управление</span>
@@ -202,7 +203,7 @@
       // Never offer a dead action before its original handler exists.
       const hide = !proxy || proxy.hidden || proxy.disabled;
       const unavailable = ["nyan-studio-link", "nyan-lottery-link", "nyan-fortune-link", "nyan-halloween-link"].includes(target) ? false : hide;
-      const halloweenVisible = target !== "nyan-halloween-link" || (Date.now() >= Date.parse("2026-10-28T21:00:00Z") && Date.now() < Date.parse("2026-11-01T21:00:00Z"));
+      const halloweenVisible = target !== "nyan-halloween-link" || (Date.now() >= Date.parse("2026-10-28T21:00:00Z") && Date.now() < Date.parse("2026-10-31T21:00:00Z"));
       if (homeButton.hidden !== Boolean(unavailable || !halloweenVisible)) homeButton.hidden = Boolean(unavailable || !halloweenVisible);
     }
 

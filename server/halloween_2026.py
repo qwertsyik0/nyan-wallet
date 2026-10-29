@@ -1,6 +1,6 @@
 """One-day Nyan Halloween mystery. All puzzles and rewards are verified server-side.
 
-2026-10-31 (Moscow). Separate event currency (pumpkins) cannot be converted or
+2026-10-29 17:00 through 2026-10-31 (Moscow). Separate event currency (pumpkins) cannot be converted or
 transferred. Wallet grants are atomic and unique per user/room.
 """
 
@@ -27,7 +27,7 @@ from .user_bans import BlockedUser
 router = APIRouter()
 _REGISTERED = False
 UTC = timezone.utc
-START_AT = datetime(2026, 10, 30, 21, 0, tzinfo=UTC)  # Oct 31, 00:00 MSK
+START_AT = datetime(2026, 10, 29, 14, 0, tzinfo=UTC)  # Oct 29, 17:00 MSK
 SECRET_AT = datetime(2026, 10, 31, 20, 0, tzinfo=UTC)  # Oct 31, 23:00 MSK
 END_AT = datetime(2026, 10, 31, 21, 0, tzinfo=UTC)  # Nov 1, 00:00 MSK
 MAX_BALANCE = 2_147_483_647
@@ -199,7 +199,7 @@ def _hint(uid: int, room: int, item: str) -> str:
 
 def _require_live(now: datetime) -> None:
     if not START_AT <= now < END_AT:
-        raise HTTPException(status_code=409, detail="Событие доступно только 31 октября по Москве")
+        raise HTTPException(status_code=409, detail="Событие доступно с 29 октября, 17:00, до конца 31 октября по Москве")
 
 
 def _identity(init_data: str | None) -> dict:

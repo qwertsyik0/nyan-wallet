@@ -2,7 +2,7 @@
   "use strict";
 
   const API = "https://nyan-wallet-153-76-175-145.sslip.io";
-  const START = Date.parse("2026-10-30T21:00:00Z");
+  const START = Date.parse("2026-10-29T14:00:00Z");
   const SECRET = Date.parse("2026-10-31T20:00:00Z");
   const END = Date.parse("2026-10-31T21:00:00Z");
   const META = {
@@ -294,7 +294,7 @@
     if (!silent) alertMessage("Проверяем прогресс…");
     try {
       state = await api("/api/halloween-2026/status");
-      if (!silent) alertMessage(state.active ? "Событие открыто. Удачи!" : state.finished ? "Событие завершено. История прохождения сохранена." : "Скоро начнём. Возвращайся 31 октября!");
+      if (!silent) alertMessage(state.active ? "Событие открыто. Удачи!" : state.finished ? "Событие завершено. История прохождения сохранена." : "Начинаем 29 октября в 17:00 МСК!");
       render();
     } catch (error) {
       alertMessage(humanError(error), true);
