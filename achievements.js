@@ -148,12 +148,11 @@ function renderPurchasedNameBadge(purchased) {
     badge.title = String(purchased.title || "Особый значок Nyan");
 }
 
-function renderHalloweenNameBadge(earned, rewards = []) {
+function renderHalloweenNameBadge(rewards = []) {
     const username = document.getElementById("username");
     let badge = document.getElementById("ach-halloween-name-badge");
     const primary = rewards.find(item => item.key === "halloween_first_witness_2026")
-        || rewards.find(item => item.key === "halloween_keeper_2026")
-        || earned;
+        || rewards.find(item => item.key === "halloween_keeper_2026");
     if (!primary || !username) {
         badge?.remove();
         return;
@@ -176,7 +175,7 @@ function renderHalloweenNameBadge(earned, rewards = []) {
     } else {
         badge.textContent = String(primary.symbol || "◈").slice(0,2);
     }
-    badge.title = String(primary.title || "Призрак Няника") + " · Хэллоуин 2026";
+    badge.title = String(primary.title || "Награда Няника") + " · Хэллоуин 2026";
 }
 
 function renderHalloweenCollection(rewards = []) {
@@ -245,7 +244,7 @@ function renderAchievements(data) {
     renderWalletBadge(data.selected_badge);
     renderPurchasedNameBadge(data.purchased_badge);
     renderLimitedNameBadges(data.limited_badges);
-    renderHalloweenNameBadge(data.halloween_badge, data.halloween_rewards || []);
+    renderHalloweenNameBadge(data.halloween_rewards || []);
     renderHalloweenCollection(data.halloween_rewards || []);
 
     const grid = document.getElementById("ach-grid");

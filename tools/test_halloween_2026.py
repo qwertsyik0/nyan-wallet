@@ -168,7 +168,7 @@ for room in range(1, 6):
     assert answer(room, expected)["already_completed"]
     assert result["state"]["rooms"][room - 1]["fragment"]
 
-assert status()["badge"]
+assert "badge" not in status()  # Old cosmetic is removed for everyone.
 assert status()["wallet_earned"] == 400
 assert status()["pumpkins"] == 70  # Started with 5, spent 5, won 70.
 assert buy("key")["state"]["inventory"]["key"] == 1
@@ -187,8 +187,8 @@ with core.SessionLocal() as session:
     assert session.get(core.User, 1001).balance == 500
     assert session.scalar(select(func.count()).select_from(core.Transaction)) == 6
     assert session.scalar(select(func.sum(core.Transaction.amount))) == 500
-    assert session.scalar(select(func.count()).select_from(halloween.HalloweenBadge)) == 1
-    assert session.scalar(select(func.count()).select_from(WalletNotification)) == 1
+    assert session.scalar(select(func.count()).select_from(halloween.HalloweenBadge)) == 0
+    assert session.scalar(select(func.count()).select_from(WalletNotification)) == 0
     assert session.scalar(select(func.count()).select_from(halloween.HalloweenPurchase)) == 2
     assert session.scalar(select(func.count()).select_from(halloween.HalloweenEffect)) == 1
 
@@ -216,7 +216,7 @@ fail(lambda: halloween.halloween_unlock(x_telegram_init_data=token(1002)), 409)
 assert halloween.halloween_unlock(x_telegram_init_data=token(900000))["state"]["secret_unlocked"]
 owner_secret = answer(6, halloween._puzzle(900000, 6)[1], uid=900000)
 assert owner_secret["correct"] and owner_secret["reward"] == 100
-assert owner_secret["state"]["final_badge"] and not owner_secret["state"]["first_witness"]
+assert owner_secret["state"]["final_badge"] and owner_secret["state"]["first_witness"]
 assert status(1001)["final_badge"] and status(1001)["first_witness"]
 assert answer(6, halloween._puzzle(900000, 6)[1], uid=900000)["already_completed"]
 with core.SessionLocal() as session:
@@ -232,6 +232,11 @@ assert buy("key", uid=1002)["state"]["inventory"]["key"] == 1
 assert halloween.halloween_unlock(x_telegram_init_data=token(1002))["state"]["secret_unlocked"]
 second = answer(6, halloween._puzzle(1002, 6)[1], uid=1002)
 assert second["correct"] and second["state"]["final_badge"] and not second["state"]["first_witness"]
-assert status(1001)["first_witness"] and not status(900000)["first_witness"]
+assert status(1001)["first_witness"] and status(900000)["first_witness"]
+
+# Legacy ghost-badge rows stay in the database for history, but no longer appear.
+with core.SessionLocal.begin() as session:
+    session.add(halloween.HalloweenBadge(telegram_id=1001, awarded_at=clock[0]))
+assert "badge" not in status(1001)
 
 print("OK: signed auth, one-time grants, first regular witness, later regular completion, owner-only early access, event windows, clues, idempotent buys/answers, five-minute retry, ban, balance")

@@ -235,9 +235,9 @@
       box.append(node("small", "ending-footnote", "Награды сохранены в достижениях Nyan Wallet. Финальная комната принесла +100 🐾."));
       return;
     }
-    box.append(node("span", "", "◈"));
-    if (state.badge) box.append(node("p", "", "Значок «Призрак Няника» получен"));
-    else box.append(node("p", "", "За пять комнат тебя ждёт значок «Призрак Няника»"));
+    if (state.rooms.slice(0, 5).every(room => room.completed))
+      box.append(node("p", "", "Пять комнат пройдены. Осталась последняя."));
+    else box.append(node("p", "", "Пройди пять комнат, чтобы приблизиться к разгадке."));
     if (state.owner_early_access) {
       box.append(node("small", "", "Ранний доступ владельца. Комната без номера уже открыта."));
       box.append(button("Войти в последнюю комнату", () => selectRoom(6), "secret-button", !secretRoom.accessible));

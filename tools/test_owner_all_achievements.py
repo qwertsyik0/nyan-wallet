@@ -86,6 +86,8 @@ with core.SessionLocal.begin() as session:
                               username=None, balance=0, created_at=now, last_seen_at=now))
     session.add(HalloweenRoom(telegram_id=900000, room=6, solved_at=now))
     session.add(HalloweenRoom(telegram_id=900001, room=6, solved_at=now + timedelta(seconds=1)))
+    session.add(HalloweenBadge(telegram_id=900000, awarded_at=now))
+    session.add(HalloweenBadge(telegram_id=900001, awarded_at=now))
 
 with core.SessionLocal() as session:
     owner = ach._serialize(session, 900000, {})
@@ -99,10 +101,13 @@ with core.SessionLocal() as session:
     assert regular["unlocked_count"] == 0
     assert all(not item["unlocked"] for item in regular["items"])
     assert all(item["title"] == "???" for item in regular["items"] if item.get("secret"))
-    assert [reward["key"] for reward in owner["halloween_rewards"]] == ["halloween_keeper_2026"]
+    assert [reward["key"] for reward in owner["halloween_rewards"]] == [
+        "halloween_keeper_2026", "halloween_first_witness_2026"
+    ]
     assert [reward["key"] for reward in regular["halloween_rewards"]] == [
         "halloween_keeper_2026", "halloween_first_witness_2026"
     ]
+    assert "halloween_badge" not in owner and "halloween_badge" not in regular
 
 # This test substitutes signed Telegram identity locally; production authentication stays unchanged.
 core.verify_init_data = lambda token: {"id": int(token)}

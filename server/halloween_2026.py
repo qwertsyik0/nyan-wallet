@@ -268,9 +268,8 @@ def _status_for(uid: int, now: datetime | None = None) -> dict:
         solved = {i: r for i, r in progress.items() if r.solved_at is not None}
         inventory = {r.item: r.quantity for r in session.scalars(select(HalloweenInventory).where(HalloweenInventory.telegram_id == uid))}
         effects = {(r.room, r.item) for r in session.scalars(select(HalloweenEffect).where(HalloweenEffect.telegram_id == uid))}
-        badge = session.get(HalloweenBadge, uid) is not None
         final_completed = 6 in solved
-        first_witness = final_completed and first_witness_id(session) == uid
+        first_witness = final_completed and (core.is_owner(uid) or first_witness_id(session) == uid)
     items = []
     for room, (title, subtitle) in enumerate(ROOMS, start=1):
         row = progress.get(room)
@@ -295,7 +294,7 @@ def _status_for(uid: int, now: datetime | None = None) -> dict:
             "inventory": {item: inventory.get(item, 0) for item in ITEMS},
             "secret_unlocked": bool(player and player.secret_unlocked),
             "owner_early_access": core.is_owner(uid) and now < END_AT,
-            "badge": badge, "final_badge": final_completed, "first_witness": first_witness,
+            "final_badge": final_completed, "first_witness": first_witness,
             "wallet_earned": sum(row.reward for row in solved.values()),
             "rooms": items,
             "shop": [{"key": k, "title": title, "price": price} for k, (title, price) in ITEMS.items()]}
@@ -357,13 +356,6 @@ def halloween_answer(payload: AnswerInput,
                 session.add(tx)
                 session.flush()
                 row.solved_at, row.reward, row.transaction_id = now, amount, tx.id
-                if payload.room == 5 and session.get(HalloweenBadge, uid) is None:
-                    session.add(HalloweenBadge(telegram_id=uid, awarded_at=now))
-                    from .advanced_features import WalletNotification
-                    session.add(WalletNotification(telegram_id=uid, kind="halloween_reward",
-                                                   title="Ночь Няника · пройдено",
-                                                   body="Все пять комнат пройдены. Значок «Призрак Няника» получен!",
-                                                   is_read=False, created_at=now))
                 result = {"correct": True, "already_completed": False, "reward": amount}
             else:
                 row.attempts += 1
