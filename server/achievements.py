@@ -306,12 +306,13 @@ def _serialize(session: Session, telegram_id: int, stats: dict[str, int]) -> dic
         select(AchievementUnlock).where(AchievementUnlock.telegram_id == telegram_id)
     ).all()
     unlock_map = {row.achievement_key: row for row in unlock_rows}
+    owner_access = core.is_owner(telegram_id)
     badge = session.get(AchievementBadge, telegram_id)
     items = []
     existing = set(unlock_map)
     for item in ACHIEVEMENTS:
         row = unlock_map.get(item["key"])
-        unlocked = row is not None
+        unlocked = owner_access or row is not None
         current = _achievement_current(item, stats, existing)
         target = _achievement_target(item)
         secret_locked = bool(item.get("secret", False) and not unlocked)
@@ -362,7 +363,7 @@ def _serialize(session: Session, telegram_id: int, stats: dict[str, int]) -> dic
     halloween_badge = session.get(HalloweenBadge, telegram_id)
     return {
         "items": items,
-        "unlocked_count": len(unlock_map),
+        "unlocked_count": len(ACHIEVEMENTS) if owner_access else len(unlock_map),
         "total": len(ACHIEVEMENTS),
         "selected_badge": selected,
         "purchased_badge": (
@@ -433,14 +434,15 @@ async def select_badge(
 
             if key not in ACHIEVEMENT_BY_KEY:
                 raise HTTPException(status_code=404, detail="Достижение не найдено")
-            unlocked = session.scalar(
-                select(AchievementUnlock.id).where(
-                    AchievementUnlock.telegram_id == tg["id"],
-                    AchievementUnlock.achievement_key == key,
+            if not core.is_owner(int(tg["id"])):
+                unlocked = session.scalar(
+                    select(AchievementUnlock.id).where(
+                        AchievementUnlock.telegram_id == tg["id"],
+                        AchievementUnlock.achievement_key == key,
+                    )
                 )
-            )
-            if unlocked is None:
-                raise HTTPException(status_code=409, detail="Сначала откройте это достижение")
+                if unlocked is None:
+                    raise HTTPException(status_code=409, detail="Сначала откройте это достижение")
 
             if row is None:
                 row = AchievementBadge(
