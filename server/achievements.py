@@ -359,8 +359,24 @@ def _serialize(session: Session, telegram_id: int, stats: dict[str, int]) -> dic
         .where(LimitedProfileBadge.telegram_id == telegram_id)
         .order_by(LimitedProfileBadge.acquired_at, LimitedProfileBadge.badge_key)
     ).all()
-    from .halloween_2026 import HalloweenBadge
+    from .halloween_2026 import HalloweenBadge, HalloweenRoom, first_witness_id
     halloween_badge = session.get(HalloweenBadge, telegram_id)
+    sixth_room = session.get(HalloweenRoom, (telegram_id, 6))
+    finale_completed = bool(sixth_room and sixth_room.solved_at)
+    first_witness = finale_completed and first_witness_id(session) == telegram_id
+    halloween_rewards = []
+    if finale_completed:
+        halloween_rewards.append({
+            "key": "halloween_keeper_2026", "title": "Хранитель тайны", "symbol": "▣",
+            "description": "Раскрыть тайну последней комнаты", "rarity": "legendary",
+            "awarded_at": sixth_room.solved_at.isoformat(),
+        })
+    if first_witness:
+        halloween_rewards.append({
+            "key": "halloween_first_witness_2026", "title": "Первый свидетель", "symbol": "◉",
+            "description": "Первым раскрыть шестую комнату", "rarity": "mythic",
+            "awarded_at": sixth_room.solved_at.isoformat(),
+        })
     return {
         "items": items,
         "unlocked_count": len(ACHIEVEMENTS) if owner_access else len(unlock_map),
@@ -378,6 +394,7 @@ def _serialize(session: Session, telegram_id: int, stats: dict[str, int]) -> dic
             {"title": "Призрак Няника", "symbol": "◈", "awarded_at": halloween_badge.awarded_at.isoformat()}
             if halloween_badge else None
         ),
+        "halloween_rewards": halloween_rewards,
     }
 
 

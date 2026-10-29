@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import HTTPException
-from sqlalchemy import BigInteger, DateTime, ForeignKey, select, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, select, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 
@@ -53,8 +53,28 @@ class HalloweenBadge(core.Base):
     awarded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class HalloweenRoom(core.Base):
+    __tablename__ = "halloween_2026_rooms"
+    telegram_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id"), primary_key=True
+    )
+    room: Mapped[int] = mapped_column(Integer, primary_key=True)
+    solved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+def first_witness_id(session):
+    return session.scalar(
+        select(HalloweenRoom.telegram_id)
+        .where(HalloweenRoom.room == 6, HalloweenRoom.solved_at.is_not(None))
+        .order_by(HalloweenRoom.solved_at.asc(), HalloweenRoom.telegram_id.asc())
+        .limit(1)
+    )
+
+
 halloween = types.ModuleType("server.halloween_2026")
 halloween.HalloweenBadge = HalloweenBadge
+halloween.HalloweenRoom = HalloweenRoom
+halloween.first_witness_id = first_witness_id
 sys.modules["server.halloween_2026"] = halloween
 
 ach = load("server.achievements", "achievements.py")
@@ -64,6 +84,7 @@ with core.SessionLocal.begin() as session:
     for uid in (900000, 900001):
         session.add(core.User(telegram_id=uid, first_name="Тест", last_name=None,
                               username=None, balance=0, created_at=now, last_seen_at=now))
+    session.add(HalloweenRoom(telegram_id=900000, room=6, solved_at=now))
 
 with core.SessionLocal() as session:
     owner = ach._serialize(session, 900000, {})
@@ -77,6 +98,10 @@ with core.SessionLocal() as session:
     assert regular["unlocked_count"] == 0
     assert all(not item["unlocked"] for item in regular["items"])
     assert all(item["title"] == "???" for item in regular["items"] if item.get("secret"))
+    assert [reward["key"] for reward in owner["halloween_rewards"]] == [
+        "halloween_keeper_2026", "halloween_first_witness_2026"
+    ]
+    assert regular["halloween_rewards"] == []
 
 # This test substitutes signed Telegram identity locally; production authentication stays unchanged.
 core.verify_init_data = lambda token: {"id": int(token)}

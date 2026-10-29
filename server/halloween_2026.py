@@ -238,6 +238,16 @@ def _solved(session, uid: int) -> dict[int, HalloweenRoom]:
     return {r.room: r for r in session.scalars(select(HalloweenRoom).where(HalloweenRoom.telegram_id == uid)) if r.solved_at is not None}
 
 
+def first_witness_id(session) -> int | None:
+    """The earliest persisted sixth-room completion wins, including past solves."""
+    return session.scalar(
+        select(HalloweenRoom.telegram_id)
+        .where(HalloweenRoom.room == 6, HalloweenRoom.solved_at.is_not(None))
+        .order_by(HalloweenRoom.solved_at.asc(), HalloweenRoom.telegram_id.asc())
+        .limit(1)
+    )
+
+
 def _can_enter(room: int, solved: dict, player: HalloweenPlayer | None, now: datetime, uid: int) -> bool:
     if room == 1:
         return True
@@ -259,6 +269,8 @@ def _status_for(uid: int, now: datetime | None = None) -> dict:
         inventory = {r.item: r.quantity for r in session.scalars(select(HalloweenInventory).where(HalloweenInventory.telegram_id == uid))}
         effects = {(r.room, r.item) for r in session.scalars(select(HalloweenEffect).where(HalloweenEffect.telegram_id == uid))}
         badge = session.get(HalloweenBadge, uid) is not None
+        final_completed = 6 in solved
+        first_witness = final_completed and first_witness_id(session) == uid
     items = []
     for room, (title, subtitle) in enumerate(ROOMS, start=1):
         row = progress.get(room)
@@ -283,7 +295,8 @@ def _status_for(uid: int, now: datetime | None = None) -> dict:
             "inventory": {item: inventory.get(item, 0) for item in ITEMS},
             "secret_unlocked": bool(player and player.secret_unlocked),
             "owner_early_access": core.is_owner(uid) and now < END_AT,
-            "badge": badge, "wallet_earned": sum(row.reward for row in solved.values()),
+            "badge": badge, "final_badge": final_completed, "first_witness": first_witness,
+            "wallet_earned": sum(row.reward for row in solved.values()),
             "rooms": items,
             "shop": [{"key": k, "title": title, "price": price} for k, (title, price) in ITEMS.items()]}
 

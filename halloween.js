@@ -208,13 +208,26 @@
   function drawEnding() {
     const box = $("ending");
     box.replaceChildren();
+    const secretRoom = state.rooms[5];
+    box.classList.toggle("revealed", Boolean(secretRoom.completed));
+    if (secretRoom.completed) {
+      box.append(node("div", "ending-kicker", "ДЕЛО ЗАКРЫТО · ПОСЛЕДНЯЯ ЗАПИСЬ"));
+      box.append(node("h2", "ending-title", "Няник никуда не исчезал"));
+      box.append(node("p", "ending-paragraph", "За шестой дверью лежит конверт. На нём — тот же отпечаток лапы, что и на старом чеке."));
+      const letter = node("blockquote", "ending-letter", "«Я сам оставил чек, шифр и запертые двери. Хотел узнать, кто сумеет дойти до конца. Теперь у лавки есть хранитель. Это ты. — Няник»");
+      box.append(letter);
+      box.append(node("p", "ending-paragraph", "За спиной звенит колокольчик. На прилавке сидит Няник — словно никуда и не уходил."));
+      const awards = node("div", "ending-awards");
+      awards.append(node("div", "ending-award", "▣  Хранитель тайны · получено"));
+      if (state.first_witness) awards.append(node("div", "ending-award first", "◉  Первый свидетель · получено"));
+      box.append(awards);
+      box.append(node("small", "ending-footnote", "Награды сохранены в достижениях Nyan Wallet. Финальная комната принесла +100 🐾."));
+      return;
+    }
     box.append(node("span", "", "◈"));
     if (state.badge) box.append(node("p", "", "Значок «Призрак Няника» получен"));
     else box.append(node("p", "", "За пять комнат тебя ждёт значок «Призрак Няника»"));
-    const secretRoom = state.rooms[5];
-    if (secretRoom.completed) {
-      box.append(node("small", "", "Секрет раскрыт · +100 🐾"));
-    } else if (state.owner_early_access) {
+    if (state.owner_early_access) {
       box.append(node("small", "", "Ранний доступ владельца. Комната без номера уже открыта."));
       box.append(button("Войти в последнюю комнату", () => selectRoom(6), "secret-button", !secretRoom.accessible));
     } else if (!state.active) {

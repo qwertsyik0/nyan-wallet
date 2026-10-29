@@ -181,6 +181,7 @@ assert halloween.halloween_unlock(x_telegram_init_data=token(1001))["duplicate"]
 assert status()["rooms"][5]["accessible"]
 result = answer(6, halloween._puzzle(1001, 6)[1])
 assert result["correct"] and result["state"]["wallet_earned"] == 500
+assert result["state"]["final_badge"] and result["state"]["first_witness"]
 
 with core.SessionLocal() as session:
     assert session.get(core.User, 1001).balance == 500
@@ -215,6 +216,8 @@ fail(lambda: halloween.halloween_unlock(x_telegram_init_data=token(1002)), 409)
 assert halloween.halloween_unlock(x_telegram_init_data=token(900000))["state"]["secret_unlocked"]
 owner_secret = answer(6, halloween._puzzle(900000, 6)[1], uid=900000)
 assert owner_secret["correct"] and owner_secret["reward"] == 100
+assert owner_secret["state"]["final_badge"] and owner_secret["state"]["first_witness"]
+assert status(1001)["final_badge"] and not status(1001)["first_witness"]
 assert answer(6, halloween._puzzle(900000, 6)[1], uid=900000)["already_completed"]
 with core.SessionLocal() as session:
     assert session.get(core.User, 900000).balance == 100

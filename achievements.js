@@ -73,6 +73,7 @@ function addAchStyles() {
       .ach-wallet-badge{display:inline-flex;align-items:center;gap:5px;margin-top:4px;padding:4px 7px;border-radius:999px;background:#fff0f6;border:1px solid #efd8e2;color:#8b3156;font-size:9px;font-weight:800;vertical-align:middle}.ach-wallet-badge .ach-svg{width:12px;height:12px}.ach-hint{margin-top:10px;font-size:10px;line-height:1.4;color:#a67589}.ach-toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9999;width:min(88vw,340px);padding:12px 14px;border-radius:16px;background:#6f2747;color:#fff;box-shadow:0 12px 35px rgba(67,24,43,.22);font-size:12px;font-weight:700;text-align:center;animation:achIn .2s ease-out}@keyframes achIn{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
       @media(max-width:360px){.ach-grid{grid-template-columns:1fr}}
       .ach-limited-name-badges{display:inline-flex;align-items:center;gap:4px;margin:2px 0 0 5px;vertical-align:middle}.ach-limited-name-badges img{width:26px;height:26px;display:block;object-fit:contain;filter:drop-shadow(0 2px 3px rgba(139,49,86,.22))}.ach-limited-collection{margin-top:12px;padding:12px;border:1px solid #efd8e2;border-radius:14px;background:linear-gradient(135deg,#fff9fc,#fff7ef)}.ach-limited-collection-title{font-size:11px;font-weight:850;color:#8b3156;margin-bottom:8px}.ach-limited-collection-item{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:800;color:#6d304a}.ach-limited-collection-item img{width:36px;height:36px;object-fit:contain}.ach-limited-collection-item small{display:block;font-size:10px;font-weight:500;color:#a67589;margin-top:3px}
+      .ach-halloween-collection{margin-top:12px;padding:13px;border:1px solid #d4c4c3;border-radius:13px;background:#f4f0ed}.ach-halloween-title{font-size:11px;font-weight:800;color:#704d58;margin-bottom:9px}.ach-halloween-reward{display:flex;align-items:center;gap:11px;padding:9px 0;border-top:1px solid #dfd4d2}.ach-halloween-symbol{width:34px;height:34px;flex:none;display:grid;place-items:center;border-radius:10px;border:1px solid #c9b8b6;background:#faf8f6;color:#704d58;font-size:21px}.ach-halloween-reward strong{font-size:12px;color:#55444c}.ach-halloween-reward small{display:block;margin-top:3px;color:#7f7378;font-size:10px}
     `;
     document.head.appendChild(style);
 }
@@ -96,6 +97,7 @@ function buildAchievementsUI() {
       </div>
       <div id="ach-selected"></div>
       <div id="ach-limited-collection"></div>
+      <div id="ach-halloween-collection"></div>
       <div id="ach-grid" class="ach-grid"><div class="adv-sub">Загружаем достижения…</div></div>
       <div class="ach-hint">Нажмите на открытый значок, чтобы установить его в профиль. Повторное нажатие снимет значок.</div>`;
 
@@ -141,10 +143,13 @@ function renderPurchasedNameBadge(purchased) {
     badge.title = String(purchased.title || "Особый значок Nyan");
 }
 
-function renderHalloweenNameBadge(earned) {
+function renderHalloweenNameBadge(earned, rewards = []) {
     const username = document.getElementById("username");
     let badge = document.getElementById("ach-halloween-name-badge");
-    if (!earned || !username) {
+    const primary = rewards.find(item => item.key === "halloween_first_witness_2026")
+        || rewards.find(item => item.key === "halloween_keeper_2026")
+        || earned;
+    if (!primary || !username) {
         badge?.remove();
         return;
     }
@@ -155,8 +160,20 @@ function renderHalloweenNameBadge(earned) {
         badge.style.cssText = "margin-left:5px;font-size:15px;color:#704d58;";
         username.insertAdjacentElement("afterend", badge);
     }
-    badge.textContent = "◈";
-    badge.title = "Призрак Няника · Хэллоуин 2026";
+    badge.textContent = String(primary.symbol || "◈").slice(0,2);
+    badge.title = String(primary.title || "Призрак Няника") + " · Хэллоуин 2026";
+}
+
+function renderHalloweenCollection(rewards = []) {
+    const box = document.getElementById("ach-halloween-collection");
+    if (!box) return;
+    if (!rewards.length) {
+        box.replaceChildren();
+        return;
+    }
+    box.innerHTML = `<div class="ach-halloween-collection"><div class="ach-halloween-title">Награды «Последней ночи Няника»</div>${rewards.map(item => `
+        <div class="ach-halloween-reward"><span class="ach-halloween-symbol">${achEsc(item.symbol)}</span><div><strong>${achEsc(item.title)}</strong><small>${achEsc(item.description)}</small></div></div>
+    `).join("")}</div>`;
 }
 
 function renderLimitedNameBadges(items) {
@@ -211,7 +228,8 @@ function renderAchievements(data) {
     renderWalletBadge(data.selected_badge);
     renderPurchasedNameBadge(data.purchased_badge);
     renderLimitedNameBadges(data.limited_badges);
-    renderHalloweenNameBadge(data.halloween_badge);
+    renderHalloweenNameBadge(data.halloween_badge, data.halloween_rewards || []);
+    renderHalloweenCollection(data.halloween_rewards || []);
 
     const grid = document.getElementById("ach-grid");
     if (!grid) return;
