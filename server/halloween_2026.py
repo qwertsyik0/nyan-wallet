@@ -28,7 +28,7 @@ router = APIRouter()
 _REGISTERED = False
 UTC = timezone.utc
 START_AT = datetime(2026, 10, 29, 14, 0, tzinfo=UTC)  # Oct 29, 17:00 MSK
-SECRET_AT = datetime(2026, 10, 29, 20, 0, tzinfo=UTC)  # Oct 29, 23:00 MSK
+SECRET_AT = START_AT  # Last room opens with the event; five rooms and key are still required.
 END_AT = datetime(2026, 10, 31, 21, 0, tzinfo=UTC)  # Nov 1, 00:00 MSK
 MAX_BALANCE = 2_147_483_647
 REWARDS = {1: 40, 2: 50, 3: 60, 4: 100, 5: 150, 6: 100}
@@ -45,7 +45,7 @@ ROOMS = (
     ("Дневник Няника", "Буквы будто сдвинулись со своих мест."),
     ("Три запертые двери", "Только одна табличка говорит правду."),
     ("Последний разговор", "Собери всё, что осталось после пройденных комнат."),
-    ("Комната без номера", "Няник оставил последнюю запись. Она откроется ночью."),
+    ("Комната без номера", "Няник оставил последнюю запись. Открой её после пяти комнат."),
 )
 KEY_RE = re.compile(r"[A-Za-z0-9_-]{12,64}\Z")
 ALPHABET = "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
@@ -440,7 +440,7 @@ def halloween_unlock(x_telegram_init_data: str | None = Header(default=None, ali
     if not (core.is_owner(int(tg_user["id"])) and now < END_AT):
         _require_live(now)
     if now < SECRET_AT and not core.is_owner(int(tg_user["id"])):
-        raise HTTPException(status_code=409, detail="Последняя дверь откроется в 23:00 МСК")
+        raise HTTPException(status_code=409, detail="Последняя дверь откроется вместе с событием")
     uid = int(tg_user["id"])
     with core.SessionLocal.begin() as session:
         _lock_user(session, tg_user, now)

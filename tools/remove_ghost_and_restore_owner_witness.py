@@ -27,8 +27,12 @@ SERVICE = "nyan-wallet"
 
 EVENT_PATCHES = (
     (
-        'SECRET_AT = datetime(2026, 10, 31, 20, 0, tzinfo=UTC)  # Oct 31, 23:00 MSK',
-        'SECRET_AT = datetime(2026, 10, 29, 20, 0, tzinfo=UTC)  # Oct 29, 23:00 MSK',
+        '("Комната без номера", "Няник оставил последнюю запись. Она откроется ночью."),',
+        '("Комната без номера", "Няник оставил последнюю запись. Открой её после пяти комнат."),',
+    ),
+    (
+        'raise HTTPException(status_code=409, detail="Последняя дверь откроется в 23:00 МСК")',
+        'raise HTTPException(status_code=409, detail="Последняя дверь откроется вместе с событием")',
     ),
     (
         'def first_witness_id(session) -> int | None:\n'
@@ -108,6 +112,22 @@ def rewrite(source: bytes, patches: tuple, module: str) -> tuple[bytes, bool]:
     return source, changed
 
 
+def rewrite_event(source: bytes) -> tuple[bytes, bool]:
+    possible = (
+        b'SECRET_AT = datetime(2026, 10, 31, 20, 0, tzinfo=UTC)  # Oct 31, 23:00 MSK',
+        b'SECRET_AT = datetime(2026, 10, 29, 20, 0, tzinfo=UTC)  # Oct 29, 23:00 MSK',
+        b'SECRET_AT = START_AT  # Last room opens with the event; five rooms and key are still required.',
+    )
+    counts = [source.count(line) for line in possible]
+    if sum(counts) != 1:
+        raise RuntimeError("Время открытия последней комнаты отличается от ожидаемого. Остановлено.")
+    timing_changed = counts[2] == 0
+    if timing_changed:
+        source = source.replace(possible[counts.index(1)], possible[2], 1)
+    updated, code_changed = rewrite(source, EVENT_PATCHES, "halloween_2026.py")
+    return updated, timing_changed or code_changed
+
+
 def run(*argv: str) -> str:
     result = subprocess.run(argv, capture_output=True, text=True, check=False)
     if result.returncode:
@@ -147,7 +167,7 @@ def main() -> None:
     planned = []
     for path, patches in ((EVENT, EVENT_PATCHES), (ACH, ACH_PATCHES)):
         original = path.read_bytes()
-        updated, changed = rewrite(original, patches, path.name)
+        updated, changed = rewrite_event(original) if path == EVENT else rewrite(original, patches, path.name)
         planned.append((path, updated, changed))
 
     with tempfile.TemporaryDirectory(prefix="nyan-ghost-update-") as directory:
@@ -191,7 +211,8 @@ def main() -> None:
                 print("Не удалось восстановить сервис:", exc, file=sys.stderr)
         print("Обновление отменено, резервные копии сохранены.", file=sys.stderr)
         raise
-    print("Готово. Призрак Няника больше не показывается. Первый свидетель: владелец и первый обычный участник.")
+    print("Готово. Последняя комната открыта для игроков с пятью решёнными комнатами и ключом.")
+    print("Призрак Няника скрыт. Первый свидетель: владелец и первый обычный участник.")
 
 
 if __name__ == "__main__":

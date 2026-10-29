@@ -173,9 +173,7 @@ assert status()["wallet_earned"] == 400
 assert status()["pumpkins"] == 70  # Started with 5, spent 5, won 70.
 assert buy("key")["state"]["inventory"]["key"] == 1
 fail(lambda: buy("key"), 409)
-fail(lambda: halloween.halloween_unlock(x_telegram_init_data=token(1001)), 409)
-
-clock[0] = halloween.SECRET_AT
+assert halloween.SECRET_AT == halloween.START_AT
 assert halloween.halloween_unlock(x_telegram_init_data=token(1001))["state"]["secret_unlocked"]
 assert halloween.halloween_unlock(x_telegram_init_data=token(1001))["duplicate"]
 assert status()["rooms"][5]["accessible"]
@@ -225,7 +223,7 @@ with core.SessionLocal() as session:
     assert session.get(halloween.HalloweenInventory, (900000, "key")) is None
     assert session.scalar(select(func.count()).select_from(core.Transaction).where(core.Transaction.telegram_id == 900000)) == 1
 
-clock[0] = halloween.SECRET_AT + timedelta(minutes=1)
+clock[0] = halloween.SECRET_AT + timedelta(minutes=15)
 for room in range(1, 6):
     assert answer(room, halloween._puzzle(1002, room)[1], uid=1002)["correct"]
 assert buy("key", uid=1002)["state"]["inventory"]["key"] == 1
