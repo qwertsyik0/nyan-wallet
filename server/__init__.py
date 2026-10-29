@@ -40,6 +40,7 @@ from .profile_overview import register_profile_overview
 from .finance_analytics import register_finance_analytics
 from .lottery import register_lottery
 from .fortune import register_fortune
+from .halloween_2026 import register_halloween_2026
 from .curator_recruitment import register_curator_recruitment
 from .finance_recruitment import register_finance_recruitment
 from .finance_stage2 import register_finance_stage2
@@ -101,6 +102,7 @@ else:
     register_finance_analytics(backend_app.app)
     register_lottery(backend_app.app)
     register_fortune(backend_app.app)
+    register_halloween_2026(backend_app.app)
     register_curator_recruitment(backend_app.app)
     # 2026-10-19: Elections, the old wallet survey and financial-admin
     # recruitment are retired. Keep ORM module imports above for safe schema

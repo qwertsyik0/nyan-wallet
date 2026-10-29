@@ -141,6 +141,24 @@ function renderPurchasedNameBadge(purchased) {
     badge.title = String(purchased.title || "Особый значок Nyan");
 }
 
+function renderHalloweenNameBadge(earned) {
+    const username = document.getElementById("username");
+    let badge = document.getElementById("ach-halloween-name-badge");
+    if (!earned || !username) {
+        badge?.remove();
+        return;
+    }
+    if (!badge) {
+        badge = document.createElement("span");
+        badge.id = "ach-halloween-name-badge";
+        badge.className = "ach-wallet-badge";
+        badge.style.cssText = "margin-left:5px;font-size:15px;color:#704d58;";
+        username.insertAdjacentElement("afterend", badge);
+    }
+    badge.textContent = "◈";
+    badge.title = "Призрак Няника · Хэллоуин 2026";
+}
+
 function renderLimitedNameBadges(items) {
     const username = document.getElementById("username");
     const collection = document.getElementById("ach-limited-collection");
@@ -193,6 +211,7 @@ function renderAchievements(data) {
     renderWalletBadge(data.selected_badge);
     renderPurchasedNameBadge(data.purchased_badge);
     renderLimitedNameBadges(data.limited_badges);
+    renderHalloweenNameBadge(data.halloween_badge);
 
     const grid = document.getElementById("ach-grid");
     if (!grid) return;

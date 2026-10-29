@@ -13,6 +13,7 @@
     ["giveaways", "✦", "Розыгрыши", "nyg-my-button"],
     ["lottery", "🎫", "Лотерея", "nyan-lottery-link"],
     ["fortune", "🎡", "Колесо фортуны", "nyan-fortune-link"],
+    ["halloween", "◈", "Ночь Няника · 31 октября", "nyan-halloween-link"],
     ["purchases", "▤", "Покупки", "nyg-my-purchases-button"],
     ["appeals", "✉", "Обращения", "appeals-button"],
     ["studio", "✳", "Интерактивы", "nyan-studio-link"],
@@ -125,6 +126,10 @@
           window.location.assign("./fortune.html");
           return;
         }
+        if (target === "nyan-halloween-link") {
+          window.location.assign("./halloween.html");
+          return;
+        }
         if (target) proxyClick(target);
       });
     }
@@ -196,8 +201,9 @@
       if (!homeButton) continue;
       // Never offer a dead action before its original handler exists.
       const hide = !proxy || proxy.hidden || proxy.disabled;
-      const unavailable = ["nyan-studio-link", "nyan-lottery-link", "nyan-fortune-link"].includes(target) ? false : hide;
-      if (homeButton.hidden !== Boolean(unavailable)) homeButton.hidden = Boolean(unavailable);
+      const unavailable = ["nyan-studio-link", "nyan-lottery-link", "nyan-fortune-link", "nyan-halloween-link"].includes(target) ? false : hide;
+      const halloweenVisible = target !== "nyan-halloween-link" || (Date.now() >= Date.parse("2026-10-28T21:00:00Z") && Date.now() < Date.parse("2026-11-01T21:00:00Z"));
+      if (homeButton.hidden !== Boolean(unavailable || !halloweenVisible)) homeButton.hidden = Boolean(unavailable || !halloweenVisible);
     }
 
     const unreadSource = document.getElementById("adv-unread-badge");

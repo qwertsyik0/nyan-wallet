@@ -358,6 +358,8 @@ def _serialize(session: Session, telegram_id: int, stats: dict[str, int]) -> dic
         .where(LimitedProfileBadge.telegram_id == telegram_id)
         .order_by(LimitedProfileBadge.acquired_at, LimitedProfileBadge.badge_key)
     ).all()
+    from .halloween_2026 import HalloweenBadge
+    halloween_badge = session.get(HalloweenBadge, telegram_id)
     return {
         "items": items,
         "unlocked_count": len(unlock_map),
@@ -371,6 +373,10 @@ def _serialize(session: Session, telegram_id: int, stats: dict[str, int]) -> dic
             {"key": row.badge_key, "title": row.title, "edition": row.edition}
             for row in limited
         ],
+        "halloween_badge": (
+            {"title": "Призрак Няника", "symbol": "◈", "awarded_at": halloween_badge.awarded_at.isoformat()}
+            if halloween_badge else None
+        ),
     }
 
 

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f4f0ed">
+  <title>Последняя ночь Няника · Nyan Wallet</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./halloween.css?v=20261029-1">
+</head>
+<body>
+  <div class="event-shell">
+    <header class="topbar">
+      <a class="back" href="./index.html" aria-label="Назад в кошелёк">←</a>
+      <div class="brand"><b>Nyan Wallet</b><span>особое событие</span></div>
+      <span class="top-date">31 / 10</span>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="event-title">
+        <div class="hero-copy">
+          <p class="eyebrow">NYAN HALLOWEEN · 2026</p>
+          <h1 id="event-title">Последняя ночь <em>Няника</em></h1>
+          <p class="hero-description">Пять закрытых комнат. Один исчезнувший кот. Собери улики и узнай, что случилось за дверью лавки.</p>
+          <div class="event-clock" id="event-clock" aria-live="polite">Уточняем время события…</div>
+        </div>
+        <svg class="door-art" viewBox="0 0 170 200" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+          <path d="M34 185V67a51 51 0 0 1 102 0v118" fill="#e8dddd" stroke="#704d58" stroke-width="1.6"/>
+          <path d="M48 183V68a37 37 0 0 1 74 0v115" fill="#d4c1c2" stroke="#704d58" stroke-width="1.5"/>
+          <path d="M63 182V79a22 22 0 0 1 44 0v103" fill="#704d58"/>
+          <path d="M74 148 72 132 79 138q6-4 12 0l8-6-3 16q7 5 7 13v21H67v-21q0-8 7-13Z" fill="#f4f0ed"/>
+          <path d="M77 157h2m12 0h2" stroke="#704d58" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="114" cy="123" r="2.5" fill="#f4f0ed"/>
+          <path d="M15 186h140" stroke="#704d58" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M18 45h8m-4-4v8M146 68h7m-3.5-3.5v7" stroke="#a18b90" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+      </section>
+
+      <div id="event-notice" class="notice" role="status" aria-live="polite"></div>
+
+      <section class="stats" aria-label="Прогресс события">
+        <div class="stat"><span>Пройдено</span><strong id="stat-rooms">0 / 5</strong></div>
+        <div class="stat"><span>Тыквы</span><strong id="stat-pumpkins">— 🎃</strong></div>
+        <div class="stat"><span>Заработано</span><strong id="stat-earned">0 🐾</strong></div>
+      </section>
+
+      <section class="section rooms-section" aria-labelledby="rooms-title">
+        <div class="section-head"><div><p class="eyebrow">01 / ИСТОРИЯ</p><h2 id="rooms-title">Закрытые комнаты</h2></div><span class="hint-label">открывай по порядку</span></div>
+        <div id="rooms" class="room-list"><p class="placeholder">Загружаем комнаты…</p></div>
+      </section>
+
+      <section id="room-panel" class="room-panel" aria-labelledby="room-title" hidden>
+        <div class="section-head"><div><p class="eyebrow" id="room-kicker">КОМНАТА</p><h2 id="room-title"></h2></div><button class="small-close" id="room-close" type="button" aria-label="Закрыть загадку">×</button></div>
+        <p id="room-story" class="room-story"></p>
+        <div id="puzzle" class="puzzle"></div>
+        <div id="room-clues" class="clues"></div>
+        <form id="answer-form" class="answer-form">
+          <label for="answer-input">Твой ответ</label>
+          <div class="answer-row"><input id="answer-input" name="answer" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="60" placeholder="Введи ответ" required><button id="answer-submit" type="submit">Ответить</button></div>
+          <p id="answer-meta" class="answer-meta"></p>
+        </form>
+        <div id="room-inventory" class="room-inventory"></div>
+      </section>
+
+      <section class="section shop-section" aria-labelledby="shop-title">
+        <div class="section-head"><div><p class="eyebrow">02 / ПОМОЩЬ</p><h2 id="shop-title">Лавка Няника</h2></div><span class="hint-label">за тыквы 🎃</span></div>
+        <p class="section-description">Тыквы выдаются за разгаданные комнаты. Они действуют только во время события и не обмениваются на лапкоины.</p>
+        <div id="shop" class="shop-list"><p class="placeholder">Загружаем лавку…</p></div>
+      </section>
+
+      <section class="ending" id="ending"><span>◈</span><p>Иногда за последней дверью ждёт ещё одна.</p><small>31 октября · 23:00 МСК</small></section>
+
+      <section class="rules" aria-labelledby="rules-title">
+        <h2 id="rules-title">Правила</h2>
+        <p>Событие проходит 31 октября по московскому времени. За правильный ответ награда начисляется сразу и только один раз. После трёх ошибок потребуется подождать пять минут. Прогресс хранится в Nyan Wallet.</p>
+      </section>
+
+      <section class="login" id="event-login" hidden>
+        <p>Для участия открой событие через Telegram.</p>
+        <a href="https://t.me/nyancash_bot?startapp=halloween">Открыть в Telegram</a>
+      </section>
+    </main>
+    <footer>NYAN WALLET · ХЭЛЛОУИН 2026</footer>
+  </div>
+  <script src="./halloween.js?v=20261029-1"></script>
+</body>
+</html>
