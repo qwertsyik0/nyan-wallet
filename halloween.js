@@ -214,6 +214,9 @@
     const secretRoom = state.rooms[5];
     if (secretRoom.completed) {
       box.append(node("small", "", "Секрет раскрыт · +100 🐾"));
+    } else if (state.owner_early_access) {
+      box.append(node("small", "", "Ранний доступ владельца. Комната без номера уже открыта."));
+      box.append(button("Войти в последнюю комнату", () => selectRoom(6), "secret-button", !secretRoom.accessible));
     } else if (!state.active) {
       box.append(node("small", "", "Тайная дверь открывается 31 октября в 23:00 МСК"));
     } else if (Date.now() < SECRET) {

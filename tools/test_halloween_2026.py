@@ -202,4 +202,23 @@ with core.SessionLocal.begin() as session:
     session.add(BlockedUser(telegram_id=1003))
 fail(lambda: answer(1, halloween._puzzle(1003, 1)[1], uid=1003), 403)
 
-print("OK: signed auth, one-time grants, 5 rooms + secret, event windows, clues, idempotent buys/answers, five-minute retry, ban, balance")
+# The configured owner alone may enter the secret room even before the event
+# opens, without completing rooms 1–5 or buying a key. Others remain locked.
+clock[0] = halloween.START_AT - timedelta(minutes=1)
+owner_status = status(900000)
+assert owner_status["owner_early_access"] is True
+assert owner_status["rooms"][5]["accessible"] is True
+assert owner_status["active"] is False
+assert status(1002)["owner_early_access"] is False
+assert status(1002)["rooms"][5]["accessible"] is False
+fail(lambda: halloween.halloween_unlock(x_telegram_init_data=token(1002)), 409)
+assert halloween.halloween_unlock(x_telegram_init_data=token(900000))["state"]["secret_unlocked"]
+owner_secret = answer(6, halloween._puzzle(900000, 6)[1], uid=900000)
+assert owner_secret["correct"] and owner_secret["reward"] == 100
+assert answer(6, halloween._puzzle(900000, 6)[1], uid=900000)["already_completed"]
+with core.SessionLocal() as session:
+    assert session.get(core.User, 900000).balance == 100
+    assert session.get(halloween.HalloweenInventory, (900000, "key")) is None
+    assert session.scalar(select(func.count()).select_from(core.Transaction).where(core.Transaction.telegram_id == 900000)) == 1
+
+print("OK: signed auth, one-time grants, 5 rooms + secret, owner-only early access, event windows, clues, idempotent buys/answers, five-minute retry, ban, balance")

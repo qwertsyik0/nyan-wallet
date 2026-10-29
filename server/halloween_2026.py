@@ -238,11 +238,15 @@ def _solved(session, uid: int) -> dict[int, HalloweenRoom]:
     return {r.room: r for r in session.scalars(select(HalloweenRoom).where(HalloweenRoom.telegram_id == uid)) if r.solved_at is not None}
 
 
-def _can_enter(room: int, solved: dict, player: HalloweenPlayer, now: datetime) -> bool:
+def _can_enter(room: int, solved: dict, player: HalloweenPlayer | None, now: datetime, uid: int) -> bool:
     if room == 1:
         return True
     if room <= 5:
         return room - 1 in solved
+    if core.is_owner(uid):
+        return True
+    if player is None:
+        return False
     return all(i in solved for i in range(1, 6)) and player.secret_unlocked and now >= SECRET_AT
 
 
@@ -259,8 +263,8 @@ def _status_for(uid: int, now: datetime | None = None) -> dict:
     for room, (title, subtitle) in enumerate(ROOMS, start=1):
         row = progress.get(room)
         completed = room in solved
-        accessible = _can_enter(room, solved, player, now) if player else room == 1
-        open_now = START_AT <= now < END_AT and accessible
+        accessible = _can_enter(room, solved, player, now, uid)
+        open_now = (START_AT <= now < END_AT or (room == 6 and core.is_owner(uid) and now < END_AT)) and accessible
         current = {"room": room, "title": title, "subtitle": subtitle,
                    "completed": completed, "accessible": open_now,
                    "reward": REWARDS[room], "pumpkins_reward": PUMPKINS[room],
@@ -278,13 +282,14 @@ def _status_for(uid: int, now: datetime | None = None) -> dict:
             "pumpkins": player.pumpkins if player else 5,
             "inventory": {item: inventory.get(item, 0) for item in ITEMS},
             "secret_unlocked": bool(player and player.secret_unlocked),
+            "owner_early_access": core.is_owner(uid) and now < END_AT,
             "badge": badge, "wallet_earned": sum(row.reward for row in solved.values()),
             "rooms": items,
             "shop": [{"key": k, "title": title, "price": price} for k, (title, price) in ITEMS.items()]}
 
 
 def _room_guard(session, uid: int, room: int, player: HalloweenPlayer, now: datetime) -> None:
-    if not _can_enter(room, _solved(session, uid), player, now):
+    if not _can_enter(room, _solved(session, uid), player, now, uid):
         raise HTTPException(status_code=409, detail="Сначала открой предыдущие комнаты")
 
 
@@ -301,8 +306,9 @@ def halloween_answer(payload: AnswerInput,
     if not KEY_RE.fullmatch(payload.request_key):
         raise HTTPException(status_code=422, detail="Некорректный ключ запроса")
     now = core.now_utc()
-    _require_live(now)
     uid = int(tg_user["id"])
+    if payload.room != 6 or not (core.is_owner(uid) and now < END_AT):
+        _require_live(now)
     with core.SessionLocal.begin() as session:
         user = _lock_user(session, tg_user, now)
         player = _player(session, uid, now)
@@ -426,8 +432,9 @@ def halloween_use(payload: UseInput,
 def halloween_unlock(x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data")):
     tg_user = _identity(x_telegram_init_data)
     now = core.now_utc()
-    _require_live(now)
-    if now < SECRET_AT:
+    if not (core.is_owner(int(tg_user["id"])) and now < END_AT):
+        _require_live(now)
+    if now < SECRET_AT and not core.is_owner(int(tg_user["id"])):
         raise HTTPException(status_code=409, detail="Последняя дверь откроется в 23:00 МСК")
     uid = int(tg_user["id"])
     with core.SessionLocal.begin() as session:
@@ -436,12 +443,13 @@ def halloween_unlock(x_telegram_init_data: str | None = Header(default=None, ali
         if player.secret_unlocked:
             duplicate = True
         else:
-            if not all(i in _solved(session, uid) for i in range(1, 6)):
-                raise HTTPException(status_code=409, detail="Сначала пройди пять комнат")
-            key = session.get(HalloweenInventory, (uid, "key"))
-            if key is None or key.quantity <= 0:
-                raise HTTPException(status_code=409, detail="Нужен ржавый ключ из лавки")
-            key.quantity -= 1
+            if not core.is_owner(uid):
+                if not all(i in _solved(session, uid) for i in range(1, 6)):
+                    raise HTTPException(status_code=409, detail="Сначала пройди пять комнат")
+                key = session.get(HalloweenInventory, (uid, "key"))
+                if key is None or key.quantity <= 0:
+                    raise HTTPException(status_code=409, detail="Нужен ржавый ключ из лавки")
+                key.quantity -= 1
             player.secret_unlocked = True
             duplicate = False
     return {"ok": True, "duplicate": duplicate, "state": _status_for(uid, now)}
