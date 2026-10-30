@@ -39,6 +39,7 @@ const HALLOWEEN_PROFILE_BADGES = Object.freeze({
     halloween_keeper_2026: "./assets/badges/halloween-keeper-2026.webp",
     halloween_first_witness_2026: "./assets/badges/halloween-first-witness-2026.webp",
 });
+const ARCHIVE_WATCHER_BADGE = "./assets/badges/nyan-archive-watcher-2026.webp";
 
 function achIcon(name, extraClass = "") {
     const start = `<svg class="ach-svg ${extraClass}" viewBox="0 0 16 16" aria-hidden="true" shape-rendering="crispEdges">`;
@@ -103,6 +104,7 @@ function buildAchievementsUI() {
       <div id="ach-selected"></div>
       <div id="ach-limited-collection"></div>
       <div id="ach-halloween-collection"></div>
+      <div id="ach-archive-collection"></div>
       <div id="ach-grid" class="ach-grid"><div class="adv-sub">Загружаем достижения…</div></div>
       <div class="ach-hint">Нажмите на открытый значок, чтобы установить его в профиль. Повторное нажатие снимет значок.</div>`;
 
@@ -190,6 +192,46 @@ function renderHalloweenCollection(rewards = []) {
         const mark = image ? `<img src="${image}" alt="" loading="lazy" width="46" height="46">` : achEsc(item.symbol);
         return `<div class="ach-halloween-reward"><span class="ach-halloween-symbol">${mark}</span><div><strong>${achEsc(item.title)}</strong><small>${achEsc(item.description)}</small></div></div>`;
     }).join("")}</div>`;
+}
+
+function renderArchiveBadge(data) {
+    const username = document.getElementById("username");
+    const collection = document.getElementById("ach-archive-collection");
+    let badge = document.getElementById("ach-archive-name-badge");
+    const unlocked = Boolean(data?.badge_awarded && data?.solved);
+    if (!unlocked || !username) {
+        badge?.remove();
+        if (collection) collection.replaceChildren();
+        return;
+    }
+    if (!badge) {
+        badge = document.createElement("span");
+        badge.id = "ach-archive-name-badge";
+        badge.className = "ach-halloween-name-badge";
+        username.insertAdjacentElement("afterend", badge);
+    }
+    badge.replaceChildren();
+    const img = document.createElement("img");
+    img.src = ARCHIVE_WATCHER_BADGE;
+    img.alt = "Тот, кто смотрел";
+    img.width = 27;
+    img.height = 27;
+    badge.appendChild(img);
+    badge.title = "Тот, кто смотрел · Няник: Дело №0";
+    if (collection) {
+        collection.innerHTML = `<div class="ach-halloween-collection"><div class="ach-halloween-title">Награды «Дела №0»</div>` +
+            `<div class="ach-halloween-reward"><span class="ach-halloween-symbol"><img src="${ARCHIVE_WATCHER_BADGE}" alt="" loading="lazy"></span>` +
+            `<div><strong>Тот, кто смотрел</strong><small>Разгадать дело Няника${data.first_prize_awarded ? " · первый участник, +500 🐾" : ""}</small></div></div></div>`;
+    }
+}
+
+async function loadArchiveBadge() {
+    try {
+        const response = await fetch(`${API_ACH}/api/nyan-archive-2026/status`, { headers: achHeaders(), cache: "no-store" });
+        if (!response.ok) return;
+        const data = await achJson(response);
+        if (data.ok) renderArchiveBadge(data);
+    } catch (_) { /* Archive route may not yet be installed. */ }
 }
 
 function renderLimitedNameBadges(items) {
@@ -322,6 +364,8 @@ async function loadAchievements(silent = true) {
     } catch (_) {
         const grid = document.getElementById("ach-grid");
         if (grid && !achievementsState) grid.innerHTML = `<div class="adv-sub">Не удалось загрузить достижения.</div>`;
+    } finally {
+        await loadArchiveBadge();
     }
 }
 

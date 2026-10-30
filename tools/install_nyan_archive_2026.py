@@ -36,6 +36,7 @@ CALL_ANCHOR = b"    register_halloween_2026(backend_app.app)\n"
 KNOWN_PRIOR_MODULE_SHA256 = {
     "08e4d02ee6759fca467470740781ed42f8616540850ef4e1c8caae5db201a1ce",
     "e446735895fa4fefd67908494b87b0b36c03024ae9dda3af7963479ab4c03cf1",
+    "e7c1daaf299157764a75188378c6e8391313f0c9370821cdab3f86965bb5c96a",
 }
 
 

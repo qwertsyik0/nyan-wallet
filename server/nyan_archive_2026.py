@@ -25,6 +25,7 @@ _REGISTERED = False
 UTC = timezone.utc
 OPEN_AT = datetime(2026, 10, 30, 19, 0, tzinfo=UTC)  # 22:00 MSK
 COOLDOWN = timedelta(minutes=5)
+FIRST_PRIZE = 500
 
 
 def now_utc() -> datetime:
@@ -103,6 +104,18 @@ class ArchiveCompletion(core.Base):
     solved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class ArchiveFirstPrize(core.Base):
+    """Single persistent winner. The primary key prevents duplicate payouts."""
+
+    __tablename__ = "nyan_archive_2026_first_prize"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    telegram_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False
+    )
+    awarded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class SolveInput(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     answer: str = Field(min_length=1, max_length=64)
@@ -130,12 +143,72 @@ def _record_status(record: dict, *, now: datetime, preview: bool) -> dict:
     return result
 
 
+def _grant_first_prize_if_pending(session, now: datetime) -> int | None:
+    """Award the true earliest non-owner solver, including pre-deployment solves."""
+    if session.get(ArchiveFirstPrize, 1) is not None:
+        return None
+
+    query = (
+        select(ArchiveCompletion.telegram_id)
+        .where(ArchiveCompletion.solved_at.is_not(None))
+        .order_by(ArchiveCompletion.solved_at, ArchiveCompletion.telegram_id)
+        .limit(1)
+    )
+    if core.OWNER_TELEGRAM_ID is not None:
+        query = query.where(ArchiveCompletion.telegram_id != core.OWNER_TELEGRAM_ID)
+    first_id = session.scalar(query)
+    if first_id is None:
+        return None
+
+    dialect = session.bind.dialect.name
+    if dialect == "postgresql":
+        stmt = pg_insert(ArchiveFirstPrize)
+    elif dialect == "sqlite":
+        stmt = sqlite_insert(ArchiveFirstPrize)
+    else:
+        raise RuntimeError("Unsupported database for Nyan Archive")
+    claimed_id = session.execute(
+        stmt.values(id=1, telegram_id=first_id, awarded_at=now)
+        .on_conflict_do_nothing(index_elements=["id"])
+        .returning(ArchiveFirstPrize.telegram_id)
+    ).scalar_one_or_none()
+    if claimed_id is None:
+        return None
+
+    user = session.scalar(
+        select(core.User).where(core.User.telegram_id == claimed_id).with_for_update()
+    )
+    if user is None:
+        raise RuntimeError("Победитель архива не найден в таблице пользователей")
+    user.balance = int(user.balance or 0) + FIRST_PRIZE
+    session.add(core.Transaction(
+        telegram_id=claimed_id,
+        amount=FIRST_PRIZE,
+        operation_type="nyan_archive_first",
+        description="Первое прохождение «Няник · Дело №0»",
+        created_at=now,
+    ))
+    from .advanced_features import WalletNotification
+    session.add(WalletNotification(
+        telegram_id=claimed_id,
+        kind="achievement",
+        title="Первое прохождение · Дело №0",
+        body=f"Вы первым разгадали дело Няника. На ваш кошелёк начислено {FIRST_PRIZE} 🐾.",
+        is_read=False,
+        created_at=now,
+    ))
+    return int(claimed_id)
+
+
 def _state(now: datetime, telegram_id: int | None = None) -> dict:
     preview = telegram_id is not None and core.is_owner(telegram_id)
     completion = None
+    first_winner_id = None
     if telegram_id is not None:
         with core.SessionLocal() as session:
             completion = session.get(ArchiveCompletion, telegram_id)
+            first = session.get(ArchiveFirstPrize, 1)
+            first_winner_id = first.telegram_id if first else None
     return {
         "ok": True,
         "server_now": now.isoformat(),
@@ -145,6 +218,8 @@ def _state(now: datetime, telegram_id: int | None = None) -> dict:
         "authenticated": telegram_id is not None,
         "records": [_record_status(record, now=now, preview=preview) for record in RECORDS],
         "solved": completion is not None and completion.solved_at is not None,
+        "badge_awarded": completion is not None and completion.solved_at is not None,
+        "first_prize_awarded": first_winner_id == telegram_id and telegram_id is not None,
         "retry_at": completion.retry_at.isoformat() if completion and completion.retry_at else None,
         "failed_attempts": completion.failed_attempts if completion else 0,
         "ending": (
@@ -216,6 +291,18 @@ def archive_solve(
             row.solved_at = now
             row.retry_at = None
             row.failed_attempts = 0
+            session.flush()
+            from .advanced_features import WalletNotification
+            if not core.is_owner(uid):
+                session.add(WalletNotification(
+                    telegram_id=uid,
+                    kind="achievement",
+                    title="Значок «Тот, кто смотрел»",
+                    body="Вы разгадали «Дело №0». Секретный значок добавлен в ваш профиль Nyan Wallet.",
+                    is_read=False,
+                    created_at=now,
+                ))
+                _grant_first_prize_if_pending(session, now)
         else:
             row.failed_attempts += 1
             if row.failed_attempts % 3 == 0:
@@ -227,6 +314,10 @@ def register_nyan_archive_2026(app) -> None:
     global _REGISTERED
     if _REGISTERED:
         return
-    core.Base.metadata.create_all(core.engine, tables=[ArchiveCompletion.__table__])
+    core.Base.metadata.create_all(
+        core.engine, tables=[ArchiveCompletion.__table__, ArchiveFirstPrize.__table__]
+    )
+    with core.SessionLocal.begin() as session:
+        _grant_first_prize_if_pending(session, now_utc())
     app.include_router(router)
     _REGISTERED = True

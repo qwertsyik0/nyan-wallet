@@ -127,7 +127,10 @@
     if (!data.records.some(record => record.available && record.id === state.selected)) state.selected = 0;
     renderReader();
     $("ending").hidden = !data.solved;
-    if (data.solved) $("ending-text").textContent = data.ending || "Дело восстановлено.";
+    if (data.solved) {
+      $("ending-text").textContent = data.ending || "Дело восстановлено.";
+      $("ending-reward").textContent = "Открыт секретный значок «Тот, кто смотрел»." + (data.first_prize_awarded ? " Ты первым разгадал дело и получил 500 🐾." : "");
+    }
     const finalRecord = data.records[data.records.length - 1];
     const finalOpen = Boolean(finalRecord?.available) && (data.owner_preview || (data.is_open && localNow() >= Date.parse(finalRecord.opens_at)));
     $("answer-section").hidden = !finalOpen || data.solved;
