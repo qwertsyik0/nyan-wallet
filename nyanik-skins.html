@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#fff8fb">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Лимитированная лавка фонов Nyan Wallet — всего шесть экземпляров каждого">
+  <title>Лавка Няника · Nyan Wallet</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./nyanik-skins.css?v=20261030-1">
+</head>
+<body>
+  <div class="shop">
+    <header class="topbar">
+      <a class="back" href="./index.html" aria-label="Назад в Nyan Wallet">←</a>
+      <div class="identity"><strong>Nyan Wallet</strong><span>лимитированная лавка</span></div>
+      <span class="top-tag">NYAN / 04</span>
+    </header>
+
+    <main>
+      <section class="intro" aria-labelledby="shop-title">
+        <div class="intro-lines" aria-hidden="true"></div>
+        <div class="intro-copy">
+          <span class="eyebrow">ОСОБАЯ КОЛЛЕКЦИЯ · 30.10</span>
+          <h1 id="shop-title">Лавка <span>Няника</span></h1>
+          <p>Четыре фона. По шесть экземпляров каждого. Понравившийся дизайн можно сразу примерить на свой кошелёк.</p>
+        </div>
+        <img class="nyanik" src="./assets/wallet-skins/nyanik-shop-cat.webp" alt="Няник приветствует посетителей" width="155" height="155">
+      </section>
+
+      <section class="summary" aria-label="Условия покупки">
+        <div><span>Стоимость фона</span><strong>500 <small>🐾</small></strong></div>
+        <div><span>Твой баланс</span><strong id="user-balance">— <small>🐾</small></strong></div>
+      </section>
+
+      <div class="notice" id="notice" role="status" aria-live="polite">Проверяем остатки…</div>
+      <a class="telegram-entry" id="telegram-entry" href="https://t.me/nyancash_bot?startapp=nyanik_skins" hidden>Открыть в Telegram для покупки ↗</a>
+
+      <section class="collection" aria-labelledby="collection-title">
+        <div class="section-heading"><div><span class="eyebrow">КОЛЛЕКЦИЯ / 04</span><h2 id="collection-title">Фоны кошелька</h2></div><span class="mini-rule">6 шт. каждого</span></div>
+        <div class="products" id="products">
+          <p class="placeholder">Загружаем четыре фона…</p>
+        </div>
+        <button id="refresh" class="refresh" type="button">↻ Обновить остатки</button>
+      </section>
+
+      <p class="fineprint">После покупки фон появится в твоей коллекции и сразу установится. Позже его можно сменить в настройках кошелька.</p>
+    </main>
+    <footer>автор фонов: <strong>HiTsumi$</strong> <span>·</span> Nyan Wallet</footer>
+  </div>
+
+  <div class="modal" id="confirm-modal" hidden>
+    <button class="modal-shade" id="modal-shade" type="button" aria-label="Закрыть подтверждение"></button>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="modal-heading">
+      <span class="eyebrow">ПОДТВЕРЖДЕНИЕ</span>
+      <h2 id="modal-heading">Купить фон?</h2>
+      <p id="modal-desc">Фон будет установлен на твой кошелёк.</p>
+      <div class="charge"><span>Спишется с кошелька</span><strong>500 🐾</strong></div>
+      <p id="modal-notice" class="modal-notice" role="alert"></p>
+      <div class="dialog-actions"><button id="cancel-buy" class="cancel" type="button">Отмена</button><button id="confirm-buy" class="confirm" type="button">Купить</button></div>
+    </div>
+  </div>
+  <script src="./nyanik-skins.js?v=20261030-1"></script>
+</body>
+</html>

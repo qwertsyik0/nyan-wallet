@@ -27,6 +27,7 @@ from .daily_tasks_defaults_v2 import register_daily_tasks_defaults_v2
 from .daily_task_hooks import register_daily_task_hooks
 from .giveaways import register_giveaways
 from .appeals import register_appeals
+from .nyanik_skins_shop import register_nyanik_skins_shop
 from .transfers import register_transfers
 from .antifraud import register_antifraud
 from .recent_transfers_20261011 import print_recent_wallet_transfers_20261011
@@ -89,6 +90,7 @@ else:
     register_daily_task_hooks()
     register_giveaways(backend_app.app)
     register_appeals(backend_app.app)
+    register_nyanik_skins_shop(backend_app.app)
     register_transfers(backend_app.app)
     register_antifraud(backend_app.app)
     print_recent_wallet_transfers_20261011()
