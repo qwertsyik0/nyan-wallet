@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import BigInteger, Date, DateTime, ForeignKey, Integer, String, UniqueConstraint, func, select
+from sqlalchemy import BigInteger, Date, DateTime, ForeignKey, Integer, String, UniqueConstraint, func, inspect, select
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from . import backend_app as core
@@ -301,6 +301,84 @@ def _unlock_new(session: Session, user: core.User, stats: dict[str, int], timest
     return unlocked
 
 
+def _owned_event_badges(session: Session, telegram_id: int) -> tuple[list[dict], list[dict], list[dict]]:
+    """Collect earned cosmetic badges without equipping any of them automatically."""
+    limited = session.scalars(
+        select(LimitedProfileBadge)
+        .where(LimitedProfileBadge.telegram_id == telegram_id)
+        .order_by(LimitedProfileBadge.acquired_at, LimitedProfileBadge.badge_key)
+    ).all()
+    special = [
+        {
+            "key": row.badge_key,
+            "title": row.title,
+            "description": f"Лимитированный экземпляр №{row.edition}",
+            "rarity": "limited",
+            "edition": row.edition,
+            "icon": "medal",
+            "image": {
+                "nyan_game_unmasker": "./assets/badges/nyan-game-unmasker.webp",
+            }.get(row.badge_key),
+            "unlocked": True,
+        }
+        for row in limited
+    ]
+
+    from .halloween_2026 import HalloweenRoom, first_witness_id
+    sixth_room = session.get(HalloweenRoom, (telegram_id, 6))
+    finale_completed = bool(sixth_room and sixth_room.solved_at)
+    first_witness = finale_completed and (
+        core.is_owner(telegram_id) or first_witness_id(session) == telegram_id
+    )
+    halloween_rewards = []
+    if finale_completed:
+        halloween_rewards.append({
+            "key": "halloween_keeper_2026", "title": "Хранитель тайны", "symbol": "▣",
+            "description": "Раскрыть тайну последней комнаты", "rarity": "legendary",
+            "awarded_at": sixth_room.solved_at.isoformat(),
+        })
+    if first_witness:
+        halloween_rewards.append({
+            "key": "halloween_first_witness_2026", "title": "Первый свидетель", "symbol": "◉",
+            "description": "Первым раскрыть шестую комнату", "rarity": "mythic",
+            "awarded_at": sixth_room.solved_at.isoformat(),
+        })
+    halloween_images = {
+        "halloween_keeper_2026": "./assets/badges/halloween-keeper-2026.webp",
+        "halloween_first_witness_2026": "./assets/badges/halloween-first-witness-2026.webp",
+    }
+    for reward in halloween_rewards:
+        special.append({
+            **reward, "icon": "medal", "image": halloween_images[reward["key"]],
+            "unlocked": True,
+        })
+
+    # The archive module is deployed separately on FirstVDS. Its badge is visible
+    # here only after a real, persisted completion; no request to it is needed.
+    try:
+        from .nyan_archive_2026 import ArchiveCompletion
+    except ModuleNotFoundError as exc:
+        if exc.name != f"{__package__}.nyan_archive_2026":
+            raise
+    else:
+        if inspect(session.get_bind()).has_table(ArchiveCompletion.__tablename__):
+            completed = session.get(ArchiveCompletion, telegram_id)
+            if completed and completed.solved_at:
+                special.append({
+                    "key": "nyan_archive_watcher_2026", "title": "Тот, кто смотрел",
+                    "description": "Разгадать «Няник · Дело №0»",
+                    "rarity": "secret", "icon": "mystery",
+                    "image": "./assets/badges/nyan-archive-watcher-2026.webp",
+                    "unlocked": True, "awarded_at": completed.solved_at.isoformat(),
+                })
+
+    limited_payload = [
+        {"key": row.badge_key, "title": row.title, "edition": row.edition}
+        for row in limited
+    ]
+    return special, limited_payload, halloween_rewards
+
+
 def _serialize(session: Session, telegram_id: int, stats: dict[str, int]) -> dict:
     unlock_rows = session.scalars(
         select(AchievementUnlock).where(AchievementUnlock.telegram_id == telegram_id)
@@ -348,34 +426,23 @@ def _serialize(session: Session, telegram_id: int, stats: dict[str, int]) -> dic
 
         items.append(payload)
 
+    special, limited_payload, halloween_rewards = _owned_event_badges(session, telegram_id)
     selected = None
-    if badge and badge.achievement_key in ACHIEVEMENT_BY_KEY:
-        source = ACHIEVEMENT_BY_KEY[badge.achievement_key]
-        selected = {"key": source["key"], "title": source["title"], "icon": source["icon"], "rarity": source["rarity"]}
-
+    if badge:
+        source = ACHIEVEMENT_BY_KEY.get(badge.achievement_key)
+        if source and (owner_access or badge.achievement_key in unlock_map):
+            selected = {
+                "key": source["key"], "title": source["title"],
+                "icon": source["icon"], "rarity": source["rarity"], "kind": "standard",
+            }
+        else:
+            selected = next((
+                {**item, "kind": "event"} for item in special
+                if item["key"] == badge.achievement_key
+            ), None)
+    for item in special:
+        item["selected"] = bool(selected and selected["key"] == item["key"])
     purchased = session.get(PurchasedNameBadge, telegram_id)
-    limited = session.scalars(
-        select(LimitedProfileBadge)
-        .where(LimitedProfileBadge.telegram_id == telegram_id)
-        .order_by(LimitedProfileBadge.acquired_at, LimitedProfileBadge.badge_key)
-    ).all()
-    from .halloween_2026 import HalloweenRoom, first_witness_id
-    sixth_room = session.get(HalloweenRoom, (telegram_id, 6))
-    finale_completed = bool(sixth_room and sixth_room.solved_at)
-    first_witness = finale_completed and (core.is_owner(telegram_id) or first_witness_id(session) == telegram_id)
-    halloween_rewards = []
-    if finale_completed:
-        halloween_rewards.append({
-            "key": "halloween_keeper_2026", "title": "Хранитель тайны", "symbol": "▣",
-            "description": "Раскрыть тайну последней комнаты", "rarity": "legendary",
-            "awarded_at": sixth_room.solved_at.isoformat(),
-        })
-    if first_witness:
-        halloween_rewards.append({
-            "key": "halloween_first_witness_2026", "title": "Первый свидетель", "symbol": "◉",
-            "description": "Первым раскрыть шестую комнату", "rarity": "mythic",
-            "awarded_at": sixth_room.solved_at.isoformat(),
-        })
     return {
         "items": items,
         "unlocked_count": len(ACHIEVEMENTS) if owner_access else len(unlock_map),
@@ -385,11 +452,9 @@ def _serialize(session: Session, telegram_id: int, stats: dict[str, int]) -> dic
             {"symbol": purchased.symbol, "title": purchased.title}
             if purchased else None
         ),
-        "limited_badges": [
-            {"key": row.badge_key, "title": row.title, "edition": row.edition}
-            for row in limited
-        ],
+        "limited_badges": limited_payload,
         "halloween_rewards": halloween_rewards,
+        "special_badges": special,
     }
 
 
@@ -444,17 +509,27 @@ async def select_badge(
                     session.delete(row)
                 return {"ok": True, "selected_badge": None}
 
-            if key not in ACHIEVEMENT_BY_KEY:
-                raise HTTPException(status_code=404, detail="Достижение не найдено")
-            if not core.is_owner(int(tg["id"])):
-                unlocked = session.scalar(
-                    select(AchievementUnlock.id).where(
-                        AchievementUnlock.telegram_id == tg["id"],
-                        AchievementUnlock.achievement_key == key,
+            source = ACHIEVEMENT_BY_KEY.get(key)
+            if source:
+                if not core.is_owner(int(tg["id"])):
+                    unlocked = session.scalar(
+                        select(AchievementUnlock.id).where(
+                            AchievementUnlock.telegram_id == tg["id"],
+                            AchievementUnlock.achievement_key == key,
+                        )
                     )
-                )
-                if unlocked is None:
-                    raise HTTPException(status_code=409, detail="Сначала откройте это достижение")
+                    if unlocked is None:
+                        raise HTTPException(status_code=409, detail="Сначала откройте это достижение")
+                selected = {
+                    "key": key, "title": source["title"], "icon": source["icon"],
+                    "rarity": source["rarity"], "kind": "standard",
+                }
+            else:
+                special, _, _ = _owned_event_badges(session, tg["id"])
+                earned = next((item for item in special if item["key"] == key), None)
+                if earned is None:
+                    raise HTTPException(status_code=409, detail="Этот значок ещё не получен")
+                selected = {**earned, "kind": "event", "selected": True}
 
             if row is None:
                 row = AchievementBadge(
@@ -467,15 +542,9 @@ async def select_badge(
                 row.achievement_key = key
                 row.selected_at = utcnow()
 
-    source = ACHIEVEMENT_BY_KEY[key]
     return {
         "ok": True,
-        "selected_badge": {
-            "key": key,
-            "title": source["title"],
-            "icon": source["icon"],
-            "rarity": source["rarity"],
-        },
+        "selected_badge": selected,
     }
 
 

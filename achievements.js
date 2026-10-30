@@ -1,6 +1,8 @@
 const tgAch = window.Telegram?.WebApp;
 const API_ACH = "https://nyan-wallet-153-76-175-145.sslip.io";
 let achievementsState = null;
+let achievementsRequest = 0;
+let achievementsSaving = false;
 
 function achHeaders(json = false) {
     const headers = { "X-Telegram-Init-Data": tgAch?.initData || "" };
@@ -40,6 +42,11 @@ const HALLOWEEN_PROFILE_BADGES = Object.freeze({
     halloween_first_witness_2026: "./assets/badges/halloween-first-witness-2026.webp",
 });
 const ARCHIVE_WATCHER_BADGE = "./assets/badges/nyan-archive-watcher-2026.webp";
+const EVENT_BADGE_IMAGES = Object.freeze({
+    nyan_game_unmasker: LIMITED_PROFILE_BADGES.nyan_game_unmasker.image,
+    ...HALLOWEEN_PROFILE_BADGES,
+    nyan_archive_watcher_2026: ARCHIVE_WATCHER_BADGE,
+});
 
 function achIcon(name, extraClass = "") {
     const start = `<svg class="ach-svg ${extraClass}" viewBox="0 0 16 16" aria-hidden="true" shape-rendering="crispEdges">`;
@@ -85,35 +92,72 @@ function addAchStyles() {
 }
 
 function rarityLabel(value) {
-    return ({ common: "Обычное", rare: "Редкое", epic: "Эпическое", legendary: "Легендарное", mythic: "Мифическое" })[value] || "Достижение";
+    return ({ common: "Обычное", rare: "Редкое", epic: "Эпическое", legendary: "Легендарное", mythic: "Мифическое", limited: "Лимитированное", secret: "Секретное" })[value] || "Достижение";
 }
 
 function buildAchievementsUI() {
     const profile = document.getElementById("adv-profile-view");
-    if (!profile || document.getElementById("nyan-achievements-panel")) return false;
+    const app = document.querySelector(".app");
+    if (!profile || !app || document.getElementById("nyan-achievements-panel")) return false;
     addAchStyles();
 
     const panel = document.createElement("section");
     panel.id = "nyan-achievements-panel";
-    panel.className = "adv-panel";
+    panel.className = "adv-panel ach-profile-entrance";
     panel.innerHTML = `
-      <div class="ach-head">
-        <div><div class="adv-title">Достижения</div><div class="adv-sub">Собирайте значки за активность в Nyan Wallet</div></div>
-        <div id="ach-count" class="ach-count">0 / —</div>
-      </div>
-      <div id="ach-selected"></div>
-      <div id="ach-limited-collection"></div>
-      <div id="ach-halloween-collection"></div>
-      <div id="ach-archive-collection"></div>
-      <div id="ach-grid" class="ach-grid"><div class="adv-sub">Загружаем достижения…</div></div>
-      <div class="ach-hint">Нажмите на открытый значок, чтобы установить его в профиль. Повторное нажатие снимет значок.</div>`;
+      <button type="button" id="ach-open-hall" class="ach-hall-entry">
+        <span class="ach-entry-icon">${achIcon("medal")}</span>
+        <span class="ach-entry-copy"><strong>Зал достижений</strong><small id="ach-entry-sub">Все ваши значки и награды</small></span>
+        <span class="ach-entry-arrow" aria-hidden="true">›</span>
+      </button>`;
 
     const levelSection = document.getElementById("adv-profile-level")?.closest("section");
     if (levelSection) levelSection.insertAdjacentElement("afterend", panel);
     else profile.appendChild(panel);
 
+    const hall = document.createElement("main");
+    hall.id = "nyan-achievements-hall";
+    hall.className = "view hidden ach-hall-view";
+    hall.innerHTML = `
+      <div class="subpage-header"><button type="button" class="back-button" id="ach-hall-back">‹</button>
+        <div><div class="page-title">Зал достижений</div><div class="page-subtitle">ваша коллекция Nyan Wallet</div></div>
+      </div>
+      <section class="adv-panel ach-hall-panel">
+        <div class="ach-head"><div><div class="adv-title">Мои достижения</div><div class="adv-sub">Выберите значок, который будет виден в профиле</div></div>
+          <span id="ach-count" class="ach-count">0 / —</span></div>
+        <div id="ach-selected"></div>
+        <div id="ach-action-status" class="ach-action-status" role="status" aria-live="polite"></div>
+        <div id="ach-groups" class="ach-groups"><div class="adv-sub">Загружаем достижения…</div></div>
+        <div class="ach-hint">Нажмите на полученный значок, чтобы надеть его. Повторное нажатие снимет его.</div>
+      </section>`;
+    app.appendChild(hall);
+
+    document.getElementById("ach-open-hall")?.addEventListener("click", openAchievementHall);
+    document.getElementById("ach-hall-back")?.addEventListener("click", closeAchievementHall);
+    tgAch?.BackButton?.onClick?.(() => {
+        if (!hall.classList.contains("hidden")) closeAchievementHall();
+    });
+    document.getElementById("ach-groups")?.addEventListener("click", event => {
+        const button = event.target.closest("button[data-ach-key]");
+        if (button && !button.disabled) toggleAchievementBadge(button.dataset.achKey);
+    });
     document.getElementById("adv-profile-button")?.addEventListener("click", () => loadAchievements(false));
     return true;
+}
+
+function openAchievementHall() {
+    for (const view of document.querySelectorAll(".app > .view")) view.classList.add("hidden");
+    document.getElementById("nyan-achievements-hall")?.classList.remove("hidden");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    tgAch?.BackButton?.show?.();
+    loadAchievements(true);
+}
+
+function closeAchievementHall() {
+    document.getElementById("nyan-achievements-hall")?.classList.add("hidden");
+    document.getElementById("adv-profile-view")?.classList.remove("hidden");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    tgAch?.BackButton?.show?.();
 }
 
 function renderWalletBadge(selected) {
@@ -129,7 +173,15 @@ function renderWalletBadge(selected) {
         badge.className = "ach-wallet-badge";
         username?.insertAdjacentElement("afterend", badge);
     }
-    badge.innerHTML = `${achIcon(selected.icon)}<span>${achEsc(selected.title)}</span>`;
+    const image = selected.kind === "event" && EVENT_BADGE_IMAGES[selected.key];
+    if (image) {
+        badge.className = "ach-profile-image-badge";
+        badge.innerHTML = `<img src="${image}" alt="${achEsc(selected.title)}" width="27" height="27">`;
+    } else {
+        badge.className = "ach-wallet-badge";
+        badge.innerHTML = `${achIcon(selected.icon)}<span>${achEsc(selected.title)}</span>`;
+    }
+    badge.title = `${selected.title} · надето`;
 }
 
 function renderPurchasedNameBadge(purchased) {
@@ -150,172 +202,76 @@ function renderPurchasedNameBadge(purchased) {
     badge.title = String(purchased.title || "Особый значок Nyan");
 }
 
-function renderHalloweenNameBadge(rewards = []) {
-    const username = document.getElementById("username");
-    let badge = document.getElementById("ach-halloween-name-badge");
-    const primary = rewards.find(item => item.key === "halloween_first_witness_2026")
-        || rewards.find(item => item.key === "halloween_keeper_2026");
-    if (!primary || !username) {
-        badge?.remove();
-        return;
-    }
-    if (!badge) {
-        badge = document.createElement("span");
-        badge.id = "ach-halloween-name-badge";
-        badge.className = "ach-halloween-name-badge";
-        username.insertAdjacentElement("afterend", badge);
-    }
-    badge.replaceChildren();
-    const imagePath = HALLOWEEN_PROFILE_BADGES[primary.key];
-    if (imagePath) {
-        const img = document.createElement("img");
-        img.src = imagePath;
-        img.alt = "";
-        img.width = 27;
-        img.height = 27;
-        badge.appendChild(img);
-    } else {
-        badge.textContent = String(primary.symbol || "◈").slice(0,2);
-    }
-    badge.title = String(primary.title || "Награда Няника") + " · Хэллоуин 2026";
-}
-
-function renderHalloweenCollection(rewards = []) {
-    const box = document.getElementById("ach-halloween-collection");
-    if (!box) return;
-    if (!rewards.length) {
-        box.replaceChildren();
-        return;
-    }
-    box.innerHTML = `<div class="ach-halloween-collection"><div class="ach-halloween-title">Награды «Последней ночи Няника»</div>${rewards.map(item => {
-        const image = HALLOWEEN_PROFILE_BADGES[item.key];
-        const mark = image ? `<img src="${image}" alt="" loading="lazy" width="46" height="46">` : achEsc(item.symbol);
-        return `<div class="ach-halloween-reward"><span class="ach-halloween-symbol">${mark}</span><div><strong>${achEsc(item.title)}</strong><small>${achEsc(item.description)}</small></div></div>`;
-    }).join("")}</div>`;
-}
-
-function renderArchiveBadge(data) {
-    const username = document.getElementById("username");
-    const collection = document.getElementById("ach-archive-collection");
-    let badge = document.getElementById("ach-archive-name-badge");
-    const unlocked = Boolean(data?.badge_awarded && data?.solved);
-    if (!unlocked || !username) {
-        badge?.remove();
-        if (collection) collection.replaceChildren();
-        return;
-    }
-    if (!badge) {
-        badge = document.createElement("span");
-        badge.id = "ach-archive-name-badge";
-        badge.className = "ach-halloween-name-badge";
-        username.insertAdjacentElement("afterend", badge);
-    }
-    badge.replaceChildren();
-    const img = document.createElement("img");
-    img.src = ARCHIVE_WATCHER_BADGE;
-    img.alt = "Тот, кто смотрел";
-    img.width = 27;
-    img.height = 27;
-    badge.appendChild(img);
-    badge.title = "Тот, кто смотрел · Няник: Дело №0";
-    if (collection) {
-        collection.innerHTML = `<div class="ach-halloween-collection"><div class="ach-halloween-title">Награды «Дела №0»</div>` +
-            `<div class="ach-halloween-reward"><span class="ach-halloween-symbol"><img src="${ARCHIVE_WATCHER_BADGE}" alt="" loading="lazy"></span>` +
-            `<div><strong>Тот, кто смотрел</strong><small>Разгадать дело Няника${data.first_prize_awarded ? " · первый участник, +500 🐾" : ""}</small></div></div></div>`;
+function clearLegacyAutoBadges() {
+    // Event badges were previously attached to the nickname without user choice.
+    // The new hall makes them optional, just like regular achievements.
+    for (const id of ["ach-halloween-name-badge", "ach-archive-name-badge", "ach-limited-name-badges"]) {
+        document.getElementById(id)?.remove();
     }
 }
 
-async function loadArchiveBadge() {
-    try {
-        const response = await fetch(`${API_ACH}/api/nyan-archive-2026/status`, { headers: achHeaders(), cache: "no-store" });
-        if (!response.ok) return;
-        const data = await achJson(response);
-        if (data.ok) renderArchiveBadge(data);
-    } catch (_) { /* Archive route may not yet be installed. */ }
-}
-
-function renderLimitedNameBadges(items) {
-    const username = document.getElementById("username");
-    const collection = document.getElementById("ach-limited-collection");
-    let badges = document.getElementById("ach-limited-name-badges");
-    const known = (Array.isArray(items) ? items : [])
-        .filter(item => Object.prototype.hasOwnProperty.call(LIMITED_PROFILE_BADGES, item.key));
-
-    if (!known.length || !username) {
-        badges?.remove();
-        if (collection) collection.innerHTML = "";
-        return;
-    }
-    if (!badges) {
-        badges = document.createElement("span");
-        badges.id = "ach-limited-name-badges";
-        badges.className = "ach-limited-name-badges";
-        username.insertAdjacentElement("afterend", badges);
-    }
-    badges.replaceChildren();
-    for (const item of known) {
-        const spec = LIMITED_PROFILE_BADGES[item.key];
-        const img = document.createElement("img");
-        img.src = spec.image;
-        img.alt = item.title;
-        img.title = `${item.title} · экземпляр №${item.edition}/${spec.total}`;
-        badges.appendChild(img);
-    }
-    if (collection) {
-        collection.className = "ach-limited-collection";
-        collection.innerHTML = `<div class="ach-limited-collection-title">Лимитированные значки</div>` +
-            known.map(item => {
-                const spec = LIMITED_PROFILE_BADGES[item.key];
-                return `<div class="ach-limited-collection-item"><img src="${spec.image}" alt="">` +
-                    `<div>${achEsc(item.title)}<small>Экземпляр №${Number(item.edition)}/${spec.total} · навсегда</small></div></div>`;
-            }).join("");
-    }
+function renderAchievementCard(item, selectedKey, special = false) {
+    const selected = Boolean(item.unlocked && item.key === selectedKey);
+    const secretLocked = Boolean(item.secret && !item.unlocked);
+    const image = special ? EVENT_BADGE_IMAGES[item.key] : null;
+    const icon = image
+        ? `<img src="${image}" alt="" loading="lazy" width="39" height="39">`
+        : achIcon(item.icon || "medal");
+    const reward = secretLocked ? "???" : special ? "памятный значок" : (item.reward > 0 ? `+${Number(item.reward)} 🐾` : "значок");
+    const progressText = special
+        ? "Получено"
+        : item.unlocked ? "Выполнено" : secretLocked ? "условие скрыто" : `${Math.min(item.current, item.target)} / ${item.target}`;
+    const progress = Math.max(0, Math.min(100, Number(item.progress || 0)));
+    const date = item.unlocked_at || item.awarded_at;
+    return `<button type="button" class="ach-card ${item.unlocked ? "unlocked" : "locked"} ${selected ? "selected" : ""} ${secretLocked ? "secret" : ""}"
+        data-ach-key="${achEsc(item.key)}" data-rarity="${achEsc(item.rarity)}" aria-pressed="${selected}" ${item.unlocked && !achievementsSaving ? "" : "disabled"}>
+        ${selected ? `<span class="ach-selected-mark">✓ надето</span>` : ""}
+        <div class="ach-card-top"><div class="ach-icon ${image ? "ach-image-icon" : ""}">${icon}</div>${item.unlocked ? "" : `<span class="ach-lock">закрыто</span>`}</div>
+        <div class="ach-rarity">${rarityLabel(item.rarity)}</div>
+        <div class="ach-title">${achEsc(item.title)}</div>
+        <div class="ach-desc">${achEsc(item.description)}</div>
+        <div class="ach-reward ${item.reward ? "" : "badge-only"}">${reward}</div>
+        ${special ? "" : `<div class="ach-progress"><span style="width:${progress}%"></span></div>`}
+        <div class="ach-progress-meta">${progressText}</div>
+        ${date ? `<div class="ach-date">Открыто ${achDate(date)}</div>` : ""}
+      </button>`;
 }
 
 function renderAchievements(data) {
     achievementsState = data;
+    clearLegacyAutoBadges();
+    const specials = Array.isArray(data.special_badges) ? data.special_badges : [];
+    const selectedKey = data.selected_badge?.key || null;
     const count = document.getElementById("ach-count");
-    if (count) count.textContent = `${data.unlocked_count} / ${data.total}`;
+    if (count) count.textContent = `${data.unlocked_count + specials.length} / ${data.total + specials.length}`;
+    const entrySub = document.getElementById("ach-entry-sub");
+    if (entrySub) entrySub.textContent = `${data.unlocked_count} достижений · ${specials.length} особых наград`;
 
     const selectedBox = document.getElementById("ach-selected");
     if (selectedBox) {
         selectedBox.innerHTML = data.selected_badge
-            ? `<div class="ach-selected"><div class="ach-selected-icon">${achIcon(data.selected_badge.icon)}</div><div class="ach-selected-text"><div class="ach-selected-title">${achEsc(data.selected_badge.title)}</div><div class="ach-selected-sub">выбранный значок профиля</div></div></div>`
+            ? `<div class="ach-selected"><div class="ach-selected-icon">${EVENT_BADGE_IMAGES[selectedKey]
+                ? `<img src="${EVENT_BADGE_IMAGES[selectedKey]}" alt="" width="32" height="32">`
+                : achIcon(data.selected_badge.icon)}</div><div class="ach-selected-text"><div class="ach-selected-title">${achEsc(data.selected_badge.title)}</div><div class="ach-selected-sub">✓ надето в профиле</div></div></div>`
             : `<div class="adv-sub" style="margin-top:10px">Значок профиля пока не выбран.</div>`;
     }
     renderWalletBadge(data.selected_badge);
     renderPurchasedNameBadge(data.purchased_badge);
-    renderLimitedNameBadges(data.limited_badges);
-    renderHalloweenNameBadge(data.halloween_rewards || []);
-    renderHalloweenCollection(data.halloween_rewards || []);
 
-    const grid = document.getElementById("ach-grid");
-    if (!grid) return;
-    grid.innerHTML = data.items.map(item => {
-        const secretLocked = Boolean(item.secret && !item.unlocked);
-        const reward = secretLocked ? "???" : (item.reward > 0 ? `+${item.reward} 🐾` : "значок");
-        const progressText = item.unlocked
-            ? "Выполнено"
-            : secretLocked
-                ? "условие скрыто"
-                : `${Math.min(item.current, item.target)} / ${item.target}`;
-        return `
-          <button type="button" class="ach-card ${item.unlocked ? "unlocked" : "locked"} ${item.selected ? "selected" : ""} ${secretLocked ? "secret" : ""}" data-ach-key="${achEsc(item.key)}" data-rarity="${achEsc(item.rarity)}" ${item.unlocked ? "" : "disabled"}>
-            ${item.selected ? `<span class="ach-selected-mark">✓</span>` : ""}
-            <div class="ach-card-top"><div class="ach-icon">${achIcon(item.icon)}</div>${item.unlocked ? "" : `<span class="ach-lock">закрыто</span>`}</div>
-            <div class="ach-rarity">${rarityLabel(item.rarity)}</div>
-            <div class="ach-title">${achEsc(item.title)}</div>
-            <div class="ach-desc">${achEsc(item.description)}</div>
-            <div class="ach-reward ${item.reward ? "" : "badge-only"}">${reward}</div>
-            <div class="ach-progress"><span style="width:${item.progress}%"></span></div>
-            <div class="ach-progress-meta">${progressText}</div>
-            ${item.unlocked_at ? `<div class="ach-date">Открыто ${achDate(item.unlocked_at)}</div>` : ""}
-          </button>`;
-    }).join("");
-
-    for (const card of grid.querySelectorAll(".ach-card.unlocked")) {
-        card.addEventListener("click", () => toggleAchievementBadge(card.dataset.achKey));
-    }
+    const items = Array.isArray(data.items) ? data.items : [];
+    const sections = [
+        { key: "secret", title: "Секретные", subtitle: "Не все условия известны заранее", items: items.filter(item => item.secret) },
+        { key: "epic", title: "Эпические", subtitle: "Редкие и особые достижения", items: items.filter(item => !item.secret && ["epic", "legendary", "mythic"].includes(item.rarity)) },
+        { key: "limited", title: "Лимитированные", subtitle: "Награды за события и особые заслуги", items: specials, special: true },
+        { key: "regular", title: "Обычные", subtitle: "Ваши первые шаги и ежедневная активность", items: items.filter(item => !item.secret && ["common", "rare"].includes(item.rarity)) },
+    ];
+    const groups = document.getElementById("ach-groups");
+    if (groups) groups.innerHTML = sections.map(section => `
+        <section class="ach-group ach-group-${section.key}">
+          <div class="ach-group-heading"><div><h2>${section.title}</h2><p>${section.subtitle}</p></div><span>${section.items.filter(item => item.unlocked).length} / ${section.items.length}</span></div>
+          ${section.items.length ? `<div class="ach-grid">${section.items.map(item => renderAchievementCard(item, selectedKey, section.special)).join("")}</div>`
+          : `<div class="ach-group-empty">Пока нет полученных значков этой категории.</div>`}
+        </section>`).join("");
 }
 
 function showAchievementToast(items) {
@@ -349,11 +305,13 @@ function showAchievementToast(items) {
 }
 
 async function loadAchievements(silent = true) {
-    if (!tgAch?.initData) return;
+    if (!tgAch?.initData || achievementsSaving) return;
+    const request = ++achievementsRequest;
     try {
-        const response = await fetch(`${API_ACH}/api/achievements`, { headers: achHeaders() });
+        const response = await fetch(`${API_ACH}/api/achievements`, { headers: achHeaders(), cache: "no-store" });
         const data = await achJson(response);
         if (!response.ok) throw new Error(data.detail || "Не удалось загрузить достижения");
+        if (request !== achievementsRequest || achievementsSaving) return;
         renderAchievements(data);
         const balance = document.getElementById("balance");
         if (balance && balance.textContent.trim() !== "∞" && Number.isFinite(Number(data.balance))) {
@@ -361,30 +319,44 @@ async function loadAchievements(silent = true) {
         }
         if (!silent && data.newly_unlocked?.length) showAchievementToast(data.newly_unlocked);
         if (silent && data.newly_unlocked?.length) showAchievementToast(data.newly_unlocked);
-    } catch (_) {
-        const grid = document.getElementById("ach-grid");
-        if (grid && !achievementsState) grid.innerHTML = `<div class="adv-sub">Не удалось загрузить достижения.</div>`;
-    } finally {
-        await loadArchiveBadge();
+    } catch (error) {
+        const groups = document.getElementById("ach-groups");
+        if (groups && !achievementsState) groups.innerHTML = `<div class="adv-sub">Не удалось загрузить достижения. Попробуйте снова.</div>`;
     }
 }
 
 async function toggleAchievementBadge(key) {
-    if (!achievementsState) return;
+    if (!achievementsState || achievementsSaving) return;
     const current = achievementsState.selected_badge?.key || null;
     const next = current === key ? null : key;
+    const status = document.getElementById("ach-action-status");
+    achievementsSaving = true;
+    let needsResync = false;
+    achievementsRequest += 1; // An older profile request must not undo a fresh selection.
+    if (status) status.textContent = "Сохраняем выбор…";
+    document.getElementById("ach-groups")?.querySelectorAll("button[data-ach-key]")
+        .forEach(button => { button.disabled = true; });
     try {
         const response = await fetch(`${API_ACH}/api/achievements/badge`, {
             method: "POST",
             headers: achHeaders(true),
             body: JSON.stringify({ key: next }),
+            cache: "no-store",
         });
         const data = await achJson(response);
         if (!response.ok) throw new Error(data.detail || "Не удалось выбрать значок");
+        renderAchievements({ ...achievementsState, selected_badge: data.selected_badge });
+        if (status) status.textContent = data.selected_badge ? "Значок надет." : "Значок снят.";
         tgAch?.HapticFeedback?.selectionChanged?.();
-        await loadAchievements(true);
     } catch (error) {
+        needsResync = true;
+        if (status) status.textContent = error.message || "Не удалось сохранить выбор.";
         tgAch?.showAlert?.(error.message || "Не удалось выбрать значок");
+    } finally {
+        achievementsSaving = false;
+        // Re-render from the last server-confirmed state; re-enable valid cards.
+        if (achievementsState) renderAchievements(achievementsState);
+        if (needsResync) loadAchievements(true);
     }
 }
 

@@ -56,7 +56,7 @@ function addAdvStyles() {
 }
 
 function advShowView(id) {
-    for (const viewId of ["wallet-view", "earn-view", "owner-view", "spend-view", "adv-profile-view", "adv-notifications-view"]) {
+    for (const viewId of ["wallet-view", "earn-view", "owner-view", "spend-view", "adv-profile-view", "adv-notifications-view", "nyan-achievements-hall"]) {
         document.getElementById(viewId)?.classList.add("hidden");
     }
     document.getElementById(id)?.classList.remove("hidden");
@@ -65,7 +65,7 @@ function advShowView(id) {
 }
 
 function advBackHome() {
-    for (const id of ["adv-profile-view", "adv-notifications-view"]) document.getElementById(id)?.classList.add("hidden");
+    for (const id of ["adv-profile-view", "adv-notifications-view", "nyan-achievements-hall"]) document.getElementById(id)?.classList.add("hidden");
     document.getElementById("wallet-view")?.classList.remove("hidden");
     window.scrollTo({ top: 0, behavior: "smooth" });
     tgAdv?.BackButton?.hide?.();

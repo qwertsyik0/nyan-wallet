@@ -1,0 +1,47 @@
+/* Nyan Wallet achievements hall — same palette and cards as the profile. */
+.ach-profile-entrance{padding:0!important;overflow:hidden}
+.ach-hall-entry{display:flex;align-items:center;gap:12px;width:100%;padding:16px 17px;border:0;background:transparent;text-align:left;color:#6d304a;cursor:pointer;font:inherit}
+.ach-entry-icon{width:44px;height:44px;flex:none;display:grid;place-items:center;border:1px solid #efd8e2;border-radius:14px;background:#fff0f6;color:#922954}
+.ach-entry-icon .ach-svg{width:25px;height:25px;fill:currentColor}
+.ach-entry-copy{flex:1;min-width:0;display:grid;gap:5px}
+.ach-entry-copy strong{font-size:15px;font-weight:800;line-height:1.25;color:#7e284c}
+.ach-entry-copy small{font-size:11px;font-weight:500;line-height:1.35;color:#a67589}
+.ach-entry-arrow{font-size:28px;line-height:1;color:#a75b7a}
+.ach-hall-entry:active{background:#fff4f8}
+.ach-hall-view{position:relative;isolation:isolate;padding-bottom:28px}
+.ach-hall-panel{position:relative;overflow:hidden}
+.ach-hall-panel:before{content:"";position:absolute;pointer-events:none;right:-74px;top:-64px;width:235px;height:200px;border:1px solid rgba(178,118,143,.15);border-radius:48% 52% 42% 58%;transform:rotate(-21deg)}
+.ach-hall-panel:after{content:"";position:absolute;pointer-events:none;right:-40px;top:-34px;width:155px;height:143px;border:1px solid rgba(178,118,143,.12);border-radius:56% 44% 61% 39%;transform:rotate(18deg)}
+.ach-hall-panel .ach-head,.ach-hall-panel .ach-selected,.ach-hall-panel .ach-groups,.ach-hall-panel .ach-hint{position:relative;z-index:1}
+.ach-hall-view .ach-selected{background:#fffafd}
+.ach-hall-view .ach-selected-icon img{width:32px;height:32px;object-fit:contain}
+.ach-hall-view .ach-selected-sub{color:#368756;font-weight:800}
+.ach-hall-view .ach-selected-mark{position:absolute;z-index:2;top:9px;right:9px;width:auto;height:auto;min-height:24px;padding:4px 8px;display:flex;align-items:center;justify-content:center;border-radius:999px;background:#268a50;color:#fff;font-size:10px;font-weight:800;box-shadow:0 3px 9px rgba(38,138,80,.15)}
+.ach-hall-view .ach-card.selected{border-color:#dca1b8;box-shadow:0 0 0 1px #e9c2d1 inset}
+.ach-hall-view .ach-card.selected .ach-icon{border-color:#a9d9bb}
+.ach-hall-view .ach-image-icon img{width:39px;height:39px;object-fit:contain}
+.ach-profile-image-badge{display:inline-flex;align-items:center;justify-content:center;margin:0 0 0 5px;vertical-align:middle;width:27px;height:27px}
+.ach-profile-image-badge img{width:27px;height:27px;object-fit:contain;display:block;filter:drop-shadow(0 2px 3px rgba(139,49,86,.16))}
+.ach-action-status{min-height:0;font-size:11px;color:#7f5266;line-height:1.4}
+.ach-action-status:not(:empty){margin-top:9px}
+.ach-groups{display:grid;gap:22px;margin-top:20px}
+.ach-group{padding-top:17px;border-top:1px solid #f0dce5}
+.ach-group:first-child{padding-top:0;border-top:0}
+.ach-group-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.ach-group-heading h2{margin:0;font-size:15px;line-height:1.3;font-weight:800;color:#7e284c}
+.ach-group-heading p{margin:4px 0 0;color:#a67589;font-size:11px;line-height:1.4}
+.ach-group-heading span{font-size:10px;font-weight:800;white-space:nowrap;color:#922954;background:#fff0f6;border:1px solid #efd8e2;border-radius:99px;padding:6px 9px}
+.ach-group .ach-grid{margin-top:12px}
+.ach-group-empty{margin-top:12px;padding:15px;border:1px dashed #efd8e2;border-radius:14px;background:#fffafc;font-size:11px;color:#a67589}
+.ach-hall-view .ach-card{min-height:193px}
+.ach-hall-view .ach-card.selected .ach-card-top{padding-right:71px}
+.ach-hall-view .ach-card:disabled{cursor:default}
+@media(max-width:390px){
+  .ach-hall-panel{padding:14px!important}
+  .ach-hall-view .ach-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .ach-hall-view .ach-card{padding:10px;min-height:185px}
+  .ach-hall-view .ach-card.selected .ach-card-top{padding-right:0;padding-top:24px}
+  .ach-hall-view .ach-selected-mark{top:7px;right:7px}
+  .ach-hall-view .ach-title{font-size:12px}
+}
+@media(max-width:310px){.ach-hall-view .ach-grid{grid-template-columns:1fr}}
