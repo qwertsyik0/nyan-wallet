@@ -93,19 +93,19 @@
     if (loading || pending) return;
     loading = true;
     $("refresh").disabled = true;
+    let feedback = null;
     try {
       const result = await request(authenticated ? "/api/nyanik-skins/status" : "/api/nyanik-skins/catalog");
       const images = Object.fromEntries(previews.map(p => [p.sku,p.image]));
       state = {...result,items:result.items.map(item => ({...item,image:images[item.sku] || item.image}))};
-      render();
-      if (!silent) setNotice("Остатки обновлены.","success");
+      if (!silent) feedback = ["Остатки обновлены.","success"];
     } catch (error) {
-      render();
-      setNotice(messageOf(error),"error");
+      feedback = [messageOf(error),"error"];
     } finally {
       loading = false;
       $("refresh").disabled = false;
       render();
+      if (feedback) setNotice(...feedback);
     }
   }
 
