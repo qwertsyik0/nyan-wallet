@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import hashlib
 import os
 import re
 import shutil
@@ -32,6 +33,7 @@ IMPORT = b"from .nyan_archive_2026 import register_nyan_archive_2026\n"
 CALL = b"    register_nyan_archive_2026(backend_app.app)\n"
 IMPORT_ANCHOR = b"from .halloween_2026 import register_halloween_2026\n"
 CALL_ANCHOR = b"    register_halloween_2026(backend_app.app)\n"
+PREVIOUS_MODULE_SHA256 = "08e4d02ee6759fca467470740781ed42f8616540850ef4e1c8caae5db201a1ce"
 
 
 def command(*args: str) -> str:
@@ -113,7 +115,8 @@ def main() -> None:
     remote = fetch(args.revision)
     current_module = MODULE.read_bytes() if MODULE.exists() else None
     if current_module is not None and current_module != remote:
-        raise RuntimeError("Модуль архива уже есть, но отличается от публикуемой версии")
+        if hashlib.sha256(current_module).hexdigest() != PREVIOUS_MODULE_SHA256:
+            raise RuntimeError("Модуль архива был изменён после прошлой установки. Нужна проверка перед обновлением")
 
     old_registry = REGISTRY.read_bytes()
     new_registry = inject_registration(old_registry)
@@ -161,7 +164,7 @@ def main() -> None:
             print("Не удалось восстановить сервис:", exc, file=sys.stderr)
         raise
     print("Установка ОК. /api/nyan-archive-2026/status отвечает.")
-    print("Открытие 31 октября в 17:00 МСК; материалы выходят до 23:00 МСК.")
+    print("Открытие 30 октября в 22:00 МСК; остальные материалы в 00:00, 02:00 и 04:00 МСК.")
 
 
 if __name__ == "__main__":

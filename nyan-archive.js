@@ -4,7 +4,7 @@
   const API = "https://nyan-wallet-153-76-175-145.sslip.io";
   const tg = window.Telegram?.WebApp;
   const $ = id => document.getElementById(id);
-  const release = [14, 16, 18, 20];
+  const openingUTC = Date.UTC(2026, 9, 30, 19);
   const teaserRecords = [
     ["Снимок без номера", "Фотоплёнка, проявленная дважды"],
     ["Лист без подписи", "Страница, не внесённая в дневник"],
@@ -12,7 +12,7 @@
     ["Вопрос, которого не было", "Заключительный лист · дело №0"],
   ].map(([title, subtitle], index) => ({
     id:index + 1, title, subtitle,
-    opens_at:`2026-10-31T${String(release[index]).padStart(2, "0")}:00:00+00:00`,
+    opens_at:new Date(openingUTC + index * 2 * 3600000).toISOString(),
     available:false,
   }));
   const teaser = {records:teaserRecords, is_open:false, owner_preview:false, solved:false};
@@ -70,7 +70,7 @@
     const next = data.records.find(item => !item.available);
     const opening = $("opening-state");
     if (data.owner_preview && !data.is_open) {
-      opening.textContent = "Просмотр владельца · открытие завтра в 17:00";
+      opening.textContent = "Просмотр владельца · открытие сегодня в 22:00";
     } else if (next) {
       const until = Math.max(0, Date.parse(next.opens_at) - localNow());
       const hours = Math.floor(until / 3600000);
@@ -153,7 +153,7 @@
     } catch (error) {
       message(
         localNow() < Date.parse(teaserRecords[0].opens_at)
-          ? "Архив ожидает открытия. Доступ к материалам проверится завтра."
+          ? "Архив ожидает открытия. Доступ к материалам проверится сегодня в 22:00."
           : humanError(error),
         localNow() >= Date.parse(teaserRecords[0].opens_at),
       );

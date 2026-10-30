@@ -1,6 +1,6 @@
 """Nyanik's Case Zero: a time-gated, persistent story archive.
 
-The first record opens on October 31, 2026, at 17:00 Moscow time. The
+The first record opens on October 30, 2026, at 22:00 Moscow time. The
 following records appear over that evening. No Lapcoin balance is touched.
 The answer and future record text never ship in the public JavaScript bundle.
 """
@@ -23,7 +23,7 @@ from . import backend_app as core
 router = APIRouter()
 _REGISTERED = False
 UTC = timezone.utc
-OPEN_AT = datetime(2026, 10, 31, 14, 0, tzinfo=UTC)  # 17:00 MSK
+OPEN_AT = datetime(2026, 10, 30, 19, 0, tzinfo=UTC)  # 22:00 MSK
 COOLDOWN = timedelta(minutes=5)
 
 
@@ -49,7 +49,7 @@ RECORDS = (
         "id": 2,
         "title": "Лист без подписи",
         "subtitle": "Страница, не внесённая в дневник",
-        "at": OPEN_AT + timedelta(hours=2),  # 19:00 MSK
+        "at": OPEN_AT + timedelta(hours=2),  # October 31, 00:00 MSK
         "kind": "letter",
         "body": (
             "«Он искал того, кто следил за ним, и никогда не замечал, "
@@ -62,7 +62,7 @@ RECORDS = (
         "id": 3,
         "title": "Показания неизвестного",
         "subtitle": "Аудиозапись · расшифровка",
-        "at": OPEN_AT + timedelta(hours=4),  # 21:00 MSK
+        "at": OPEN_AT + timedelta(hours=4),  # October 31, 02:00 MSK
         "kind": "transcript",
         "body": (
             "«Я стоял один. Поднял руку — и кто-то сделал то же самое. "
@@ -78,7 +78,7 @@ RECORDS = (
         "id": 4,
         "title": "Вопрос, которого не было",
         "subtitle": "Заключительный лист · дело №0",
-        "at": OPEN_AT + timedelta(hours=6),  # 23:00 MSK
+        "at": OPEN_AT + timedelta(hours=6),  # October 31, 04:00 MSK
         "kind": "question",
         "body": (
             "На последнем листе нет подписи. Только одна фраза: "
