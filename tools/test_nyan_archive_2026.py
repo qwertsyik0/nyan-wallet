@@ -84,11 +84,17 @@ assert "body" in first["records"][0]
 assert not any(r["available"] or "body" in r for r in first["records"][1:])
 expect_error(lambda: solve("зеркало"), 409)
 
-clock[0] = archive.OPEN_AT + timedelta(hours=2)
+clock[0] = archive.OPEN_AT + timedelta(minutes=29)
+assert [r["available"] for r in status()["records"]] == [True, False, False, False]
+clock[0] = archive.OPEN_AT + timedelta(minutes=30)
 assert [r["available"] for r in status()["records"]] == [True, True, False, False]
-clock[0] = archive.OPEN_AT + timedelta(hours=4)
+clock[0] = archive.OPEN_AT + timedelta(minutes=59)
+assert [r["available"] for r in status()["records"]] == [True, True, False, False]
+clock[0] = archive.OPEN_AT + timedelta(minutes=60)
 assert [r["available"] for r in status()["records"]] == [True, True, True, False]
-clock[0] = archive.OPEN_AT + timedelta(hours=6)
+clock[0] = archive.OPEN_AT + timedelta(minutes=89)
+assert [r["available"] for r in status()["records"]] == [True, True, True, False]
+clock[0] = archive.OPEN_AT + timedelta(minutes=90)
 assert all(r["available"] for r in status()["records"])
 
 assert solve("ключ")["correct"] is False

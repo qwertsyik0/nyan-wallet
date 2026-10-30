@@ -50,7 +50,7 @@ RECORDS = (
         "id": 2,
         "title": "Лист без подписи",
         "subtitle": "Страница, не внесённая в дневник",
-        "at": OPEN_AT + timedelta(hours=2),  # October 31, 00:00 MSK
+        "at": OPEN_AT + timedelta(minutes=30),  # October 30, 22:30 MSK
         "kind": "letter",
         "body": (
             "«Он искал того, кто следил за ним, и никогда не замечал, "
@@ -63,7 +63,7 @@ RECORDS = (
         "id": 3,
         "title": "Показания неизвестного",
         "subtitle": "Аудиозапись · расшифровка",
-        "at": OPEN_AT + timedelta(hours=4),  # October 31, 02:00 MSK
+        "at": OPEN_AT + timedelta(minutes=60),  # October 30, 23:00 MSK
         "kind": "transcript",
         "body": (
             "«Я стоял один. Поднял руку — и кто-то сделал то же самое. "
@@ -79,7 +79,7 @@ RECORDS = (
         "id": 4,
         "title": "Вопрос, которого не было",
         "subtitle": "Заключительный лист · дело №0",
-        "at": OPEN_AT + timedelta(hours=6),  # October 31, 04:00 MSK
+        "at": OPEN_AT + timedelta(minutes=90),  # October 30, 23:30 MSK
         "kind": "question",
         "body": (
             "На последнем листе нет подписи. Только одна фраза: "

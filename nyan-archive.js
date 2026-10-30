@@ -12,7 +12,7 @@
     ["Вопрос, которого не было", "Заключительный лист · дело №0"],
   ].map(([title, subtitle], index) => ({
     id:index + 1, title, subtitle,
-    opens_at:new Date(openingUTC + index * 2 * 3600000).toISOString(),
+    opens_at:new Date(openingUTC + index * 30 * 60000).toISOString(),
     available:false,
   }));
   const teaser = {records:teaserRecords, is_open:false, owner_preview:false, solved:false};
