@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 580" role="img" aria-label="Пустая комната с одной дверью и двумя тенями">
+  <rect width="960" height="580" fill="#c9b6a9"/>
+  <path d="M90 88 471 42 869 90 821 422 135 434Z" fill="#d9c9bb" stroke="#9e8c82" stroke-width="3"/>
+  <path d="M92 88 128 435 464 522 471 42Z" fill="#cab7a9"/>
+  <path d="M869 90 822 422 464 522 471 42Z" fill="#bdab9f"/>
+  <path d="M128 435 822 422 936 564 32 564Z" fill="#a9948a"/>
+  <path d="M375 196 563 195 577 434 370 438Z" fill="#a18b82" stroke="#665a58" stroke-width="5"/>
+  <path d="M400 216 535 215 539 432 399 432Z" fill="#615558"/>
+  <circle cx="523" cy="341" r="5" fill="#d7bba2"/>
+  <path d="M465 422 425 557 460 562 490 481 523 562 555 557 499 422Z" fill="#695f62" opacity=".4"/>
+  <path d="M331 418 224 562 279 562 352 472 322 562 352 562 376 424Z" fill="#665c60" opacity=".35"/>
+  <path d="M92 89 471 43 868 90" fill="none" stroke="#f3e5d3" stroke-width="2" opacity=".65"/>
+  <rect x="13" y="13" width="934" height="554" fill="none" stroke="#6f625f" stroke-width="3" opacity=".45"/>
+  <g fill="#f7f1e8" opacity=".11"><circle cx="60" cy="180" r="19"/><circle cx="705" cy="190" r="8"/><circle cx="803" cy="487" r="21"/><circle cx="194" cy="352" r="6"/><circle cx="615" cy="105" r="13"/></g>
+  <g stroke="#594e4d" opacity=".13"><path d="M58 66 891 543M17 372 928 308M215 8 249 580M798 10 762 580"/></g>
+</svg>

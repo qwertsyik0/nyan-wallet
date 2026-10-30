@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f4efeb">
+  <title>Дело №0 · Nyan Wallet</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./nyan-archive.css?v=20261030-1">
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <a class="back" href="./index.html" aria-label="Назад в кошелёк">←</a>
+      <span class="brand"><strong>Nyan Wallet</strong><small>закрытый архив</small></span>
+      <span class="file-ref">АРХИВ / 00</span>
+    </header>
+
+    <main>
+      <section class="cover" aria-labelledby="page-title">
+        <span class="overline">ВНЕСЕНО В РЕЕСТР · 30.10.2026</span>
+        <div class="cover-grid">
+          <div>
+            <h1 id="page-title">Дело <em>№0</em></h1>
+            <p class="cover-description">Вчера комнат было шесть. Сегодня их семь. Но седьмую никто не строил.</p>
+          </div>
+          <svg class="folder-symbol" viewBox="0 0 100 104" fill="none" aria-hidden="true">
+            <path d="M9 23h28l8 9h46v62H9z" stroke="currentColor" stroke-width="1.6"/>
+            <path d="M9 32V14h27l9 9h46v9" stroke="currentColor" stroke-width="1.6"/>
+            <path d="M22 48h43M22 56h36M22 64h28" stroke="currentColor" stroke-width="1.2" opacity=".5"/>
+            <circle cx="71" cy="73" r="11" stroke="currentColor" stroke-width="1.3"/>
+            <path d="M66 73h10M71 68v10" stroke="currentColor" stroke-width="1.3"/>
+          </svg>
+        </div>
+        <div class="cover-bottom"><span id="opening-state">Проверяем доступ…</span><span>31 / 10</span></div>
+      </section>
+
+      <div id="notice" class="notice" role="status" aria-live="polite"></div>
+
+      <section class="introduction">
+        <span class="overline">ВВОДНАЯ ЗАПИСЬ</span>
+        <p>После исчезновения Няника в лавке нашли запечатанную папку. В описи значилось четыре листа. Ни один не был подписан.</p>
+        <p>Первый лист обещали открыть 31 октября. Остальные станут доступны до полуночи.</p>
+      </section>
+
+      <section class="records-section" aria-labelledby="records-title">
+        <div class="section-heading"><div><span class="overline">РЕЕСТР МАТЕРИАЛОВ</span><h2 id="records-title">Четыре записи</h2></div><span class="section-count" id="records-count">0 / 4</span></div>
+        <div id="records" class="records"><p class="placeholder">Загружаем архив…</p></div>
+      </section>
+
+      <section id="reader" class="reader" aria-labelledby="reader-title" hidden>
+        <div class="reader-top"><span class="overline" id="reader-index">ЗАПИСЬ</span><button id="reader-close" class="close" type="button" aria-label="Закрыть запись">×</button></div>
+        <h2 id="reader-title"></h2>
+        <p id="reader-subtitle" class="reader-subtitle"></p>
+        <figure class="photo-frame" id="reader-photo" hidden>
+          <img src="./assets/nyan-archive/room-zero.svg" alt="Архивная иллюстрация пустой комнаты с дверью и двумя тенями" loading="lazy">
+          <figcaption>Плёнка 00 · изображение восстановлено частично</figcaption>
+        </figure>
+        <blockquote id="reader-body" class="reader-body"></blockquote>
+        <p id="reader-note" class="reader-note"></p>
+      </section>
+
+      <section id="answer-section" class="answer-section" hidden>
+        <span class="overline">ПОСЛЕДНЯЯ ГРАФА</span>
+        <h2>Что было в комнате?</h2>
+        <p>Одно слово объединяет три первых записи. Его достаточно, чтобы восстановить дело.</p>
+        <form id="answer-form">
+          <label for="answer">Запись для проверки</label>
+          <div class="answer-row"><input id="answer" name="answer" maxlength="64" autocomplete="off" spellcheck="false" placeholder="Введи слово" required><button type="submit" id="answer-button">Проверить</button></div>
+        </form>
+        <p class="answer-feedback" id="answer-feedback" aria-live="polite"></p>
+      </section>
+
+      <section id="ending" class="ending" hidden>
+        <span class="overline">ДЕЛО ВОССТАНОВЛЕНО</span>
+        <h2>В архиве осталось место.</h2>
+        <p id="ending-text"></p>
+        <span class="ending-mark">НЯНИК · ДЕЛО №0</span>
+      </section>
+
+      <p class="footnote">Материалы появляются по московскому времени. Прогресс ответа хранится в Nyan Wallet. Участие бесплатное, списаний и начислений нет.</p>
+      <div id="telegram-link" class="telegram-link" hidden>Для сохранения ответа открой архив в Telegram. <a href="https://t.me/nyancash_bot?startapp=nyan_archive_2026">Открыть в боте</a></div>
+    </main>
+    <footer>NYAN WALLET · ДЕЛО №0</footer>
+  </div>
+  <script src="./nyan-archive.js?v=20261030-1"></script>
+</body>
+</html>

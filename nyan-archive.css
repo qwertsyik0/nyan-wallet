@@ -1,0 +1,32 @@
+:root{color-scheme:light;--paper:#f4efeb;--sheet:#faf7f4;--ink:#332e32;--plum:#72515e;--muted:#82747a;--line:#d9cdca;--wash:#eae0df}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+button,input{font:inherit}button{cursor:pointer}button:disabled{cursor:default;opacity:.56}a{color:inherit}
+[hidden]{display:none!important}
+.page{width:min(690px,100%);margin:auto;padding:0 19px 36px}
+.topbar{display:flex;align-items:center;gap:13px;height:76px;border-bottom:1px solid var(--line)}
+.back{width:36px;height:36px;display:grid;place-items:center;border:1px solid var(--line);border-radius:9px;font-size:24px;text-decoration:none}
+.brand{display:flex;flex-direction:column;line-height:1.2}.brand strong{font-size:14px}.brand small{font-size:11px;color:var(--muted);margin-top:4px}.file-ref{margin-left:auto;color:var(--plum);font-size:10px;font-weight:700;letter-spacing:.14em}
+.cover{margin-top:22px;border:1px solid #cdbbb9;background:#e8deda;padding:25px 25px 18px;min-height:278px;display:flex;flex-direction:column;justify-content:space-between;border-radius:3px}
+.overline{display:block;color:var(--plum);font-size:10px;letter-spacing:.17em;font-weight:750}
+.cover-grid{display:flex;gap:8px;align-items:center}.cover-grid>div{flex:1;min-width:0}
+h1,h2{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-spacing:-.03em;line-height:1.13}
+h1{font-size:clamp(46px,9vw,64px);margin:12px 0 10px}h1 em{font-style:normal;color:var(--plum)}
+.cover-description{font:italic 16px/1.52 Georgia,"Times New Roman",serif;max-width:345px;margin:0 0 8px;color:#59484f}
+.folder-symbol{width:123px;flex:none;color:#8c6f79;opacity:.84}
+.cover-bottom{display:flex;justify-content:space-between;gap:12px;align-items:center;border-top:1px solid #cdbbb9;padding-top:13px;margin-top:16px;color:var(--plum);font-size:11px;font-weight:650}
+.notice{min-height:20px;padding-top:9px;color:var(--plum);font-size:12px}.notice.error{color:#a74654}
+.introduction{border-bottom:1px solid var(--line);padding:29px 1px 24px}.introduction p{font-size:13px;max-width:540px;margin:12px 0 0;color:#5e5559;line-height:1.72}
+.records-section{padding:33px 0 17px}.section-heading{display:flex;align-items:end;justify-content:space-between;gap:10px;margin-bottom:17px}.section-heading h2{font-size:32px;margin:5px 0 0}.section-count{font:23px Georgia,serif;color:var(--plum);white-space:nowrap}
+.records{display:grid;gap:10px}.record{display:flex;align-items:center;gap:15px;text-align:left;padding:17px 17px;background:var(--sheet);border:1px solid var(--line);border-radius:3px;color:var(--ink);width:100%;transition:border-color .15s,background .15s}.record:not(:disabled):hover,.record.selected{border-color:#a78e96;background:#fffaf7}.record:focus-visible,.close:focus-visible,.answer-row button:focus-visible{outline:2px solid var(--plum);outline-offset:2px}
+.record-number{font:28px Georgia,serif;color:var(--plum);min-width:42px}.record-copy{flex:1;min-width:0}.record-copy strong{display:block;font-size:13px;font-weight:650}.record-copy small{display:block;margin-top:4px;font-size:11px;color:var(--muted)}.record-state{font-size:10px;letter-spacing:.02em;color:var(--plum);padding:6px 8px;border:1px solid var(--line);border-radius:2px;white-space:nowrap}
+.record:disabled{background:#f0eae7;color:#8f8386}.record:disabled .record-state{color:#93848a}
+.reader{margin:8px 0 30px;padding:25px 22px 22px;background:var(--sheet);border:1px solid #bba4ab;position:relative}.reader-top{display:flex;justify-content:space-between;align-items:center}.reader h2{font-size:30px;margin:9px 0 4px}.reader-subtitle{font-size:11px;color:var(--muted);margin:0 0 21px}.close{width:29px;height:29px;background:none;color:var(--plum);border:1px solid var(--line);border-radius:3px;font-size:21px;line-height:1}
+.photo-frame{margin:0 0 22px;padding:11px 11px 9px;background:#e9dfd4;border:1px solid #ccb9b3;transform:rotate(-.7deg)}.photo-frame img{display:block;width:100%;height:auto}.photo-frame figcaption{font-size:10px;letter-spacing:.02em;color:#847276;padding:10px 1px 0;text-align:center}
+.reader-body{margin:0;padding:2px 0 2px 17px;border-left:2px solid #a78993;color:#524a4d;font:16px/1.7 Georgia,"Times New Roman",serif}.reader-note{margin:20px 0 0;font-size:12px;color:#77666d;padding-top:16px;border-top:1px solid var(--line)}
+.answer-section,.ending{padding:25px 22px;background:#ece4e0;border:1px solid #cbb9b8;margin:20px 0 25px}.answer-section h2,.ending h2{font-size:30px;margin:9px 0 11px}.answer-section p,.ending p{color:#62565c;font-size:13px;line-height:1.72}.answer-section label{display:block;font-size:11px;color:var(--muted);margin:19px 0 7px}.answer-row{display:flex;gap:9px}.answer-row input{min-width:0;flex:1;padding:12px 13px;background:#fffcfa;border:1px solid #cbb9b8;border-radius:2px;outline:none}.answer-row input:focus{border-color:var(--plum)}.answer-row button{border:0;border-radius:2px;background:var(--plum);color:#fff;padding:11px 16px;font-weight:600;font-size:12px}.answer-feedback{min-height:1px;margin:9px 0 0!important;font-size:11px!important}.answer-feedback.error{color:#a74654}
+.ending{background:#e9e0dc}.ending-mark{display:block;margin-top:22px;border-top:1px solid #cbb9b8;padding-top:14px;letter-spacing:.16em;font-size:10px;color:var(--plum)}
+.footnote{border-top:1px solid var(--line);padding-top:18px;font-size:11px;color:var(--muted);line-height:1.65;margin:24px 0}.telegram-link{font-size:12px;padding:15px;background:#e8deda;border:1px solid var(--line)}.telegram-link a{display:inline-block;text-decoration:underline;color:var(--plum);font-weight:700}footer{text-align:center;color:#9c8b90;letter-spacing:.17em;font-size:10px;padding:16px 0}
+@media(max-width:480px){.page{padding:0 15px 27px}.topbar{height:64px}.cover{padding:20px 17px 16px;min-height:245px}.folder-symbol{width:87px;margin-right:-10px}h1{font-size:45px}.cover-description{font-size:14px}.section-heading h2{font-size:28px}.record{padding:13px 11px;gap:9px}.record-number{font-size:23px;min-width:30px}.record-copy strong{font-size:12px}.record-copy small{font-size:10px}.record-state{font-size:9px;padding:5px}.reader{padding:20px 16px}.answer-section,.ending{padding:22px 17px}.answer-row button{padding:10px}.reader-body{font-size:15px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
