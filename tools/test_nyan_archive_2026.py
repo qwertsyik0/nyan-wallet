@@ -67,6 +67,9 @@ owner = status(900000)
 assert owner["owner_preview"] is True
 assert all(r["available"] and "body" in r for r in owner["records"])
 assert status(1001)["owner_preview"] is False
+assert solve("зеркало", 900000)["correct"]  # owner can finish even before the public opening
+assert status(900000)["solved"] is True
+assert status(1001)["solved"] is False
 expect_error(lambda: solve("зеркало"), 409)
 
 clock[0] = archive.OPEN_AT
@@ -97,7 +100,7 @@ assert "дата посещения" in completed["ending"].lower()
 assert not status(1002)["solved"]
 
 with core.SessionLocal() as session:
-    assert session.scalar(select(func.count()).select_from(archive.ArchiveCompletion)) == 1
+    assert session.scalar(select(func.count()).select_from(archive.ArchiveCompletion)) == 2
     assert session.scalar(select(func.count()).select_from(core.Transaction)) == 0
     user = session.get(core.User, 1001)
     assert user.balance == 0

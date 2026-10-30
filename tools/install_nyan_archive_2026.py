@@ -33,7 +33,10 @@ IMPORT = b"from .nyan_archive_2026 import register_nyan_archive_2026\n"
 CALL = b"    register_nyan_archive_2026(backend_app.app)\n"
 IMPORT_ANCHOR = b"from .halloween_2026 import register_halloween_2026\n"
 CALL_ANCHOR = b"    register_halloween_2026(backend_app.app)\n"
-PREVIOUS_MODULE_SHA256 = "08e4d02ee6759fca467470740781ed42f8616540850ef4e1c8caae5db201a1ce"
+KNOWN_PRIOR_MODULE_SHA256 = {
+    "08e4d02ee6759fca467470740781ed42f8616540850ef4e1c8caae5db201a1ce",
+    "e446735895fa4fefd67908494b87b0b36c03024ae9dda3af7963479ab4c03cf1",
+}
 
 
 def command(*args: str) -> str:
@@ -115,7 +118,7 @@ def main() -> None:
     remote = fetch(args.revision)
     current_module = MODULE.read_bytes() if MODULE.exists() else None
     if current_module is not None and current_module != remote:
-        if hashlib.sha256(current_module).hexdigest() != PREVIOUS_MODULE_SHA256:
+        if hashlib.sha256(current_module).hexdigest() not in KNOWN_PRIOR_MODULE_SHA256:
             raise RuntimeError("Модуль архива был изменён после прошлой установки. Нужна проверка перед обновлением")
 
     old_registry = REGISTRY.read_bytes()

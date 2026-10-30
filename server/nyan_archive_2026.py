@@ -172,10 +172,10 @@ def archive_solve(
     x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
 ):
     now = now_utc()
-    if now < RECORDS[-1]["at"]:
-        raise HTTPException(status_code=409, detail="Последний лист ещё не открыт")
     tg = core.verify_init_data(x_telegram_init_data or "")
     uid = int(tg["id"])
+    if now < RECORDS[-1]["at"] and not core.is_owner(uid):
+        raise HTTPException(status_code=409, detail="Последний лист ещё не открыт")
     correct = _normalize(payload.answer) in {"зеркало", "отражение", "отражения"}
     with core.SessionLocal.begin() as session:
         user_values = dict(

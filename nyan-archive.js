@@ -129,7 +129,7 @@
     $("ending").hidden = !data.solved;
     if (data.solved) $("ending-text").textContent = data.ending || "Дело восстановлено.";
     const finalRecord = data.records[data.records.length - 1];
-    const finalOpen = data.is_open && finalRecord?.available && localNow() >= Date.parse(finalRecord.opens_at);
+    const finalOpen = Boolean(finalRecord?.available) && (data.owner_preview || (data.is_open && localNow() >= Date.parse(finalRecord.opens_at)));
     $("answer-section").hidden = !finalOpen || data.solved;
     $("telegram-link").hidden = !finalOpen || Boolean(initData) || data.solved;
     $("answer-form").hidden = !initData;
