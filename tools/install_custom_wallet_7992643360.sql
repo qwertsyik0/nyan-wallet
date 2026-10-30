@@ -79,7 +79,9 @@ BEGIN
         END IF;
         RAISE EXCEPTION 'Заявка #% уже выполнена, но этот дизайн отсутствует. Нужна проверка', v_request.id;
     END IF;
-    IF v_request.status <> 'pending' THEN
+    -- The owner panel can legitimately move an already-paid request to
+    -- "processing" before the personal design has been installed.
+    IF v_request.status NOT IN ('pending', 'processing') THEN
         RAISE EXCEPTION 'Неожиданный статус заявки #%: %', v_request.id, v_request.status;
     END IF;
 
