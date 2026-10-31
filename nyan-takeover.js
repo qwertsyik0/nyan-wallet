@@ -410,19 +410,46 @@
     action(() => api("/api/nyan-takeover/owner/group/bind", "POST", {chat_link_or_id}), "Группа проверена и привязана.");
   });
   $("retry-access").addEventListener("click", () => {void refresh();});
-  $("publish-form").addEventListener("submit", event => {
+  const publishForm = $("publish-form");
+  const publishButton = publishForm.querySelector('button[type="submit"]');
+  const publishFeedback = document.createElement("p");
+  publishFeedback.className = "notice";
+  publishFeedback.hidden = true;
+  publishFeedback.setAttribute("role", "status");
+  publishFeedback.setAttribute("aria-live", "polite");
+  publishForm.append(publishFeedback);
+  function reportPublication(message, type = "") {
+    publishFeedback.hidden = false;
+    publishFeedback.className = `notice ${type}`;
+    publishFeedback.textContent = message;
+  }
+  publishForm.addEventListener("submit", async event => {
     event.preventDefault();
     const content = $("publish-text").value.trim();
-    if (!content || !groupState?.bound) return;
+    if (!content) {reportPublication("Введите текст публикации.", "bad");return;}
+    if (!groupState?.bound) {reportPublication("Группа не привязана. Обновите данные.", "bad");return;}
+    if (busy) {reportPublication("Дождитесь завершения предыдущего действия.", "bad");return;}
     if (!confirm(`Опубликовать сообщение от бота в «${groupState.title}»?`)) return;
     const storageKey = "takeover-post-pending:" + content;
     let request_key = sessionStorage.getItem(storageKey);
     if (!request_key) {request_key = crypto.randomUUID().replaceAll("-", "");sessionStorage.setItem(storageKey, request_key);}
-    action(async () => {
-      const result = await api("/api/nyan-takeover/owner/group/publish", "POST", {text:content,request_key});
+    busy = true;
+    publishButton.disabled = true;
+    publishButton.textContent = "Отправляем во флуд…";
+    reportPublication("Отправляем сообщение от бота. Это может занять до 16 секунд.");
+    try {
+      const result = await api("/api/nyan-takeover/owner/group/publish", "POST", {text: content, request_key});
       sessionStorage.removeItem(storageKey);
-      return result;
-    }, "Бот опубликовал сообщение в частном флуде.");
+      reportPublication(`Опубликовано во флуде! Сообщение №${result.message_id}.`, "good");
+      tg?.HapticFeedback?.notificationOccurred?.("success");
+    } catch (error) {
+      reportPublication(`Не удалось отправить: ${error.message}. Повторное нажатие не создаст дубль, если сообщение уже дошло.`, "bad");
+      tg?.HapticFeedback?.notificationOccurred?.("error");
+    } finally {
+      busy = false;
+      publishButton.disabled = false;
+      publishButton.textContent = "Опубликовать с кнопкой";
+    }
   });
   $("claim").addEventListener("click", () => action(() => api("/api/nyan-takeover/claim", "POST"), "+500 🐾 и достижения получены!"));
   $("mission-claim").addEventListener("click", () => action(() => api("/api/nyan-takeover/mission/claim", "POST"), "+150 🐾 и новый значок получены!"));
