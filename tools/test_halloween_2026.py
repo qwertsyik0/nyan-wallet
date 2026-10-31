@@ -65,6 +65,7 @@ advanced = types.ModuleType("server.advanced_features")
 advanced.WalletNotification = WalletNotification
 sys.modules["server.advanced_features"] = advanced
 halloween = load("server.halloween_2026", "halloween_2026.py")
+halloween.RETIRED = False  # Verify historical grant and badge behavior before retirement.
 halloween.register_halloween_2026(core.app)
 core.Base.metadata.create_all(core.engine)
 
@@ -236,5 +237,13 @@ assert status(1001)["first_witness"] and status(900000)["first_witness"]
 with core.SessionLocal.begin() as session:
     session.add(halloween.HalloweenBadge(telegram_id=1001, awarded_at=clock[0]))
 assert "badge" not in status(1001)
+
+halloween.RETIRED = True
+assert not status(1001)["active"] and status(1001)["finished"]
+assert not any(room["accessible"] for room in status(1001)["rooms"])
+assert status(1001)["final_badge"] and status(1001)["first_witness"]
+fail(lambda: answer(1, halloween._puzzle(1003, 1)[1], uid=1003), 410)
+fail(lambda: buy("loupe", uid=1001), 410)
+fail(lambda: halloween.halloween_unlock(x_telegram_init_data=token(900000)), 410)
 
 print("OK: signed auth, one-time grants, first regular witness, later regular completion, owner-only early access, event windows, clues, idempotent buys/answers, five-minute retry, ban, balance")

@@ -21,6 +21,7 @@ from .user_bans import BlockedUser
 router = APIRouter()
 _REGISTERED = False
 AWARDS = {"sweet": 300, "trick": -400}
+RETIRED = True  # Ended event: keep saved choices and transactions, forbid new grants.
 
 
 class HalloweenBootChoice(core.Base):
@@ -52,7 +53,7 @@ def status(x_telegram_init_data: str | None = Header(default=None, alias="X-Tele
         blocked = session.get(BlockedUser, telegram_id) is not None
         return {
             "ok": True,
-            "eligible": user is not None and existing is None and not blocked,
+            "eligible": not RETIRED and user is not None and existing is None and not blocked,
             "completed": existing is not None,
             "choice": existing.choice if existing else None,
             "amount": existing.amount if existing else None,
@@ -77,6 +78,8 @@ def choose(payload: ChoicePayload, x_telegram_init_data: str | None = Header(def
                 "ok": True, "repeated": True, "choice": existing.choice,
                 "amount": existing.amount, "balance": int(user.balance),
             }
+        if RETIRED:
+            raise HTTPException(status_code=410, detail="Хеллоуинский ивент завершён")
         if session.get(BlockedUser, telegram_id) is not None:
             raise HTTPException(status_code=403, detail="Операции для аккаунта ограничены")
 

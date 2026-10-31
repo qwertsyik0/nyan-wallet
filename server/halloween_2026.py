@@ -26,6 +26,7 @@ from .user_bans import BlockedUser
 
 router = APIRouter()
 _REGISTERED = False
+RETIRED = True  # Preserve award tables and history, but disable participation.
 UTC = timezone.utc
 START_AT = datetime(2026, 10, 29, 14, 0, tzinfo=UTC)  # Oct 29, 17:00 MSK
 SECRET_AT = START_AT  # Last room opens with the event; five rooms and key are still required.
@@ -198,6 +199,8 @@ def _hint(uid: int, room: int, item: str) -> str:
 
 
 def _require_live(now: datetime) -> None:
+    if RETIRED:
+        raise HTTPException(status_code=410, detail="Хеллоуинский ивент завершён")
     if not START_AT <= now < END_AT:
         raise HTTPException(status_code=409, detail="Событие доступно с 29 октября, 17:00, до конца 31 октября по Москве")
 
@@ -275,7 +278,7 @@ def _status_for(uid: int, now: datetime | None = None) -> dict:
         row = progress.get(room)
         completed = room in solved
         accessible = _can_enter(room, solved, player, now, uid)
-        open_now = (START_AT <= now < END_AT or (room == 6 and core.is_owner(uid) and now < END_AT)) and accessible
+        open_now = not RETIRED and (START_AT <= now < END_AT or (room == 6 and core.is_owner(uid) and now < END_AT)) and accessible
         current = {"room": room, "title": title, "subtitle": subtitle,
                    "completed": completed, "accessible": open_now,
                    "reward": REWARDS[room], "pumpkins_reward": PUMPKINS[room],
@@ -287,13 +290,13 @@ def _status_for(uid: int, now: datetime | None = None) -> dict:
         if open_now or completed:
             current["puzzle"] = _puzzle(uid, room)[0]
         items.append(current)
-    return {"ok": True, "started": now >= START_AT, "active": START_AT <= now < END_AT,
-            "finished": now >= END_AT, "starts_at": START_AT.isoformat(),
+    return {"ok": True, "started": now >= START_AT, "active": not RETIRED and START_AT <= now < END_AT,
+            "finished": RETIRED or now >= END_AT, "starts_at": START_AT.isoformat(),
             "secret_at": SECRET_AT.isoformat(), "ends_at": END_AT.isoformat(),
             "pumpkins": player.pumpkins if player else 5,
             "inventory": {item: inventory.get(item, 0) for item in ITEMS},
             "secret_unlocked": bool(player and player.secret_unlocked),
-            "owner_early_access": core.is_owner(uid) and now < END_AT,
+            "owner_early_access": not RETIRED and core.is_owner(uid) and now < END_AT,
             "final_badge": final_completed, "first_witness": first_witness,
             "wallet_earned": sum(row.reward for row in solved.values()),
             "rooms": items,
@@ -315,6 +318,8 @@ def halloween_status(x_telegram_init_data: str | None = Header(default=None, ali
 def halloween_answer(payload: AnswerInput,
                      x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data")):
     tg_user = _identity(x_telegram_init_data)
+    if RETIRED:
+        raise HTTPException(status_code=410, detail="Хеллоуинский ивент завершён")
     if not KEY_RE.fullmatch(payload.request_key):
         raise HTTPException(status_code=422, detail="Некорректный ключ запроса")
     now = core.now_utc()
@@ -436,6 +441,8 @@ def halloween_use(payload: UseInput,
 @router.post("/api/halloween-2026/unlock-secret")
 def halloween_unlock(x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data")):
     tg_user = _identity(x_telegram_init_data)
+    if RETIRED:
+        raise HTTPException(status_code=410, detail="Хеллоуинский ивент завершён")
     now = core.now_utc()
     if not (core.is_owner(int(tg_user["id"])) and now < END_AT):
         _require_live(now)

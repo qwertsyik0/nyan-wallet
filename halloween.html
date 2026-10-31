@@ -3,6 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="refresh" content="0;url=./index.html">
+  <script>
+    (() => {
+      const wallet = new URL("./index.html", window.location.href);
+      const incoming = new URL(window.location.href);
+      for (const [key, value] of incoming.searchParams) {
+        if (key !== "startapp" && key !== "tgWebAppStartParam") wallet.searchParams.set(key, value);
+      }
+      wallet.hash = incoming.hash;
+      window.location.replace(wallet.href);
+    })();
+  </script>
   <meta name="theme-color" content="#f4f0ed">
   <title>Последняя ночь Няника · Nyan Wallet</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>

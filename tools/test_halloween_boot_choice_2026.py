@@ -47,6 +47,7 @@ bans = types.ModuleType("server.user_bans")
 bans.BlockedUser = BlockedUser
 sys.modules["server.user_bans"] = bans
 module = load("server.halloween_boot_choice_2026", "halloween_boot_choice_2026.py")
+module.RETIRED = False  # Exercise historical reward rules in an isolated database.
 core.Base.metadata.create_all(core.engine)
 now = datetime.now(timezone.utc)
 with core.SessionLocal.begin() as session:
@@ -95,5 +96,15 @@ with core.SessionLocal() as session:
     assert sorted(session.scalars(select(core.Transaction.amount))) == [-400, 300]
 assert not module.status(x_telegram_init_data="2001")["eligible"]
 assert module.status(x_telegram_init_data="2001")["completed"]
+module.RETIRED = True
+assert module.status(x_telegram_init_data="2002")["completed"]
+assert not module.status(x_telegram_init_data="2003")["eligible"]
+try:
+    choose(2003, "sweet")
+except HTTPException as error:
+    assert error.status_code == 410
+else:
+    raise AssertionError("Retired Halloween event must not change balances")
+assert choose(2001, "sweet")["repeated"]  # Existing result remains available.
 print("Halloween choice: one-time credit/debit, repeated calls, bans and transactions OK")
 tempdir.cleanup()

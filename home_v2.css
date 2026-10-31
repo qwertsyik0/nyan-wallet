@@ -214,15 +214,6 @@
   font-size:15px;
   line-height:1;
 }
-.nyan-home-more-button[data-home-secondary="halloween"] .nyan-home-more-icon{
-  background:#f4ece9;
-  color:#94645a;
-}
-.nyan-home-more-button[data-home-secondary="halloween"] .nyan-home-more-icon svg{
-  display:block;
-  width:20px;
-  height:20px;
-}
 .nyan-home-more-label{
   min-width:0;
   overflow-wrap:anywhere;
