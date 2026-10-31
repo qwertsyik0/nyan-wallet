@@ -9,15 +9,13 @@
 .hbc-lines i:nth-child(3){width:240px;height:240px;left:50%;bottom:-198px;transform:translateX(-50%);border-color:#ab7383}
 .hbc-scene{position:relative;z-index:1;width:100%;height:clamp(300px,55dvh,445px);margin:0 auto 4px}
 .hbc-bear{position:absolute;z-index:8;display:block;bottom:0;left:50%;transform:translateX(-50%);width:min(85%,420px);height:100%;object-fit:contain;object-position:bottom;image-rendering:pixelated;filter:drop-shadow(0 10px 0 rgba(18,12,24,.18));animation:hbc-breathe 4s ease-in-out infinite}
-.hbc-ghost{position:absolute;z-index:2;width:29%;max-width:150px;aspect-ratio:1;object-fit:contain;opacity:.75;mix-blend-mode:screen;image-rendering:pixelated;pointer-events:none;animation:hbc-float 5.2s ease-in-out infinite}
+.hbc-ghost{position:absolute;z-index:2;width:29%;max-width:150px;aspect-ratio:1;object-fit:contain;opacity:.86;image-rendering:pixelated;pointer-events:none;animation:hbc-float 5.2s ease-in-out infinite}
 .hbc-ghost-left{left:-3%;top:2%;transform:rotate(-14deg)}
 .hbc-ghost-right{right:-1%;top:10%;transform:rotate(11deg);animation-delay:-2.6s}
 .hbc-pumpkin{position:absolute;z-index:4;width:21%;max-width:110px;image-rendering:pixelated;pointer-events:none}
 .hbc-pumpkin-left{left:-1%;bottom:14%;transform:rotate(-14deg)}
 .hbc-pumpkin-right{right:0;bottom:16%;transform:rotate(12deg)}
-.hbc-candy{position:absolute;z-index:5;display:block;width:33px;height:15px;background:#fbb34e;border:3px solid #fff0d7;border-radius:5px;transform:rotate(35deg);box-shadow:0 0 0 2px #281e34}
-.hbc-candy::before,.hbc-candy::after{content:"";position:absolute;top:0;width:10px;height:9px;background:#ef8846;clip-path:polygon(0 0,100% 30%,100% 70%,0 100%)}
-.hbc-candy::before{left:-13px}.hbc-candy::after{right:-13px;transform:rotate(180deg)}
+.hbc-candy{position:absolute;z-index:5;display:block;font-size:29px;line-height:1;width:auto;height:auto;filter:drop-shadow(0 2px 1px rgba(18,12,24,.2));pointer-events:none}
 .hbc-candy-one{left:16%;top:10%;transform:rotate(-34deg)}
 .hbc-candy-two{right:10%;top:47%;transform:rotate(24deg);background:#f8bad0}
 .hbc-candy-three{left:8%;bottom:3%;transform:rotate(18deg);background:#f8bad0}
