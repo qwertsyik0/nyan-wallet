@@ -13,7 +13,6 @@
     ["giveaways", "✦", "Розыгрыши", "nyg-my-button"],
     ["lottery", "🎫", "Лотерея", "nyan-lottery-link"],
     ["fortune", "🎡", "Колесо фортуны", "nyan-fortune-link"],
-    ["archive0", "▤", "Няник · Дело №0", "nyan-archive-link"],
     ["purchases", "▤", "Покупки", "nyg-my-purchases-button"],
     ["appeals", "✉", "Обращения", "appeals-button"],
     ["studio", "✳", "Интерактивы", "nyan-studio-link"],
@@ -126,10 +125,6 @@
           window.location.assign("./fortune.html");
           return;
         }
-        if (target === "nyan-archive-link") {
-          window.location.assign("./nyan-archive.html");
-          return;
-        }
         if (target) proxyClick(target);
       });
     }
@@ -201,7 +196,7 @@
       if (!homeButton) continue;
       // Never offer a dead action before its original handler exists.
       const hide = !proxy || proxy.hidden || proxy.disabled;
-      const unavailable = ["nyan-studio-link", "nyan-lottery-link", "nyan-fortune-link", "nyan-archive-link"].includes(target) ? false : hide;
+      const unavailable = ["nyan-studio-link", "nyan-lottery-link", "nyan-fortune-link"].includes(target) ? false : hide;
       if (homeButton.hidden !== Boolean(unavailable)) homeButton.hidden = Boolean(unavailable);
     }
 

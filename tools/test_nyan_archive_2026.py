@@ -33,6 +33,7 @@ def load(name: str, path: str):
 
 core = load("server.backend_app", "backend_app.py")
 archive = load("server.nyan_archive_2026", "nyan_archive_2026.py")
+archive.RETIRED = False  # Test original event and reward logic first.
 from server.advanced_features import WalletNotification
 
 archive.register_nyan_archive_2026(core.app)
@@ -134,5 +135,10 @@ with core.SessionLocal() as session:
     assert session.get(core.User, 1001).balance == 500
 
 assert archive._normalize("ЁЖ!!!") == "еж"
+archive.RETIRED = True
+closed = status(1001)
+assert not closed["is_open"] and not closed["owner_preview"] and closed["records"] == []
+assert closed["badge_awarded"] and closed["first_prize_awarded"]
+expect_error(lambda: solve("зеркало", 1002), 410)
 print("Nyan Archive offline test: OK")
 temp.cleanup()

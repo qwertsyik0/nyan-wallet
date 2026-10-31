@@ -22,6 +22,7 @@ from . import backend_app as core
 
 router = APIRouter()
 _REGISTERED = False
+RETIRED = True  # Event is closed; historical rewards and completions stay intact.
 UTC = timezone.utc
 OPEN_AT = datetime(2026, 10, 30, 19, 0, tzinfo=UTC)  # 22:00 MSK
 COOLDOWN = timedelta(minutes=5)
@@ -201,7 +202,7 @@ def _grant_first_prize_if_pending(session, now: datetime) -> int | None:
 
 
 def _state(now: datetime, telegram_id: int | None = None) -> dict:
-    preview = telegram_id is not None and core.is_owner(telegram_id)
+    preview = not RETIRED and telegram_id is not None and core.is_owner(telegram_id)
     completion = None
     first_winner_id = None
     if telegram_id is not None:
@@ -213,10 +214,10 @@ def _state(now: datetime, telegram_id: int | None = None) -> dict:
         "ok": True,
         "server_now": now.isoformat(),
         "opens_at": OPEN_AT.isoformat(),
-        "is_open": now >= OPEN_AT,
+        "is_open": not RETIRED and now >= OPEN_AT,
         "owner_preview": preview,
         "authenticated": telegram_id is not None,
-        "records": [_record_status(record, now=now, preview=preview) for record in RECORDS],
+        "records": [] if RETIRED else [_record_status(record, now=now, preview=preview) for record in RECORDS],
         "solved": completion is not None and completion.solved_at is not None,
         "badge_awarded": completion is not None and completion.solved_at is not None,
         "first_prize_awarded": first_winner_id == telegram_id and telegram_id is not None,
@@ -249,6 +250,8 @@ def archive_solve(
     now = now_utc()
     tg = core.verify_init_data(x_telegram_init_data or "")
     uid = int(tg["id"])
+    if RETIRED:
+        raise HTTPException(status_code=410, detail="Дело №0 завершено")
     if now < RECORDS[-1]["at"] and not core.is_owner(uid):
         raise HTTPException(status_code=409, detail="Последний лист ещё не открыт")
     correct = _normalize(payload.answer) in {"зеркало", "отражение", "отражения"}

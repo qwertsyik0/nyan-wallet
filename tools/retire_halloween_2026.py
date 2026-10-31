@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Retire 2026 Halloween APIs without changing balances, transactions or badges.
+"""Retire Halloween and Nyanik's Case Zero without deleting their rewards.
 
 Run on FirstVDS as root: --check, then --apply. Existing server customizations
 are preserved: only recognized source snippets are changed; mismatches abort.
@@ -25,6 +25,7 @@ SERVER = Path("/opt/nyan-wallet/server")
 SERVICE = "nyan-wallet"
 EVENT = SERVER / "halloween_2026.py"
 CHOICE = SERVER / "halloween_boot_choice_2026.py"
+ARCHIVE = SERVER / "nyan_archive_2026.py"
 RETIRED_MESSAGE = '        raise HTTPException(status_code=410, detail="Хеллоуинский ивент завершён")\n'
 
 
@@ -86,6 +87,39 @@ def retire_choice(source: str) -> str:
     return source
 
 
+def retire_archive(source: str) -> str:
+    if not re.search(r"^RETIRED = True\b", source, flags=re.MULTILINE):
+        source = replace_once(
+            source, "_REGISTERED = False\n",
+            "_REGISTERED = False\nRETIRED = True  # Case closed; preserve completions and rewards.\n",
+            "archive flag",
+        )
+    source = replace_once(
+        source,
+        "    preview = telegram_id is not None and core.is_owner(telegram_id)\n",
+        "    preview = not RETIRED and telegram_id is not None and core.is_owner(telegram_id)\n",
+        "archive owner preview",
+    )
+    source = replace_once(
+        source, '"is_open": now >= OPEN_AT,',
+        '"is_open": not RETIRED and now >= OPEN_AT,', "archive status",
+    )
+    source = replace_once(
+        source, '"records": [_record_status(record, now=now, preview=preview) for record in RECORDS],',
+        '"records": [] if RETIRED else [_record_status(record, now=now, preview=preview) for record in RECORDS],',
+        "archive records",
+    )
+    source = replace_once(
+        source,
+        '    uid = int(tg["id"])\n    if now < RECORDS[-1]["at"] and not core.is_owner(uid):',
+        '    uid = int(tg["id"])\n    if RETIRED:\n'
+        '        raise HTTPException(status_code=410, detail="Дело №0 завершено")\n'
+        '    if now < RECORDS[-1]["at"] and not core.is_owner(uid):',
+        "archive solve guard",
+    )
+    return source
+
+
 def run(*args: str) -> str:
     result = subprocess.run(args, capture_output=True, text=True, check=False)
     if result.returncode:
@@ -120,6 +154,8 @@ def main() -> None:
     modules = [(EVENT, retire_event)]
     if CHOICE.is_file():
         modules.append((CHOICE, retire_choice))
+    if ARCHIVE.is_file():
+        modules.append((ARCHIVE, retire_archive))
     if any(path.is_symlink() for path, _ in modules):
         raise RuntimeError("Обнаружена символическая ссылка; установка остановлена")
     if run("systemctl", "is-active", SERVICE) != "active":
