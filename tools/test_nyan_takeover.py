@@ -225,6 +225,26 @@ with core.SessionLocal() as session:
     assert session.get(core.User,10003).balance == 1000  # 1000 badge + 1000 winning bid
     assert session.scalar(select(func.count()).select_from(takeover.TakeoverMissionClaim)) == 1
 
+# One opening of the client previously made four Telegram calls. The entry
+# check remains fresh, while its following read-only modules reuse that check.
+previous_bot_api = group.bot_api
+member_calls = []
+def counted_bot_api(method, payload, **kwargs):
+    if method == "getChatMember":
+        member_calls.append(payload["user_id"])
+    return previous_bot_api(method, payload, **kwargs)
+group.bot_api = counted_bot_api
+group._MEMBERSHIP_CACHE.clear()
+assert takeover.status(x_telegram_init_data="10001")["access"] == "approved"
+assert auction.auction_state(x_telegram_init_data="10001")["ok"]
+assert drops.list_drops(x_telegram_init_data="10001")["ok"]
+assert takeover.mission(x_telegram_init_data="10001")["ok"]
+assert member_calls == [10001], member_calls
+with core.SessionLocal() as session:
+    assert group.group_member(session, 10001)  # Writes never reuse cache.
+assert member_calls == [10001, 10001], member_calls
+group.bot_api = previous_bot_api
+
 clock = takeover.END + timedelta(seconds=1)
 fails(lambda: takeover.claim(x_telegram_init_data="10002"),409)
 fails(lambda: buy(10002,"title_24h","request_key_expired_abc"),409)

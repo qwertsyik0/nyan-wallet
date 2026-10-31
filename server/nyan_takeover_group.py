@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -29,6 +31,9 @@ BOT_APP_LINK = "https://t.me/nyancash_bot?startapp=nyan_takeover"
 DEFAULT_CHAT_ID = int(os.getenv("NYAN_TAKEOVER_CHAT_ID", "-1003689150794"))
 POST_LINK_RE = re.compile(r"(?:https?://)?t\.me/c/([1-9][0-9]{4,13})/[0-9]+(?:[/?#].*)?\Z", re.I)
 CHAT_ID_RE = re.compile(r"-100[1-9][0-9]{4,13}\Z")
+_MEMBERSHIP_CACHE: dict[tuple[int, int], tuple[float, bool]] = {}
+_MEMBERSHIP_LOCK = threading.Lock()
+_MEMBERSHIP_TTL_SECONDS = 25
 
 
 class TakeoverGroup(core.Base):
@@ -99,13 +104,30 @@ def bound_group(session) -> TakeoverGroup:
     return group
 
 
-def group_member(session, telegram_id: int) -> bool:
+def group_member(session, telegram_id: int, *, allow_cached: bool = False) -> bool:
+    """Reuse a recent check only for read-only data requests.
+
+    Status/entry and all reward, purchase and bid operations always contact
+    Telegram afresh. A short cache avoids four identical checks when one page
+    loads its catalog, auction, drops and mission sequentially.
+    """
     group = bound_group(session)
+    key = (group.chat_id, telegram_id)
+    if allow_cached:
+        with _MEMBERSHIP_LOCK:
+            cached = _MEMBERSHIP_CACHE.get(key)
+        if cached is not None and cached[0] > time.monotonic():
+            return cached[1]
     result = bot_api("getChatMember", {"chat_id": group.chat_id, "user_id": telegram_id})
     status = result.get("status", "")
-    return status in {"creator", "administrator", "member"} or (
+    is_member = status in {"creator", "administrator", "member"} or (
         status == "restricted" and result.get("is_member") is True
     )
+    with _MEMBERSHIP_LOCK:
+        if len(_MEMBERSHIP_CACHE) >= 4096:
+            _MEMBERSHIP_CACHE.clear()
+        _MEMBERSHIP_CACHE[key] = (time.monotonic() + _MEMBERSHIP_TTL_SECONDS, is_member)
+    return is_member
 
 
 @router.get("/api/nyan-takeover/owner/group")

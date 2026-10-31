@@ -141,10 +141,10 @@ def _active() -> None:
         raise HTTPException(409, "Событие сейчас не проводится")
 
 
-def _approved(session, telegram_id: int) -> None:
+def _approved(session, telegram_id: int, *, allow_cached: bool = False) -> None:
     if session.get(BlockedUser, telegram_id):
         raise HTTPException(403, "Для аккаунта операции недоступны")
-    if not group_member(session, telegram_id):
+    if not group_member(session, telegram_id, allow_cached=allow_cached):
         raise HTTPException(403, "Доступ только действующим участникам закрытого флуда")
 
 
@@ -250,7 +250,7 @@ def _mission_state(session, telegram_id: int) -> dict:
 def mission(x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data")):
     tg = _auth(x_telegram_init_data)
     with core.SessionLocal() as session:
-        _approved(session, int(tg["id"]))
+        _approved(session, int(tg["id"]), allow_cached=True)
         return _mission_state(session, int(tg["id"]))
 
 
@@ -339,10 +339,11 @@ def buy(payload: PurchaseRequest, x_telegram_init_data: str | None = Header(defa
         raise HTTPException(422, "Некорректный товар или ключ покупки")
     uid = int(tg["id"])
     with core.SessionLocal.begin() as session:
+        # Telegram network checks must not hold the shared catalog row lock.
+        _approved(session, uid)
         listing = session.scalar(select(TakeoverListing).where(TakeoverListing.sku == payload.sku).with_for_update())
         if not listing:
             raise HTTPException(503, "Рынок ещё готовится")
-        _approved(session, uid)
         previous = session.scalar(select(TakeoverPurchase).where(
             TakeoverPurchase.telegram_id == uid, TakeoverPurchase.request_key == payload.request_key))
         if previous:

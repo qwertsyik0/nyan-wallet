@@ -67,7 +67,7 @@ class AuctionControl(BaseModel):
 
 
 def _visible(session, uid: int) -> dict:
-    _approved(session, uid)
+    _approved(session, uid, allow_cached=True)
     rows = {row.key: row for row in session.scalars(select(AuctionLot))}
     result = []
     for key, title, description, starting, step, kind in LOTS:
@@ -112,10 +112,11 @@ def bid(payload: BidPayload, x_telegram_init_data: str | None = Header(default=N
         raise HTTPException(422, "Некорректная ставка")
     uid = int(tg["id"])
     with core.SessionLocal.begin() as session:
+        # Do not keep the lot locked while Telegram verifies membership.
+        _approved(session, uid)
         lot = session.scalar(select(AuctionLot).where(AuctionLot.key == payload.lot_key).with_for_update())
         if lot is None or lot.status != "open":
             raise HTTPException(409, "Торги по этому лоту не открыты")
-        _approved(session, uid)
         old = session.scalar(select(AuctionBid).where(AuctionBid.telegram_id == uid, AuctionBid.request_key == payload.request_key))
         if old is not None:
             if old.lot_key != payload.lot_key or old.amount != payload.amount:

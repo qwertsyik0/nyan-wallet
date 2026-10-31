@@ -54,7 +54,7 @@ def list_drops(x_telegram_init_data: str | None = Header(default=None, alias="X-
     uid = int(tg["id"])
     with core.SessionLocal() as session:
         if not core.is_owner(uid):
-            _approved(session, uid)
+            _approved(session, uid, allow_cached=True)
         stamp = now()
         items = session.scalars(select(Drop).where(Drop.active.is_(True), Drop.expires_at > stamp).order_by(Drop.id.desc())).all()
         result = []
@@ -71,10 +71,11 @@ def claim_drop(payload: DropId, x_telegram_init_data: str | None = Header(defaul
     _active()
     uid = int(tg["id"])
     with core.SessionLocal.begin() as session:
+        # A popular drop has one shared row: check Telegram before locking it.
+        _approved(session, uid)
         item = session.scalar(select(Drop).where(Drop.id == payload.drop_id).with_for_update())
         if not item:
             raise HTTPException(404, "Раздача не найдена")
-        _approved(session, uid)
         previous = session.scalar(select(DropClaim.id).where(DropClaim.telegram_id == uid, DropClaim.drop_id == item.id))
         if previous:
             return {"ok": True, "repeated": True}

@@ -13,6 +13,7 @@
   let selected = null;
   let bidSelection = null;
   let busy = false;
+  let refreshInFlight = null;
   tg?.ready?.();
   tg?.expand?.();
 
@@ -158,25 +159,40 @@
     else renderGate();
   }
 
-  async function refresh() {
-    if (!auth) { renderGate(); return; }
-    try {
-      state = await api("/api/nyan-takeover/status");
-      render();
-      if (state.access === "approved" || state.owner) {
-        await refreshAuction();
-        await refreshDrops();
-        if (!state.owner) await refreshMission();
-        if (state.owner) await refreshOwner();
+  function refresh() {
+    // Never stack periodic refreshes: this page also polls while it is open.
+    if (refreshInFlight) return refreshInFlight;
+    const task = (async () => {
+      if (!auth) { renderGate(); return; }
+      $("retry-access").hidden = true;
+      try {
+        const nextState = await api("/api/nyan-takeover/status");
+        state = nextState;
+        render();
+      } catch (error) {
+        if (!state) {
+          $("gate").hidden = false;
+          $("event").hidden = true;
+          $("owner-panel").hidden = true;
+          $("apply").hidden = true;
+          $("gate-copy").textContent = "Проверка доступа пока недоступна.";
+          $("retry-access").hidden = false;
+        }
+        notice(error.message, "bad");
+        return;
       }
-    } catch (error) {
-      $("gate").hidden = false;
-      $("event").hidden = true;
-      $("owner-panel").hidden = true;
-      $("apply").hidden = true;
-      $("gate-copy").textContent = "Проверка доступа пока недоступна.";
-      notice(error.message, "bad");
-    }
+      if (state.access !== "approved" && !state.owner) return;
+      // A single delayed auction/drop response must never close the entire app.
+      const updates = [refreshAuction(), refreshDrops()];
+      if (!state.owner) updates.push(refreshMission());
+      else updates.push(refreshOwner());
+      const outcomes = await Promise.allSettled(updates);
+      if (outcomes.some(result => result.status === "rejected")) {
+        notice("Экономика открыта. Часть данных пока не обновилась — попробуй чуть позже.", "bad");
+      }
+    })();
+    refreshInFlight = task.finally(() => {refreshInFlight = null;});
+    return refreshInFlight;
   }
 
   async function action(work, done) {
@@ -393,6 +409,7 @@
     if (!chat_link_or_id || !confirm("Привязать именно эту группу к NYAN TAKEOVER? Проверь ссылку.")) return;
     action(() => api("/api/nyan-takeover/owner/group/bind", "POST", {chat_link_or_id}), "Группа проверена и привязана.");
   });
+  $("retry-access").addEventListener("click", () => {void refresh();});
   $("publish-form").addEventListener("submit", event => {
     event.preventDefault();
     const content = $("publish-text").value.trim();
