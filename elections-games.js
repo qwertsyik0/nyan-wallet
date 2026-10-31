@@ -1,7 +1,7 @@
 (() => {
 "use strict";
 const tg=window.Telegram?.WebApp;
-const API="https://nyan-wallet-qwert.duckdns.org/api/elections";
+const API="https://nyan-wallet-bridge.qwertsyik.workers.dev/api/elections";
 // Temporary public-list exclusion. Memberships and signup records remain unchanged.
 function partyHiddenFromList(p){
   const name=String(p?.name||"").trim().replace(/\s+/g," ").toLocaleLowerCase("ru-RU");

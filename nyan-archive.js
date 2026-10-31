@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const API = "https://nyan-wallet-qwert.duckdns.org";
+  const API = "https://nyan-wallet-bridge.qwertsyik.workers.dev";
   const tg = window.Telegram?.WebApp;
   const $ = id => document.getElementById(id);
   const openingUTC = Date.UTC(2026, 9, 30, 19);

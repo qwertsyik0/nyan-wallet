@@ -1,7 +1,7 @@
 (() => {
   "use strict";
   const tg = window.Telegram?.WebApp;
-  const api = "https://nyan-wallet-qwert.duckdns.org/api/halloween-boot-2026";
+  const api = "https://nyan-wallet-bridge.qwertsyik.workers.dev/api/halloween-boot-2026";
   const view = document.getElementById("halloween-boot-choice");
   const question = document.getElementById("hbc-question");
   const errorLine = document.getElementById("hbc-error");

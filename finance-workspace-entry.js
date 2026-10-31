@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const API = "https://nyan-wallet-qwert.duckdns.org";
+  const API = "https://nyan-wallet-bridge.qwertsyik.workers.dev";
   const tg = window.Telegram?.WebApp;
   const TARGET = "./finance-workspace.html";
   let activeRole = "user";

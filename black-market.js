@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const API = "https://nyan-wallet-qwert.duckdns.org";
+  const API = "https://nyan-wallet-bridge.qwertsyik.workers.dev";
   const tg = window.Telegram?.WebApp;
   const $ = id => document.getElementById(id);
   const ICONS = { secret_key: "🗝", nyanik_eye: "👁", backstage: "🎟", midnight: "🖤", dark_nyanik: "👑" };

@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const API = "https://nyan-wallet-qwert.duckdns.org";
+  const API = "https://nyan-wallet-bridge.qwertsyik.workers.dev";
   const START = Date.parse("2026-10-29T14:00:00Z");
   const END = Date.parse("2026-10-31T21:00:00Z");
   const META = {

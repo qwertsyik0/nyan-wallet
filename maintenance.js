@@ -2,7 +2,7 @@
     "use strict";
 
     const tg = window.Telegram?.WebApp;
-    const API = "https://nyan-wallet-qwert.duckdns.org";
+    const API = "https://nyan-wallet-bridge.qwertsyik.workers.dev";
     let hiddenByMaintenance = [];
     let bootstrapMaintenanceRecoveryNeeded = false;
 

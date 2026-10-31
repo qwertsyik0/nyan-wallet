@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const API = "https://nyan-wallet-qwert.duckdns.org";
+  const API = "https://nyan-wallet-bridge.qwertsyik.workers.dev";
   const TELEGRAM = window.Telegram?.WebApp;
   const BOT_LINK = "https://t.me/nyancash_bot?startapp=nyanid";
   let identity = null;

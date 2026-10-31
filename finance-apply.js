@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const API = "https://nyan-wallet-qwert.duckdns.org";
+  const API = "https://nyan-wallet-bridge.qwertsyik.workers.dev";
   const tg = window.Telegram?.WebApp;
   const form = document.getElementById("apply-form");
   const formArea = document.getElementById("form-area");

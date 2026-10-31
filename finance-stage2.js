@@ -2,7 +2,7 @@
   "use strict";
 
   const tg = window.Telegram?.WebApp;
-  const API = "https://nyan-wallet-qwert.duckdns.org";
+  const API = "https://nyan-wallet-bridge.qwertsyik.workers.dev";
   const fields = ["balance", "duplicate", "audit", "fraud", "access", "dispute", "internship"];
   const mins = {balance:15, audit:25, fraud:35, dispute:35, internship:30};
   const sections = [...document.querySelectorAll(".step")];

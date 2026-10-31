@@ -3,7 +3,7 @@ const appealDeepLinkActive = (() => {
     const params = new URLSearchParams(window.location.search);
     return params.has("appeals") || params.has("appeal") || params.has("ownerAppeal");
 })();
-const API_BASE = "https://nyan-wallet-qwert.duckdns.org";
+const API_BASE = "https://nyan-wallet-bridge.qwertsyik.workers.dev";
 
 if (tg) {
     tg.ready();

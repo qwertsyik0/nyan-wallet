@@ -2,7 +2,7 @@
     "use strict";
 
     const nativeFetch = window.fetch.bind(window);
-    const API_ORIGIN = "https://nyan-wallet-qwert.duckdns.org";
+    const API_ORIGIN = "https://nyan-wallet-bridge.qwertsyik.workers.dev";
     const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
     const RETRY_DELAYS_MS = [1500, 3000, 6500, 12000];
 

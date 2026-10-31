@@ -1,6 +1,6 @@
 (() => {
   const tg = window.Telegram?.WebApp;
-  const API = "https://nyan-wallet-qwert.duckdns.org";
+  const API = "https://nyan-wallet-bridge.qwertsyik.workers.dev";
   let profileData = null;
   let achievementData = null;
   let notificationData = null;

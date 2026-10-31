@@ -2,7 +2,7 @@
     "use strict";
 
     const tg = window.Telegram?.WebApp;
-    const API = "https://nyan-wallet-qwert.duckdns.org";
+    const API = "https://nyan-wallet-bridge.qwertsyik.workers.dev";
     const activateButton = document.getElementById("promo-activate");
     const walletButton = document.getElementById("promo-wallet");
     const terms = document.getElementById("promo-terms");
