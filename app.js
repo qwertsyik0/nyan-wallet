@@ -1026,6 +1026,10 @@ loadingRetryEl?.addEventListener("click", () => {
     void loadWallet();
 });
 
+window.addEventListener("nyan-halloween-choice-applied", () => {
+    void loadWallet();
+});
+
 window.addEventListener("online", () => {
     if (walletFailureCount > 0) {
         void loadWallet();
