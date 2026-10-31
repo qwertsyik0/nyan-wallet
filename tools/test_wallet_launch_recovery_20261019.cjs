@@ -7,7 +7,7 @@ const js = fs.readFileSync("wallet_launch_recovery_20261019.js", "utf8");
 const html = fs.readFileSync("index.html", "utf8");
 assert.ok(html.includes("wallet_launch_recovery_20261019.js"));
 assert.ok(html.indexOf("wallet_launch_recovery_20261019.js") < html.indexOf("./app.js?"));
-assert.ok(html.includes("app.js?v=20261025-no-abort1"));
+assert.match(html, /app\.js\?v=[^"]+/, "wallet app script must use cache-busting version");
 
 function fixture(hasLoader = true) {
     let now = 0;
