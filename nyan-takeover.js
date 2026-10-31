@@ -113,6 +113,25 @@
                   element("span", "", purchase.fulfillment === "done" ? "Получено" : "Ожидает выдачи"));
       $("orders").append(line);
     }
+    // Personal cards are individual image rewards, not wallet backgrounds.
+    // Display only the current account's completed personal-card purchase.
+    const userId = Number(tg?.initDataUnsafe?.user?.id);
+    if (Number.isSafeInteger(userId) && userId > 0 &&
+        state.purchases?.some(p => p.sku === "personal_card" && p.fulfillment === "done")) {
+      const preview = element("div", "personal-card-preview");
+      const artwork = document.createElement("img");
+      artwork.src = `./assets/nyan-takeover/cards/${userId}.png`;
+      artwork.alt = "Твоя персональная карточка";
+      artwork.loading = "lazy";
+      artwork.addEventListener("error", () => preview.remove());
+      const link = element("a", "", "Открыть и сохранить персональную карточку");
+      link.href = artwork.src;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.download = `personal-card-${userId}.png`;
+      preview.append(artwork, link);
+      $("orders").append(preview);
+    }
   }
 
   function renderEvent() {
