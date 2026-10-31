@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#fff8fb">
+  <meta name="color-scheme" content="light">
+  <title>NYAN TAKEOVER · Nyan Wallet</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./nyan-takeover.css?v=1">
+</head>
+<body>
+  <div class="takeover-app">
+    <header class="topbar"><a class="back" href="./index.html" aria-label="Назад">←</a><div class="identity"><strong>Nyan Wallet</strong><span>закрытое событие</span></div><span class="edition">NYAN / 01</span></header>
+    <div class="notice" id="notice" role="status" aria-live="polite">Проверяем доступ…</div>
+
+    <main>
+      <section id="gate" class="gate" hidden>
+        <div class="gate-mark">🐾</div>
+        <span class="eyebrow">ТОЛЬКО ДЛЯ УЧАСТНИКОВ</span>
+        <h1>Закрытый доступ</h1>
+        <p id="gate-copy">Доступ доступен только участникам закрытого флуда.</p>
+        <button id="apply" class="primary" type="button" hidden>Отправить заявку</button>
+        <a id="telegram-link" class="primary" href="https://t.me/nyancash_bot?startapp=nyan_takeover" hidden>Открыть через Telegram</a>
+      </section>
+
+      <section id="event" hidden>
+        <div class="hero">
+          <img src="./assets/nyan-takeover/hero.png" alt="Няник и мишка приветствуют резидентов" width="1672" height="941">
+          <div class="hero-copy"><span class="eyebrow">31 ОКТЯБРЯ — 1 НОЯБРЯ</span><h1>NYAN<br>TAKEOVER</h1><p id="flood-name"></p><span class="event-clock">17:30 — 12:00 · МСК</span></div>
+        </div>
+        <section class="wallet-stats" aria-label="Баланс и бонус"><div><span>твой баланс</span><strong id="balance">— 🐾</strong></div><div><span>стартовый капитал</span><strong>500 🐾</strong></div></section>
+        <section class="claim-panel" id="claim-panel"><div><span class="eyebrow">РЕЗИДЕНТ ФЛУДА</span><h2>Твой старт</h2><p>500 🐾 и два постоянных значка за участие в первом NYAN TAKEOVER.</p></div><button id="claim" class="primary" type="button">Забрать</button></section>
+        <section id="drops-panel" hidden><div class="section-head"><div><span class="eyebrow">NYAN DROPS</span><h2>Раздачи резидентам</h2></div></div><div id="drop-list" class="drop-list"></div></section>
+        <section class="mission" id="mission-panel" hidden><div><span class="eyebrow">КОНТРАКТ РЕЗИДЕНТА</span><h2>Изучи кошелёк</h2><p>Используй три разные функции Nyan Wallet и получи 150 🐾 и значок исследователя.</p><span id="mission-progress" class="mission-progress">0 / 3</span></div><button id="mission-claim" type="button" class="primary">Забрать</button></section>
+        <div class="section-head"><div><span class="eyebrow">NYAN MARKET</span><h2>Рынок флуда</h2></div><span class="section-accent">лимитированная коллекция</span></div>
+        <div id="market" class="market"></div>
+        <div class="section-head"><div><span class="eyebrow">NYAN AUCTION</span><h2>Вечерний аукцион</h2></div><span class="section-accent">ставки в лапкоинах</span></div>
+        <div id="auction-lots" class="market"></div>
+        <section class="my-orders" id="my-orders" hidden><div class="section-head"><h2>Мои заказы</h2></div><div id="orders"></div></section>
+        <p class="footnote">Привилегии для флуда выдаются администрацией после покупки. Значки и фоны появляются в Nyan Wallet автоматически.</p>
+      </section>
+
+      <section id="owner-panel" class="owner-panel" hidden>
+        <div class="section-head"><div><span class="eyebrow">TELEGRAM · ЧАСТНЫЙ ФЛУД</span><h2>Управление группой</h2></div><button id="refresh-owner" class="secondary" type="button">Обновить</button></div>
+        <p class="footnote">Бот проверяет участие автоматически. Доступ открывается только тем, кто действительно состоит в привязанной группе.</p>
+        <div id="group-status" class="notice">Проверяем привязку…</div>
+        <form id="bind-form" class="bind-form"><label for="chat-link">Ссылка на сообщение из частной группы или ID группы</label><input id="chat-link" name="chat_link_or_id" placeholder="https://t.me/c/1234567890/12" required><button type="submit" class="primary">Привязать группу</button></form>
+        <form id="publish-form" class="publish-form" hidden><label for="publish-text">Публикация от бота</label><textarea id="publish-text" name="text" rows="4" maxlength="2000" required>Сегодня у нашего флуда появилась собственная экономика. Забирайте стартовый капитал, открывайте достижения и заглядывайте на рынок NYAN TAKEOVER.</textarea><button type="submit" class="primary">Опубликовать с кнопкой</button></form>
+        <p class="footnote">Бот отправляет сообщение только в привязанную группу, с кнопкой открытия мини-приложения.</p>
+        <div class="section-head"><h2>Открыть раздачу</h2></div>
+        <form id="drop-form" class="drop-form"><label>Сумма, 🐾<input name="amount" type="number" min="10" max="300" value="100" required></label><label>Получателей<input name="capacity" type="number" min="1" max="500" value="50" required></label><label>Минут<input name="minutes" type="number" min="1" max="60" value="15" required></label><button class="primary" type="submit">Открыть</button></form>
+        <div class="section-head"><h2>Выдача привилегий</h2></div><div id="fulfillment" class="moderation-list"></div>
+      </section>
+    </main>
+    <footer>NYAN TAKEOVER <span>·</span> Nyan Wallet</footer>
+  </div>
+  <div class="modal" id="buy-modal" hidden><button class="modal-shade" id="modal-shade" aria-label="Закрыть окно"></button><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="modal-title"><span class="eyebrow">ПОДТВЕРЖДЕНИЕ ПОКУПКИ</span><h2 id="modal-title"></h2><p id="modal-description"></p><div class="modal-price" id="modal-price"></div><p id="modal-error" class="error" role="alert"></p><div class="modal-buttons"><button id="cancel" class="secondary" type="button">Отмена</button><button id="confirm" class="primary" type="button">Купить</button></div></div></div>
+  <div class="modal" id="bid-modal" hidden><button class="modal-shade" id="bid-shade" aria-label="Закрыть окно"></button><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="bid-title"><span class="eyebrow">СТАВКА НА АУКЦИОНЕ</span><h2 id="bid-title"></h2><p>Лапкоины будут зарезервированы. Если твою ставку перебьют, сумма вернётся на баланс автоматически.</p><label class="bid-label" for="bid-amount">Твоя ставка · 🐾</label><input type="number" inputmode="numeric" min="1" step="1" id="bid-amount"><p class="error" id="bid-error" role="alert"></p><div class="modal-buttons"><button id="bid-cancel" class="secondary" type="button">Отмена</button><button id="bid-confirm" class="primary" type="button">Поставить</button></div></div></div>
+  <script src="./nyan-takeover.js?v=1"></script>
+</body>
+</html>

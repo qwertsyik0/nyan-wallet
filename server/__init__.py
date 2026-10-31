@@ -41,6 +41,10 @@ from .profile_overview import register_profile_overview
 from .finance_analytics import register_finance_analytics
 from .lottery import register_lottery
 from .fortune import register_fortune
+from .nyan_takeover_group import register_nyan_takeover_group
+from .nyan_takeover import register_nyan_takeover
+from .nyan_takeover_auction import register_nyan_takeover_auction
+from .nyan_takeover_drops import register_nyan_takeover_drops
 from .halloween_2026 import register_halloween_2026
 from .halloween_boot_choice_2026 import register_halloween_boot_choice_2026
 from .curator_recruitment import register_curator_recruitment
@@ -105,6 +109,10 @@ else:
     register_finance_analytics(backend_app.app)
     register_lottery(backend_app.app)
     register_fortune(backend_app.app)
+    register_nyan_takeover_group(backend_app.app)
+    register_nyan_takeover(backend_app.app)
+    register_nyan_takeover_auction(backend_app.app)
+    register_nyan_takeover_drops(backend_app.app)
     register_halloween_2026(backend_app.app)
     register_halloween_boot_choice_2026(backend_app.app)
     register_curator_recruitment(backend_app.app)
