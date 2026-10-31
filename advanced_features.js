@@ -1,5 +1,5 @@
 const tgAdv = window.Telegram?.WebApp;
-const API_ADV = "https://nyan-wallet-153-76-175-145.sslip.io";
+const API_ADV = "https://nyan-wallet-qwert.duckdns.org";
 const ADV_EVENT_TARGET_ID = (() => {
     const raw = new URLSearchParams(window.location.search).get("event");
     const value = Number.parseInt(raw || "", 10);

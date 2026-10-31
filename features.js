@@ -1,5 +1,5 @@
 const tgExt = window.Telegram?.WebApp;
-const API_EXT = "https://nyan-wallet-153-76-175-145.sslip.io";
+const API_EXT = "https://nyan-wallet-qwert.duckdns.org";
 let activeRewardTab = "all";
 let spendRewardsCache = [];
 

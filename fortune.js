@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const API = "https://nyan-wallet-153-76-175-145.sslip.io";
+  const API = "https://nyan-wallet-qwert.duckdns.org";
   const SECTORS = [10, 25, 50, 100, 0, 200, 25, 500];
   const COLORS = ["#f8e1e9", "#fff0d8", "#f0cfdc", "#e9e3f8", "#ebe8f0", "#fae4ec", "#f5dec1", "#ded7f5"];
   const PENDING_KEY = "nyan-fortune-pending-v1";

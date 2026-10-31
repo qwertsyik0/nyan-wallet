@@ -1,6 +1,6 @@
 (() => {
     const tg = window.Telegram?.WebApp;
-    const API = "https://nyan-wallet-153-76-175-145.sslip.io";
+    const API = "https://nyan-wallet-qwert.duckdns.org";
     const BOT_URL = "https://t.me/nyancash_bot";
     let referralCode = null;
     let codePromise = null;

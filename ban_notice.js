@@ -2,7 +2,7 @@
     "use strict";
 
     const tg = window.Telegram?.WebApp;
-    const API = "https://nyan-wallet-153-76-175-145.sslip.io";
+    const API = "https://nyan-wallet-qwert.duckdns.org";
     const OWNER_TELEGRAM_ID = 6289461565;
 
     let shown = false;
