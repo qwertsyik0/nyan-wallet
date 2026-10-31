@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const API = "https://nyan-wallet-153-76-175-145.sslip.io";
+  const API = "https://nyan-wallet-qwert.duckdns.org";
   const tg = window.Telegram?.WebApp;
   const auth = Boolean(tg?.initData);
   const $ = id => document.getElementById(id);
