@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#fff8fb">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Выбираем следующее большое обновление Nyan Wallet.">
+  <title>NYAN FUTURE · Голосование</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./nyan-future-vote.css?v=1">
+  <script defer src="./nyan-future-vote.js?v=1"></script>
+</head>
+<body>
+  <div class="page">
+    <header class="top">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">✦</span><span>NYAN WALLET</span></div>
+      <span class="tag">FUTURE / 01</span>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="heading">
+        <div class="hero-copy">
+          <span class="eyebrow"><i aria-hidden="true"></i> ТВОЙ ВЫБОР РЕШАЕТ</span>
+          <h1 id="heading">что добавим<br><em>следующим?</em></h1>
+          <p>Выбери одно обновление, которое действительно хочешь видеть в Nyan Wallet.</p>
+        </div>
+        <div class="mascots" aria-label="Няник, мишка и призрак">
+          <div class="mascot mascot-bear"><img src="./assets/nyan-future-vote/bear.png" alt="Розовый пиксельный мишка с тыквой" width="1254" height="1254"></div>
+          <div class="mascot mascot-ghost"><img src="./assets/nyan-future-vote/ghost.jpg" alt="Пиксельный призрак с тыквой" width="1536" height="1536"></div>
+          <div class="mascot mascot-nyanik"><img src="./assets/nyan-future-vote/nyanik.png" alt="Розовый пиксельный Няник" width="1254" height="1254"></div>
+        </div>
+        <div class="hero-lines" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      </section>
+
+      <section id="pledge-screen" class="pledge-screen" aria-labelledby="pledge-heading">
+        <div class="section-label"><span class="step">01 / 02</span><span>ПЕРЕД ГОЛОСОВАНИЕМ</span></div>
+        <div class="warning" role="note">
+          <svg class="warning-icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><path d="M24 5.5 44 41H4L24 5.5Z" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round"/><path d="M24 17v12" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><circle cx="24" cy="35" r="2.3" fill="currentColor"/></svg>
+          <div>
+            <span id="pledge-heading" class="warning-kicker">ВАЖНО</span>
+            <p>я обязуюсь выбирать с умом, а не ради награды.</p>
+          </div>
+        </div>
+        <button id="accept-pledge" class="primary" type="button">Я ОБЯЗУЮСЬ <span aria-hidden="true">↗</span></button>
+      </section>
+
+      <section id="vote-screen" class="vote-screen" aria-labelledby="vote-heading" hidden>
+        <div class="section-label"><span class="step">02 / 02</span><span>ВЫБЕРИ ОДНУ ИДЕЮ</span></div>
+        <h2 id="vote-heading">будущее Nyan Wallet</h2>
+        <p class="vote-subtitle">Только один вариант. Выбор нельзя будет изменить.</p>
+        <form id="vote-form">
+          <fieldset class="options">
+            <legend class="sr-only">Какое обновление нужно первым?</legend>
+            <label class="option"><input type="radio" name="choice" value="market" required><span class="option-number">01</span><span class="option-text"><strong>NYAN MARKET 2.0</strong><small>Коллекционные предметы, редкости, обмены, перепродажа и аукционы.</small></span><span class="option-dot" aria-hidden="true"></span></label>
+            <label class="option"><input type="radio" name="choice" value="arcade"><span class="option-number">02</span><span class="option-text"><strong>NYAN ARCADE</strong><small>Мини-игры, рекорды и турниры с лапкоинами.</small></span><span class="option-dot" aria-hidden="true"></span></label>
+            <label class="option"><input type="radio" name="choice" value="contracts"><span class="option-number">03</span><span class="option-text"><strong>NYAN CONTRACTS</strong><small>Задания от администрации, проверка выполнения и награды.</small></span><span class="option-dot" aria-hidden="true"></span></label>
+            <label class="option"><input type="radio" name="choice" value="social"><span class="option-number">04</span><span class="option-text"><strong>NYAN SOCIAL</strong><small>Публичные профили, коллекции достижений и подарки.</small></span><span class="option-dot" aria-hidden="true"></span></label>
+            <label class="option"><input type="radio" name="choice" value="studio"><span class="option-number">05</span><span class="option-text"><strong>NYAN STUDIO 2.0</strong><small>Свои активности, модерация и автоматические выплаты.</small></span><span class="option-dot" aria-hidden="true"></span></label>
+          </fieldset>
+          <div class="vote-bottom"><span>ЗА УЧАСТИЕ <b>+100 🐾</b></span><span>ОДИН ГОЛОС</span></div>
+          <button class="primary" id="submit-vote" type="submit" disabled>ОТДАТЬ ГОЛОС <span aria-hidden="true">↗</span></button>
+        </form>
+      </section>
+
+      <section id="complete-screen" class="complete-screen" aria-labelledby="complete-heading" hidden>
+        <div class="complete-mark" aria-hidden="true">✦</div>
+        <h2 id="complete-heading">голос принят!</h2>
+        <p id="complete-copy">Спасибо! Твой выбор учтён.</p>
+        <div class="complete-reward" id="complete-reward">+100 🐾</div>
+      </section>
+
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+      <a id="open-telegram" class="telegram-link" href="https://t.me/nyancash_bot?startapp=nyan_future_vote" hidden>Открыть голосование в Telegram ↗</a>
+    </main>
+
+    <footer><span>NYAN WALLET</span><span class="footer-dot" aria-hidden="true"></span><span>ТВОЁ МНЕНИЕ ИМЕЕТ ЗНАЧЕНИЕ</span></footer>
+  </div>
+</body>
+</html>

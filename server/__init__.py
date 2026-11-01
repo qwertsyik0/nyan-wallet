@@ -34,6 +34,7 @@ from .recent_transfers_20261011 import print_recent_wallet_transfers_20261011
 from .broadcast import register_broadcast
 from .maintenance import register_maintenance
 from .wallet_survey import register_wallet_survey
+from .nyan_future_vote import register_nyan_future_vote
 from .suggestions import register_suggestions
 from .interactive_ideas import register_interactive_ideas
 from .interactive_builder import register_interactive_builder
@@ -102,6 +103,7 @@ else:
     register_broadcast(backend_app.app)
     register_maintenance(backend_app.app)
     register_quote_reflection(backend_app.app)
+    register_nyan_future_vote(backend_app.app)
     register_suggestions(backend_app.app)
     register_interactive_ideas(backend_app.app)
     register_interactive_builder(backend_app.app)
