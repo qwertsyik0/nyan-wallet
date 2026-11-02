@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#fff8fb">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Шпион среди нас — закрытая игра NYAN SHOP.">
+  <title>NYAN SPY · Шпион среди нас</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./nyan-spy.css?v=1">
+  <script defer src="./nyan-spy.js?v=1"></script>
+</head>
+<body>
+  <div class="page">
+    <header class="top">
+      <div class="brand"><span class="brand-icon" aria-hidden="true">✦</span> NYAN SHOP</div>
+      <span class="label">GAME NIGHT / 01</span>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <span class="orb orb-one" aria-hidden="true"></span>
+        <span class="orb orb-two" aria-hidden="true"></span>
+        <span class="dot dot-one" aria-hidden="true"></span>
+        <span class="dot dot-two" aria-hidden="true"></span>
+        <span class="dot dot-three" aria-hidden="true"></span>
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="eyebrow-dot" aria-hidden="true"></span> СЕКРЕТНАЯ ИГРА</p>
+          <h1 id="hero-title">шпион<br><span>среди нас</span></h1>
+          <p class="hero-description">Все знают локацию. Кроме одного. Сможешь вычислить шпиона?</p>
+        </div>
+        <img class="mascot" src="./assets/nyan-future-vote/nyanik.png" alt="Няник — розовый пиксельный котик" width="1254" height="1254">
+        <span class="hero-index" aria-hidden="true">NYAN / SPY</span>
+      </section>
+
+      <section class="game-panel" aria-labelledby="game-heading">
+        <div class="section-overline"><span id="round-number">РАУНД —</span><span id="live-indicator">ОЖИДАНИЕ</span></div>
+        <h2 id="game-heading">твоя игра</h2>
+        <div class="population" id="population" hidden><span class="population-dot" aria-hidden="true"></span><span id="player-count">0 участников</span></div>
+
+        <div id="loading-screen" class="screen" role="status">
+          <span class="status-symbol" aria-hidden="true">◌</span>
+          <h3>проверяем доступ</h3>
+          <p>подключаемся к игре…</p>
+        </div>
+
+        <div id="idle-screen" class="screen" hidden>
+          <span class="status-symbol" aria-hidden="true">✧</span>
+          <h3>ждём объявления</h3>
+          <p>регистрация ещё не началась. возвращайся, когда появится кнопка в группе.</p>
+        </div>
+
+        <div id="join-screen" class="screen" hidden>
+          <span class="status-symbol" aria-hidden="true">✦</span>
+          <h3>набор открыт!</h3>
+          <p>запишись в игру. роль выпадет случайно после закрытия регистрации.</p>
+          <button id="join-button" class="button-primary" type="button">записаться в игру <span aria-hidden="true">↗</span></button>
+        </div>
+
+        <div id="waiting-screen" class="screen" hidden>
+          <span class="status-symbol success" aria-hidden="true">✓</span>
+          <h3>ты в игре!</h3>
+          <p>регистрация подтверждена. как только набор закроют, здесь появится твоя секретная роль.</p>
+          <span class="mini-label">НЕ ЗАКРЫВАЙ СТРАНИЦУ</span>
+        </div>
+
+        <div id="locked-screen" class="screen" hidden>
+          <span class="status-symbol" aria-hidden="true">⌁</span>
+          <h3>игра уже началась</h3>
+          <p>регистрация закрыта. дождись следующего раунда.</p>
+        </div>
+
+        <div id="role-screen" class="screen secret-screen" hidden>
+          <span class="mini-label">ЛИЧНО · НЕ ПОКАЗЫВАЙ ДРУГИМ</span>
+          <div id="role-card" class="role-card">
+            <span id="role-mark" class="role-mark" aria-hidden="true">?</span>
+            <h3 id="role-title"></h3>
+            <p id="role-description"></p>
+            <div id="location-panel" class="location-panel" hidden><small>СЕКРЕТНАЯ ЛОКАЦИЯ</small><strong id="location-name"></strong></div>
+          </div>
+          <p class="role-footnote">эта роль доступна только тебе. не раскрывай её до конца игры.</p>
+        </div>
+
+        <div id="ended-screen" class="screen" hidden>
+          <span class="status-symbol" aria-hidden="true">✧</span>
+          <h3>раунд завершён</h3>
+          <p>спасибо за игру! жди следующего объявления в группе.</p>
+        </div>
+
+        <div id="notice" class="notice" role="alert" hidden></div>
+        <a id="open-telegram" class="telegram-link" href="https://t.me/nyancash_bot?startapp=nyan_spy" hidden>открыть через Telegram ↗</a>
+        <button id="retry" class="retry" type="button" hidden>повторить проверку ↻</button>
+      </section>
+
+      <section id="owner-panel" class="owner-panel" hidden aria-labelledby="owner-heading">
+        <div class="section-overline"><span>ТОЛЬКО ДЛЯ ВЛАДЕЛЬЦА</span><span>УПРАВЛЕНИЕ</span></div>
+        <h2 id="owner-heading">управление раундом</h2>
+        <p id="owner-help">управляй набором и распределением ролей.</p>
+        <button id="owner-open" class="button-primary" type="button" hidden>открыть набор и отправить приглашение <span aria-hidden="true">↗</span></button>
+        <button id="owner-close" class="button-primary" type="button" hidden>закрыть набор и раздать роли <span aria-hidden="true">↗</span></button>
+        <button id="owner-finish" class="button-secondary" type="button" hidden>завершить раунд</button>
+      </section>
+    </main>
+
+    <footer><span>NYAN SHOP</span><span class="footer-separator" aria-hidden="true"></span><span>ВСЁ РЕШАЕТ ДОВЕРИЕ</span></footer>
+  </div>
+</body>
+</html>
