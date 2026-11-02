@@ -84,17 +84,20 @@ def write_atomic(target: Path, body: bytes) -> None:
 
 
 def health_check() -> None:
+    error = "маршруты ещё не доступны"
     for _ in range(14):
-        if command("systemctl", "is-active", SERVICE) == "active":
-            try:
-                with urllib.request.urlopen("http://127.0.0.1:8000/openapi.json", timeout=3) as response:
-                    body = response.read(900_000).decode("utf-8")
-                if '"/api/nyan-spy/status"' in body and '"/api/owner/nyan-spy/close"' in body:
-                    return
-            except Exception:
-                pass
+        try:
+            if command("systemctl", "is-active", SERVICE) != "active":
+                raise RuntimeError("служба запускается")
+            with urllib.request.urlopen("http://127.0.0.1:8000/openapi.json", timeout=3) as response:
+                body = response.read().decode("utf-8")
+            if '"/api/nyan-spy/status"' in body and '"/api/owner/nyan-spy/close"' in body:
+                return
+            error = "маршруты ещё не появились"
+        except Exception as exc:
+            error = str(exc)
         time.sleep(2)
-    raise RuntimeError("NYAN SPY API не подтвердил запуск")
+    raise RuntimeError("NYAN SPY API не подтвердил запуск: " + error)
 
 
 def main() -> None:
