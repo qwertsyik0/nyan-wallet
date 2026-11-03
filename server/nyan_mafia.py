@@ -6,12 +6,14 @@ assignment and phase mutations run under a Postgres advisory transaction lock.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import os
 import secrets
 from collections import Counter
 from datetime import datetime, timedelta
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from fastapi import APIRouter, Header, HTTPException, Query, Response
 from pydantic import BaseModel, Field
@@ -31,7 +33,6 @@ from .telegram_relay import TelegramRelayMessage, relay_enabled
 router = APIRouter()
 _REGISTERED = False
 _LOCK = 2026110307
-_LINK = "https://t.me/nyancash_bot?startapp=nyan_mafia"
 _SECONDS = {"night": 100, "day": 170, "vote": 65}
 _ACTIVE = ("registration", "night", "day", "vote")
 
@@ -118,8 +119,31 @@ def _owner(init_data: str | None) -> dict:
 
 
 def _group_id() -> int:
-    source = int(os.getenv("NYAN_MAFIA_GROUP_ID", "4385786308"))
-    return int("-100" + str(source)) if source > 0 else source
+    """Never inherit the NYAN SPY group by default."""
+    raw = os.getenv("NYAN_MAFIA_GROUP_ID", "").strip()
+    if not raw:
+        raise HTTPException(503, "Сначала укажи NYAN_MAFIA_GROUP_ID для группы мафии")
+    try:
+        chat_id = int(raw)
+    except ValueError as error:
+        raise HTTPException(503, "NYAN_MAFIA_GROUP_ID должен быть числом") from error
+    if not str(chat_id).startswith("-100"):
+        raise HTTPException(503, "Укажи полный ID супергруппы формата -100...")
+    return chat_id
+
+
+def _invite_url() -> str:
+    """Require a confirmed real Telegram Mini App link, never a demo URL."""
+    url = os.getenv("NYAN_MAFIA_INVITE_URL", "").strip()
+    parsed = urlsplit(url)
+    if (parsed.scheme != "https" or parsed.hostname not in ("t.me", "telegram.me")
+            or not parsed.path.strip("/")
+            or not (parse_qs(parsed.query).get("startapp") or len(parsed.path.strip("/").split("/")) >= 2)):
+        raise HTTPException(
+            503,
+            "Укажи NYAN_MAFIA_INVITE_URL — рабочую ссылку Telegram Mini App для мафии",
+        )
+    return url
 
 
 def _lock(session) -> None:
@@ -401,11 +425,12 @@ def mafia_leave(x_telegram_init_data: str | None = Header(default=None, alias="X
     return {"ok": True}
 
 
-@router.post("/api/owner/nyan-mafia/open")
-def mafia_open(x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data")):
-    _owner(x_telegram_init_data)
+def _open_registration() -> dict:
     if not relay_enabled():
         raise HTTPException(503, "Telegram-рассылка сейчас недоступна")
+    # Validate both destinations BEFORE writing to the database.
+    group_id = _group_id()
+    invite = _invite_url()
     with core.SessionLocal.begin() as session:
         _lock(session)
         current = _latest(session)
@@ -417,15 +442,33 @@ def mafia_open(x_telegram_init_data: str | None = Header(default=None, alias="X-
         session.flush()
         announcement = {
             "text": "🐾 NYAN MAFIA\n\nрегистрация открыта! заходи в игру, получай секретную роль и участвуй в расследовании. игроки общаются и голосуют прямо в mini app.",
-            "buttons": [{"text": "🐾 войти в мафию", "url": _LINK}],
+            "buttons": [{"text": "🐾 войти в мафию", "url": invite}],
         }
         session.add(TelegramRelayMessage(
-            source_key=f"nyan-mafia-join:{game.id}", chat_id=_group_id(),
+            source_key=f"nyan-mafia-join:{game.id}", chat_id=group_id,
             body="NYAN_TG_RICH_V1:" + json.dumps(announcement, ensure_ascii=False),
             state="pending", attempts=0, created_at=now,
         ))
         game_id = game.id
     return {"ok": True, "round_id": game_id, "invitation_queued": True}
+
+
+@router.post("/api/owner/nyan-mafia/open")
+def mafia_open(x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data")):
+    _owner(x_telegram_init_data)
+    return _open_registration()
+
+
+@router.post("/api/internal/nyan-mafia/open")
+def mafia_open_from_bot(
+    x_nyan_mafia_command: str | None = Header(default=None, alias="X-Nyan-Mafia-Command"),
+):
+    """Called only by the owner-gated /mafia bot handler."""
+    token = (core.BOT_TOKEN or "").encode("utf-8")
+    expected = hmac.new(token, b"nyan-mafia:open:v1", hashlib.sha256).hexdigest()
+    if not x_nyan_mafia_command or not hmac.compare_digest(x_nyan_mafia_command, expected):
+        raise HTTPException(401, "Unauthorized")
+    return _open_registration()
 
 
 @router.post("/api/owner/nyan-mafia/start")
