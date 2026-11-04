@@ -292,7 +292,7 @@
 
   function renderMessages() {
     const list = $('message-list');
-    const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 70;
+    const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 120;
     list.replaceChildren();
     const items = cachedMessages[channel];
     if (!items.length) {
@@ -510,16 +510,49 @@
   $('compose').addEventListener('submit', async (event) => {
     event.preventDefault();
     const input = $('message-text');
+    const button = $('send');
     const value = input.value.trim();
-    if (!value || busy) return;
-    busy = true;
-    $('send').disabled = true;
+    if (!value || busy || sendPending || !state?.joined || !state.alive) return;
+    const sendingChannel = channel;
+    const sendingRound = lastRound;
+    sendPending = true;
+    button.disabled = true;
+    button.textContent = '…';
+    chatFeedback('отправляем сообщение…', 'sending');
     try {
-      await api('/api/nyan-mafia/messages', 'POST', { text: value, channel });
-      input.value = '';
-      await loadChat();
-    } catch (err) { notice(errorText(err)); }
-    finally { busy = false; $('send').disabled = false; }
+      // The backend limits each player to one message every 1.2 seconds.
+      // Queue the next send locally instead of silently dropping it.
+      const delay = Math.max(0, 1450 - (Date.now() - lastSentAt));
+      if (delay) await new Promise(resolve => window.setTimeout(resolve, delay));
+      let response;
+      try {
+        response = await api('/api/nyan-mafia/messages', 'POST', { text: value, channel: sendingChannel });
+      } catch (error) {
+        if (!/слишком часто|429/.test(error.message || '')) throw error;
+        await new Promise(resolve => window.setTimeout(resolve, 1500));
+        response = await api('/api/nyan-mafia/messages', 'POST', { text: value, channel: sendingChannel });
+      }
+      lastSentAt = Date.now();
+      // Preserve anything typed into the input while this request was in flight.
+      if (input.value.trim() === value) input.value = '';
+      if (response.message && sendingRound === lastRound) {
+        const messages = cachedMessages[sendingChannel];
+        if (!messages.some(msg => msg.id === response.message.id)) {
+          messages.push(response.message);
+          cachedMessages[sendingChannel] = messages.slice(-120);
+        }
+        if (sendingChannel === channel) renderMessages();
+      }
+      chatFeedback('');
+      void loadChat();
+    } catch (error) {
+      // Do not clear the input: a failed message can be retried.
+      chatFeedback('сообщение не подтверждено сервером: ' + errorText(error) + '. текст сохранён — попробуй ещё раз.', 'send');
+    } finally {
+      sendPending = false;
+      button.disabled = false;
+      button.textContent = '➜';
+    }
   });
 
   if (!initData) {
@@ -530,7 +563,7 @@
     $('telegram-link').hidden = false;
   } else {
     void refresh();
-    window.setInterval(() => { if (!document.hidden) void refresh(); }, 3300);
+    window.setInterval(() => { if (!document.hidden) void refresh(); }, 4500);
     window.setInterval(() => { if (!document.hidden) void loadChat(); }, 2100);
     window.setInterval(updateClock, 500);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) void refresh(); });
