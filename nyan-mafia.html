@@ -11,8 +11,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="./nyan-mafia.css?v=2">
-  <script defer src="./nyan-mafia.js?v=2"></script>
+  <link rel="stylesheet" href="./nyan-mafia.css?v=20261104">
+  <script defer src="./nyan-mafia.js?v=20261104"></script>
 </head>
 <body>
   <div class="shell">
@@ -20,10 +20,12 @@
       <div class="wordmark"><span class="wordmark-paw" aria-hidden="true">✿</span><span>NYAN <em>MAFIA</em></span></div>
       <span class="top-state" id="top-state"><span class="blink"></span> подключение</span>
     </header>
+
     <main>
       <section class="cover" aria-labelledby="cover-title">
         <h1 id="cover-title" class="sr-only">NYAN MAFIA</h1>
       </section>
+
       <section class="status-panel" id="status-panel" aria-live="polite">
         <div class="caption-line"><span id="round-mark">РАУНД —</span><span id="phase-mark">ПОДКЛЮЧАЕМСЯ</span></div>
         <div class="main-status">
@@ -44,18 +46,22 @@
           <p id="registration-hint">для старта нужно минимум 4 участника</p>
         </div>
       </section>
+
       <section class="event-strip" id="event-strip" hidden aria-live="polite">
         <span class="event-symbol" aria-hidden="true">✦</span>
         <div><strong>сейчас в городе</strong><p id="event-text"></p></div>
       </section>
+
       <section class="private-result panel" id="private-result" hidden>
         <div class="section-title"><h2>секретная информация</h2><span class="tiny">ВИДНО ТОЛЬКО ТЕБЕ</span></div>
         <p id="private-result-text"></p>
       </section>
+
       <section class="room panel" id="room" hidden>
         <div class="section-title"><h2>участники <span id="player-total">0 / 20</span></h2><span class="tiny">ПРОФИЛИ TELEGRAM</span></div>
         <div class="players" id="players"></div>
       </section>
+
       <section class="my-card panel" id="role-section" hidden>
         <div class="section-title"><h2>твоя роль</h2><span class="tiny">ТОЛЬКО ТЕБЕ</span></div>
         <button type="button" class="role-reveal" id="role-reveal" aria-pressed="false" aria-label="показать секретную роль">
@@ -64,8 +70,11 @@
         </button>
         <p id="role-hint" class="role-hint" hidden></p>
       </section>
+
       <section class="game-panel panel" id="game-panel" hidden>
-        <div class="illustrated-stage" id="stage" role="img" aria-label="текущая фаза игры"><span class="stage-label" id="stage-label">NYAN MAFIA</span></div>
+        <div class="illustrated-stage" id="stage" role="img" aria-label="текущая фаза игры">
+          <span class="stage-label" id="stage-label">NYAN MAFIA</span>
+        </div>
         <div class="select-panel" id="select-panel" hidden>
           <div class="section-title"><h2 id="select-title">выбери игрока</h2><span class="tiny" id="select-count">0 / 1</span></div>
           <p id="select-hint" class="select-hint"></p>
@@ -74,6 +83,7 @@
           <p class="small-note" id="choice-note">до конца фазы выбор можно изменить</p>
         </div>
       </section>
+
       <section class="chat panel" id="chat-panel" hidden>
         <div class="section-title"><h2>игровой чат</h2><span class="tiny" id="chat-privacy">ОБЩИЙ</span></div>
         <div class="chat-tabs" role="tablist" aria-label="выбор игрового чата">
@@ -88,11 +98,13 @@
         </form>
         <p class="read-only" id="chat-lock" hidden>сейчас можно только читать сообщения</p>
       </section>
+
       <section class="result-panel panel" id="result-panel" hidden>
         <div class="result-image" id="result-image"></div>
         <h2 id="result-title">игра завершена</h2>
         <p id="result-description">спасибо всем за игру!</p>
       </section>
+
       <details class="how-to panel" id="how-to">
         <summary>как играть <span aria-hidden="true">⌄</span></summary>
         <div class="how-to-content">
@@ -105,6 +117,7 @@
           <p>мирные выигрывают, когда устранят мафию и маньяка. мафия побеждает, когда получает численное преимущество. маньяк играет сам за себя.</p>
         </div>
       </details>
+
       <section class="host panel" id="host-panel" hidden>
         <div class="section-title"><h2>управление</h2><span class="tiny">ВЕДУЩИЙ</span></div>
         <p id="host-info">управление раундом доступно только владельцу.</p>
@@ -116,6 +129,7 @@
         </div>
       </section>
     </main>
+
     <footer class="footer">NYAN SHOP <span>✦</span> КАЖДЫЙ МОЖЕТ ОКАЗАТЬСЯ МАФИЕЙ</footer>
   </div>
 </body>
