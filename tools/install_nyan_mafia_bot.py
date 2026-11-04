@@ -97,12 +97,25 @@ def atomic_write(path: Path, payload: bytes) -> None:
         if os.path.exists(temp):
             os.unlink(temp)
 
+def restart_existing_bot(root: Path) -> None:
+    """Reuse the existing single-process nohup restart mechanism."""
+    helper = Path("/home/nyanteam/nyan-wallet/tools/nyan_bot_autodeploy.py")
+    if not helper.is_file():
+        raise RuntimeError("не найден проверенный помощник запуска бота: " + str(helper))
+    sys.path.insert(0, str(helper.parent))
+    from nyan_bot_autodeploy import BOT, restart_nohup
+    if BOT.resolve() != root.resolve():
+        raise RuntimeError("путь бота отличается от настроенного auto-deploy: " + str(BOT))
+    restart_nohup()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--check", action="store_true")
     mode.add_argument("--apply", action="store_true")
-    parser.add_argument("--root", type=Path, default=Path("."))
+    parser.add_argument("--root", type=Path, default=Path("/home/nyanteam/new_bot"))
+    parser.add_argument("--restart", action="store_true", help="Перезапустить единственный существующий процесс бота после установки")
     args = parser.parse_args()
     root = args.root.resolve()
     bot = root / "bot.py"
@@ -124,6 +137,8 @@ def main() -> None:
         return
     if not changed:
         print("обработчик команды уже установлен")
+        if args.restart:
+            restart_existing_bot(root)
         return
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d-%H%M%S")
     backup = root / (".nyan-mafia-bot-backup-" + stamp)
@@ -143,16 +158,25 @@ def main() -> None:
                               text=True, capture_output=True)
         if test.returncode:
             raise RuntimeError(test.stderr[-1000:])
+        if args.restart:
+            restart_existing_bot(root)
     except Exception:
         for path, prior in reversed(original):
             if prior is None:
                 path.unlink(missing_ok=True)
             else:
                 atomic_write(path, prior)
+        if args.restart:
+            try:
+                restart_existing_bot(root)
+                print("восстановлен прежний бот", file=sys.stderr)
+            except Exception as rollback_error:
+                print("ОШИБКА восстановления прежнего бота:", rollback_error, file=sys.stderr)
         raise
     print("обработчик /mafia подготовлен")
     print("резервная копия:", backup)
-    print("бот не перезапускался; регистрация не открывалась")
+    print("бот перезапущен" if args.restart else "бот не перезапускался")
+    print("регистрация не открывалась, никаких сообщений не отправлено")
 
 if __name__ == "__main__":
     try:
