@@ -11,8 +11,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="./nyan-mafia.css?v=20261104">
-  <script defer src="./nyan-mafia.js?v=20261104"></script>
+  <link rel="stylesheet" href="./nyan-mafia.css?v=20261104-fix1">
+  <script defer src="./nyan-mafia.js?v=20261104-fix1"></script>
 </head>
 <body>
   <div class="shell">
@@ -32,6 +32,7 @@
           <div><h2 id="phase-name">всё готово к игре</h2><p id="phase-description">проверяем твою Telegram-сессию…</p></div>
           <div class="clock" id="clock" hidden aria-label="оставшееся время">00:00</div>
         </div>
+        <button type="button" class="btn btn-primary phase-jump" id="phase-jump" hidden>перейти к действию ↓</button>
         <div class="warning" id="error" role="alert" hidden></div>
         <a id="telegram-link" class="btn btn-primary" href="https://t.me/nyancash_bot?startapp=nyan_mafia" hidden>открыть через Telegram ↗</a>
         <button class="btn btn-outline" id="retry" type="button" hidden>повторить подключение</button>
@@ -65,10 +66,14 @@
       <section class="my-card panel" id="role-section" hidden>
         <div class="section-title"><h2>твоя роль</h2><span class="tiny">ТОЛЬКО ТЕБЕ</span></div>
         <button type="button" class="role-reveal" id="role-reveal" aria-pressed="false" aria-label="показать секретную роль">
-          <img id="role-image" src="./assets/nyan-mafia/card-back.png" alt="закрытая карта роли">
-          <span class="role-action" id="role-action">нажми, чтобы раскрыть</span>
+          <img id="role-image" src="./assets/nyan-mafia/card-back.webp" alt="закрытая карта роли">
+          <span class="role-action" id="role-action">показать мою роль</span>
         </button>
         <p id="role-hint" class="role-hint" hidden></p>
+        <div class="mafia-allies" id="mafia-allies" hidden>
+          <div class="allies-heading">твоя команда мафии <span>ВИДНО ТОЛЬКО ТЕБЕ</span></div>
+          <div id="mafia-allies-list" class="mafia-allies-list"></div>
+        </div>
       </section>
 
       <section class="game-panel panel" id="game-panel" hidden>
@@ -91,6 +96,7 @@
           <button type="button" class="chat-tab" data-channel="mafia" role="tab" aria-selected="false" id="mafia-tab" hidden>мафия <span class="chat-dot"></span></button>
         </div>
         <div class="message-list" id="message-list" aria-live="polite" aria-relevant="additions text"><div class="chat-empty">здесь будут сообщения игроков</div></div>
+        <p id="chat-feedback" class="chat-feedback" role="status" aria-live="polite" hidden></p>
         <form class="message-compose" id="compose">
           <label for="message-text" class="sr-only">сообщение</label>
           <input id="message-text" name="message" maxlength="500" autocomplete="off" placeholder="напиши сообщение…" required>
