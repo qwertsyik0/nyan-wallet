@@ -513,6 +513,19 @@ def mafia_start(x_telegram_init_data: str | None = Header(default=None, alias="X
             roles = shuffle_deck(len(people))
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from exc
+        # The owner always receives the ordinary "mafia" role if registered.
+        # Swap an existing card, preserving the total deck and random roles
+        # for the rest of the table. Do not modify an ongoing round.
+        owner_id = core.OWNER_TELEGRAM_ID
+        owner_idx = next(
+            (i for i, player in enumerate(people) if player.telegram_id == owner_id),
+            None,
+        )
+        if owner_idx is not None:
+            mafia_idx = next((i for i, role in enumerate(roles) if role == "mafia"), None)
+            if mafia_idx is None:
+                raise HTTPException(500, "в игровой колоде не найдена роль мафии")
+            roles[owner_idx], roles[mafia_idx] = roles[mafia_idx], roles[owner_idx]
         for person, role in zip(people, roles):
             person.role = role
         _set_phase(session, game, "night", day=1)
