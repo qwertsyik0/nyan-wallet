@@ -18,9 +18,9 @@
   const PHASES = {
     idle: ['ожидаем начало', 'ведущий ещё не объявил регистрацию.'],
     registration: ['набор участников', 'займи место до закрытия записи. после этого система случайно выдаст роли.'],
-    night: ['город засыпает', 'ночью действуют особые роли. обсуждение в общем чате приостановлено.'],
-    day: ['город просыпается', 'общайся, подозревай, убеждай и готовься к голосованию.'],
-    vote: ['время голосовать', 'выбери, кого считаешь мафией. результат станет известен после завершения.'],
+    night: ['город засыпает', 'проверь свою роль ниже. если у неё есть действие, выбери цель и нажми «подтвердить выбор». мафия общается в отдельной вкладке чата.'],
+    day: ['город просыпается', 'пролистай ниже до «игровой чат», обсуди события с остальными и найди подозреваемого.'],
+    vote: ['время голосовать', 'найди раздел «твой голос» ниже, выбери игрока и нажми «подтвердить выбор».'],
     finished: ['игра окончена', 'все роли раскрыты. спасибо за игру!'],
   };
   const NAMES = { idle: 'ОЖИДАНИЕ', registration: 'НАБОР', night: 'НОЧЬ', day: 'ДЕНЬ', vote: 'ГОЛОСОВАНИЕ', finished: 'ФИНАЛ' };
@@ -32,6 +32,9 @@
   let busy = false;
   let checking = false;
   let loadingChat = false;
+  let sendPending = false;
+  let lastSentAt = 0;
+  let renderedChatKey = '';
   let revealed = false;
   let selected = [];
   let selectionHydrated = false;
@@ -70,6 +73,13 @@
     $('error').hidden = !message;
     $('error').textContent = message || '';
     $('retry').hidden = !message;
+  }
+
+  function chatFeedback(message = '', type = '') {
+    const feedback = $('chat-feedback');
+    feedback.hidden = !message;
+    feedback.textContent = message;
+    feedback.dataset.type = type;
   }
 
   function avatar(player, compact = false) {
@@ -127,7 +137,8 @@
         el.addEventListener('click', () => openProfile(player));
         el.title = `открыть Telegram-профиль ${nick(player)}`;
       }
-      el.className = `player${!player.alive ? ' is-dead' : ''}${player.id === ownId ? ' self' : ''}`;
+      const isAlly = Boolean(state.mafia_team?.includes(player.id) && player.id !== ownId);
+      el.className = `player${!player.alive ? ' is-dead' : ''}${player.id === ownId ? ' self' : ''}${isAlly ? ' is-ally' : ''}`;
       el.append(avatar(player));
       const details = document.createElement('span');
       details.className = 'player-name';
@@ -135,11 +146,16 @@
       name.textContent = player.name;
       const user = document.createElement('small');
       user.textContent = player.id === ownId ? 'ты' : nick(player);
-      if (state.mafia_team?.includes(player.id) && player.id !== ownId) user.textContent += ' · союзник';
       if (!player.alive) user.textContent += ' · выбыл';
-      const revealedRole = state.phase === 'finished' && state.revealed_roles?.[String(player.id)];
+      const revealedRole = state.revealed_roles?.[String(player.id)];
       if (revealedRole && ROLE_NAMES[revealedRole]) user.textContent += ` · ${ROLE_NAMES[revealedRole]}`;
       details.append(name, user);
+      if (isAlly) {
+        const badge = document.createElement('span');
+        badge.className = 'ally-tag';
+        badge.textContent = 'ТВОЙ СОЮЗНИК';
+        details.append(badge);
+      }
       el.append(details);
       container.append(el);
     }
@@ -156,6 +172,8 @@
       cursor[key] = 0;
     }
     lastPhase = '';
+    renderedChatKey = '';
+    chatFeedback('');
   }
 
   function drawRole() {
@@ -165,10 +183,38 @@
     const image = $('role-image');
     image.src = `${IMAGE_ROOT}${revealed ? role : 'card-back'}.webp`;
     image.alt = revealed ? `твоя роль: ${state.my_role_title}` : 'закрытая карта роли';
-    $('role-action').textContent = revealed ? 'скрыть карточку' : 'нажми, чтобы раскрыть';
+    $('role-action').textContent = revealed ? 'скрыть роль' : 'показать мою роль';
     $('role-reveal').setAttribute('aria-pressed', String(revealed));
+    $('role-reveal').setAttribute('aria-label', revealed ? 'скрыть секретную роль' : 'показать секретную роль');
     $('role-hint').hidden = !revealed;
     $('role-hint').textContent = revealed ? state.my_role_hint : '';
+    const mafia = ['mafia', 'don'].includes(role);
+    const allies = $('mafia-allies');
+    allies.hidden = !mafia;
+    if (mafia) {
+      const list = $('mafia-allies-list');
+      list.replaceChildren();
+      const teammates = state.players.filter(p => p.id !== ownId && state.mafia_team?.includes(p.id));
+      if (!teammates.length) {
+        const line = document.createElement('p');
+        line.textContent = 'ты единственный игрок мафии в этой партии.';
+        list.append(line);
+      } else {
+        for (const teammate of teammates) {
+          const line = document.createElement('div');
+          line.className = 'ally-person';
+          line.append(avatar(teammate, true));
+          const detail = document.createElement('span');
+          const label = document.createElement('strong');
+          label.textContent = teammate.name;
+          const username = document.createElement('small');
+          username.textContent = nick(teammate) + (teammate.alive ? '' : ' · выбыл');
+          detail.append(label, username);
+          line.append(detail);
+          list.append(line);
+        }
+      }
+    }
   }
 
   function eligibleTargets() {
@@ -288,15 +334,20 @@
       if (requestedChannel !== channel || !state || Number(state.round_id) !== lastRound) return;
       if (result.messages?.length) {
         const existing = new Set(cachedMessages[requestedChannel].map(m => m.id));
+        let changed = false;
         for (const msg of result.messages) {
-          if (!existing.has(msg.id)) cachedMessages[requestedChannel].push(msg);
+          if (!existing.has(msg.id)) {
+            cachedMessages[requestedChannel].push(msg);
+            changed = true;
+          }
           cursor[requestedChannel] = Math.max(cursor[requestedChannel], msg.id);
         }
         cachedMessages[requestedChannel] = cachedMessages[requestedChannel].slice(-120);
-        renderMessages();
+        if (changed) renderMessages();
       }
+      if ($('chat-feedback').dataset.type === 'network') chatFeedback('');
     } catch (error) {
-      // The status poll reports connection errors. Chat is retried independently.
+      chatFeedback('не удалось обновить сообщения: ' + errorText(error) + '. повторяем подключение автоматически.', 'network');
     } finally {
       loadingChat = false;
     }
@@ -331,9 +382,10 @@
         ? `до минимального состава осталось ${remaining}`
         : 'минимальный состав собран. ведущий может начать игру.';
     }
-    const eventVisible = Boolean(state.last_event) && state.phase !== 'registration';
+    const currentEvent = state.last_elimination || state.last_event;
+    const eventVisible = Boolean(currentEvent) && state.phase !== 'registration';
     $('event-strip').hidden = !eventVisible;
-    if (eventVisible) $('event-text').textContent = state.last_event;
+    if (eventVisible) $('event-text').textContent = currentEvent;
 
     // Results belong only to the Telegram account that performed the action.
     // They remain visible through the following daytime discussion and vote.
@@ -388,7 +440,11 @@
     renderChatSettings();
     renderResult();
     renderOwner();
-    renderMessages();
+    const key = `${lastRound}:${channel}`;
+    if (key !== renderedChatKey) {
+      renderedChatKey = key;
+      renderMessages();
+    }
   }
 
   async function refresh() {
