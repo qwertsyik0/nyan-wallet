@@ -395,6 +395,28 @@
     $('private-result-text').textContent = privateVisible ? state.night_result : '';
   }
 
+  function renderPhaseJump() {
+    const button = $('phase-jump');
+    let target = '';
+    let label = '';
+    if (state.phase === 'night' && state.joined) {
+      target = state.alive && ROLE_ACTIONS[state.my_role] ? 'select-panel' : 'role-section';
+      label = state.alive && ROLE_ACTIONS[state.my_role] ? 'перейти к ночному действию ↓' : 'посмотреть свою роль ↓';
+    } else if (state.phase === 'day') {
+      target = 'chat-panel';
+      label = 'открыть общий чат ↓';
+    } else if (state.phase === 'vote') {
+      target = state.joined && state.alive ? 'select-panel' : 'chat-panel';
+      label = state.joined && state.alive ? 'перейти к голосованию ↓' : 'перейти к чату ↓';
+    } else if (state.phase === 'finished') {
+      target = 'result-panel';
+      label = 'посмотреть итоги ↓';
+    }
+    button.hidden = !target;
+    button.dataset.target = target;
+    if (target) button.textContent = label;
+  }
+
   function renderOwner() {
     $('host-panel').hidden = !state.is_owner;
     if (!state.is_owner) return;
@@ -440,6 +462,7 @@
     renderChatSettings();
     renderResult();
     renderOwner();
+    renderPhaseJump();
     const key = `${lastRound}:${channel}`;
     if (key !== renderedChatKey) {
       renderedChatKey = key;
@@ -488,6 +511,10 @@
     $('clock').textContent = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
   }
 
+  $('phase-jump').addEventListener('click', () => {
+    const target = document.getElementById($('phase-jump').dataset.target || '');
+    if (target && !target.hidden) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
   $('join').addEventListener('click', () => void act('/api/nyan-mafia/join'));
   $('leave').addEventListener('click', () => void act('/api/nyan-mafia/leave', undefined, 'отменить запись на эту игру?'));
   $('retry').addEventListener('click', () => void refresh());
