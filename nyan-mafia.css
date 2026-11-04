@@ -32,3 +32,43 @@
 .how-to-content ol{padding-left:18px}.how-to-content li+li{margin-top:8px}
 @media(min-width:580px){.lobby-scene{height:235px}}
 @media(prefers-reduced-motion:reduce){.progress-track span,.how-to summary span{transition:none}}
+
+
+/* NYAN MAFIA: feedback fixes after the first test round */
+.role-reveal .role-action {
+  display:block; position:static; left:auto; right:auto; bottom:auto;
+  margin-top:13px; padding:12px 14px; border-radius:12px;
+  background:#fff0f6; border:1px solid #e5b6ca; color:#823252;
+  font-size:12px; font-weight:850; backdrop-filter:none;
+}
+.role-reveal:focus-visible { outline:3px solid #cb79a0; outline-offset:5px; border-radius:14px; }
+.role-reveal:active .role-action { background:#f9d9e8; }
+.player.is-ally { border:2px solid #a53b6b; background:#ffedf5; }
+.ally-tag {
+  display:inline-block; padding:4px 7px; margin-top:6px; border-radius:6px;
+  background:#96325e; color:white; font-size:8px; font-weight:900;
+  letter-spacing:.035em; white-space:nowrap;
+}
+.mafia-allies {
+  margin-top:16px; padding:14px; background:#fff1f7; border:2px solid #db9bb9;
+  border-radius:14px; text-align:left;
+}
+.allies-heading {
+  display:flex; flex-wrap:wrap; justify-content:space-between;
+  align-items:center; gap:6px; color:#8c2455; font-weight:900; font-size:13px;
+  margin-bottom:12px;
+}
+.allies-heading span {color:#b86e92;font-size:8px;font-weight:800;letter-spacing:.045em}
+.mafia-allies-list {display:grid;gap:8px}
+.mafia-allies-list p {font-size:12px;line-height:1.5;color:#8a5471;margin:2px 0}
+.ally-person {
+  display:flex;align-items:center;gap:10px;padding:10px;
+  border-radius:11px;background:white;border:1px solid #e9bfd2;
+}
+.ally-person>span:last-child {min-width:0;flex:1;display:block}
+.ally-person strong {display:block;color:#7e2e57;font-size:12px;overflow-wrap:anywhere}
+.ally-person small {display:block;color:#a36b8a;font-size:11px;margin-top:3px}
+.chat-feedback {margin:10px 0 0; padding:9px 11px;border-radius:10px;font-size:11px;line-height:1.5;color:#a13757;background:#fff1f4;border:1px solid #f0b9c9}
+.chat-feedback[data-type="sending"] {color:#775175;background:#faf0fb;border-color:#e6cde8}
+.chat-feedback[data-type="network"] {color:#92405b;background:#fff5f7}
+.message-compose button:disabled {opacity:.55;cursor:wait}
