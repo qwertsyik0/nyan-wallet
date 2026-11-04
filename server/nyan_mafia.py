@@ -19,7 +19,7 @@ from fastapi import APIRouter, Header, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import (
     BigInteger, Boolean, DateTime, ForeignKey, ForeignKeyConstraint,
-    Integer, String, Text, UniqueConstraint, func, select, text,
+    Integer, String, Text, UniqueConstraint, func, or_, select, text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -169,6 +169,15 @@ def _system(session, game: MafiaRound, message: str) -> None:
     ))
 
 
+def _eliminated_announcement(session, player: MafiaPlayer) -> str:
+    """Public elimination result: reveal only this player's role, never living roles."""
+    user = session.get(core.User, player.telegram_id)
+    label = ("@" + user.username) if user and user.username else (
+        user.first_name if user else f"ID {player.telegram_id}"
+    )
+    return f"{label} — {ROLE_TITLE.get(player.role, 'роль неизвестна')}"
+
+
 def _end_if_won(session, game: MafiaRound, people: list[MafiaPlayer]) -> bool:
     winner = winner_for_roles([p.role for p in people if p.alive and p.role])
     if winner is None:
@@ -266,7 +275,11 @@ def _resolve_night(session, game: MafiaRound) -> None:
 
     for target_id in dead:
         by_id[target_id].alive = False
-    _system(session, game, f"утро. за ночь выбыло игроков: {len(dead)}." if dead else "утро. этой ночью никто не выбыл.")
+    if dead:
+        announcements = "; ".join(_eliminated_announcement(session, by_id[uid]) for uid in dead)
+        _system(session, game, "этой ночью выбыли: " + announcements + ".")
+    else:
+        _system(session, game, "утро. этой ночью никто не выбыл.")
     if not _end_if_won(session, game, people):
         _set_phase(session, game, "day")
 
@@ -297,8 +310,7 @@ def _resolve_vote(session, game: MafiaRound) -> None:
         _system(session, game, "адвокат защитил выбранного игрока. изгнание отменено.")
     else:
         by_id[target].alive = False
-        game.last_event = f"игрок выбыл после голосования: {target}."
-        _system(session, game, "по итогам голосования один игрок покинул город.")
+        eliminated = [target]
         # A prepared kamikaze takes their night-selected target when voted out.
         if by_id[target].role == "kamikaze":
             revenge = session.scalar(select(MafiaChoice).where(
@@ -308,7 +320,9 @@ def _resolve_vote(session, game: MafiaRound) -> None:
             ))
             if revenge and revenge.target_id in alive and revenge.target_id != target:
                 by_id[revenge.target_id].alive = False
-                _system(session, game, "камикадзе забрал с собой ещё одного игрока.")
+                eliminated.append(revenge.target_id)
+        names = "; ".join(_eliminated_announcement(session, by_id[uid]) for uid in eliminated)
+        _system(session, game, "после голосования выбыли: " + names + ".")
     if not _end_if_won(session, game, people):
         _set_phase(session, game, "night", day=game.day + 1)
 
@@ -376,8 +390,23 @@ def _state(session, game: MafiaRound | None, tg: dict) -> dict:
             ))
             if action:
                 result["my_choice"] = {"target_id": action.target_id, "second_target_id": action.second_target_id}
-    if game.phase == "finished":
-        result["revealed_roles"] = {str(p.telegram_id): p.role for p in people if p.role}
+    # Publicly reveal only players who have left the game. Living roles stay secret.
+    result["revealed_roles"] = {
+        str(p.telegram_id): p.role for p in people
+        if p.role and (not p.alive or game.phase == "finished")
+    }
+    # Phase transitions replace game.last_event; preserve the last elimination
+    # from the current phase boundary, without introducing a DB migration.
+    latest_elimination = session.scalar(select(MafiaMessage).where(
+        MafiaMessage.round_id == game.id,
+        MafiaMessage.channel == "system",
+        or_(
+            MafiaMessage.body.like("этой ночью выбыли:%"),
+            MafiaMessage.body.like("после голосования выбыли:%"),
+        ),
+        MafiaMessage.created_at >= game.phase_started_at - timedelta(seconds=10),
+    ).order_by(MafiaMessage.id.desc()).limit(1))
+    result["last_elimination"] = latest_elimination.body if latest_elimination else None
     return result
 
 
