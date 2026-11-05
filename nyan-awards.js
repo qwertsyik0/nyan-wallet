@@ -15,15 +15,15 @@
   };
   const FALLBACK = [
     ['legend_nyan','Легенда Нян','Главная награда экосистемы','100 ⭐ · физ. аккаунт Японии · 600 🐾'],
-    ['soul_nyan','Душа Нян','Тот, кто делает сообщество теплее','250 🐾'],
+    ['soul_nyan','Душа Нян','Тот, кто делает сообщество теплее','25 ⭐ · 250 🐾'],
     ['face_nyan','Лицо Нян','Самый узнаваемый участник','50 ⭐ · 300 🐾'],
-    ['discovery','Открытие года','Главное новое имя года','150 🐾'],
-    ['creator','Творец Нян','Идеи, творчество и вдохновение','200 🐾'],
-    ['engine','Двигатель Нян','Человек, который двигает проекты вперёд','200 🐾'],
+    ['discovery','Открытие года','Главное новое имя года','25 ⭐ · 150 🐾'],
+    ['creator','Творец Нян','Идеи, творчество и вдохновение','25 ⭐ · 200 🐾'],
+    ['engine','Двигатель Нян','Человек, который двигает проекты вперёд','25 ⭐ · 200 🐾'],
     ['games_legend','Легенда Nyan Games','Выдающиеся игровые достижения','25 ⭐ · физ. аккаунт · 250 🐾'],
-    ['mafia_master','Мастер мафии','Игра, тактика и победы','200 🐾'],
-    ['finance','Финансовый стратег','Успехи в экономике Nyan Wallet','150 🐾'],
-    ['admin','Администратор года','Забота о проектах и участниках','200 🐾'],
+    ['mafia_master','Мастер мафии','Игра, тактика и победы','25 ⭐ · 200 🐾'],
+    ['finance','Финансовый стратег','Успехи в экономике Nyan Wallet','25 ⭐ · 150 🐾'],
+    ['admin','Администратор года','Забота о проектах и участниках','25 ⭐ · 200 🐾'],
     ['flood_legend','Легенда флуда','Награда партнёрского флуда','75 ⭐ · физ. аккаунт · 300 🐾'],
   ].map(([key,title,description,prize]) => ({ key,title,description,prize,
     evidence_based: ['games_legend','mafia_master','finance'].includes(key),partner:key==='flood_legend' }));
@@ -236,6 +236,20 @@
   }
 
   function renderResults() {
+    const random = $('#random-voter-result');
+    clear(random);
+    random.append(el('h3',null,'счастливый голос · 50 ⭐'));
+    if (state.random_voter) {
+      const card = el('div','winner-card');
+      const copy = el('div','winner-copy');
+      copy.append(el('span','winner-tag','РОЗЫГРЫШ СРЕДИ ПРОГОЛОСОВАВШИХ'));
+      copy.append(el('strong',null,state.random_voter.name));
+      copy.append(el('small',null,'50 ⭐ · один случайный участник'));
+      card.append(copy);
+      random.append(card);
+    } else {
+      random.append(el('p','empty-note','Случайный победитель ещё не определён.'));
+    }
     const list = $('#results-list');
     clear(list);
     state.categories.forEach((category) => {
@@ -299,6 +313,24 @@
       const data = await request('/api/owner/nyan-awards/candidates');
       const panel = $('#owner-panel');
       panel.hidden = false;
+      const drawPanel = $('#random-voter-owner');
+      clear(drawPanel);
+      drawPanel.append(el('h3',null,'розыгрыш 50 ⭐'));
+      drawPanel.append(el('p','empty-note',`Уникальных участников: ${data.random_voter_eligible ?? 0}. Каждый Telegram ID участвует один раз; организатор исключён.`));
+      if (data.random_voter) {
+        drawPanel.append(el('p','saved-vote',`Победитель уже выбран: ${data.random_voter.name}. Повторная жеребьёвка недоступна.`));
+      } else if (['ceremony_wait','results'].includes(state.phase)) {
+        const drawButton = el('button','secondary','Определить случайного победителя');
+        drawButton.type = 'button';
+        drawButton.addEventListener('click',() => void withBusy(async () => {
+          const result = await request('/api/owner/nyan-awards/random-voter/draw',{method:'POST'});
+          notice(`Случайный победитель определён: ${result.winner.name}. Повторно выбрать другого нельзя.`);
+          await load();
+        }));
+        drawPanel.append(drawButton);
+      } else {
+        drawPanel.append(el('p','empty-note','Жеребьёвка откроется после завершения голосования 8 ноября.'));
+      }
       const list = $('#owner-list');
       clear(list);
       state.categories.forEach((category) => {

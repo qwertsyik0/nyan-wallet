@@ -29,6 +29,7 @@ class User(Base):
     __tablename__ = "users"
     telegram_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     username: Mapped[str | None] = mapped_column(String(64))
+    first_name: Mapped[str | None] = mapped_column(String(100))
 
 
 pkg = types.ModuleType("server")
@@ -36,6 +37,8 @@ pkg.__path__ = [str(ROOT / "server")]
 sys.modules["server"] = pkg
 core = types.ModuleType("server.backend_app")
 core.Base = Base
+core.User = User
+core.OWNER_TELEGRAM_ID = 1
 core.engine = engine
 core.SessionLocal = SessionLocal
 core.now_utc = lambda: datetime.now(timezone.utc)
@@ -66,7 +69,7 @@ sys.modules[spec.name] = awards
 spec.loader.exec_module(awards)
 Base.metadata.create_all(engine)
 with SessionLocal.begin() as session:
-    session.add_all(User(telegram_id=uid, username=f"user{uid}") for uid in range(1, 12))
+    session.add_all(User(telegram_id=uid, username=f"user{uid}", first_name=f"User {uid}") for uid in range(1, 12))
 
 phase = ["nominations"]
 awards.phase_at = lambda: phase[0]
@@ -157,16 +160,29 @@ for category in ("legend_nyan", "games_legend"):
         ok("POST", "/api/owner/nyan-awards/finalist", 1, nomination_id=nominee["id"], finalist=True)
 fail(403, "POST", "/api/owner/nyan-awards/finalist", 2, nomination_id=1, finalist=False)
 phase[0] = "voting"
+fail(409, "POST", "/api/owner/nyan-awards/random-voter/draw", 1)
 ids = {n["username"]: n["id"] for n in ok("GET", "/api/owner/nyan-awards/candidates", 1)["candidates"]
         if n["category"] == "legend_nyan"}
 for voter, name in ((6, "user2"), (7, "user2"), (8, "user3"), (9, "user3")):
     ok("POST", "/api/nyan-awards/vote", voter, category="legend_nyan", nomination_id=ids[name])
+# Multiple votes by the same participant must never increase draw odds.
+ok("POST", "/api/nyan-awards/vote", 1, category="legend_nyan", nomination_id=ids["user2"])
+ok("POST", "/api/nyan-awards/vote", 10, category="legend_nyan", nomination_id=ids["user3"])
+ok("POST", "/api/nyan-awards/vote", 6, category="legend_nyan", nomination_id=ids["user2"])
 fail(403, "POST", "/api/nyan-awards/vote", 6, category="games_legend", nomination_id=ids["user2"])
 assert "results" not in ok("GET", "/api/nyan-awards/status", 6)
 assert ok("GET", "/api/nyan-awards/status", 6)["my_votes"]["legend_nyan"] == ids["user2"]
 
 # Only tied popular ballots need human arbitration; evidence categories need a reason.
 phase[0] = "ceremony_wait"
+fail(403, "POST", "/api/owner/nyan-awards/random-voter/draw", 2)
+owner_state = ok("GET", "/api/owner/nyan-awards/candidates", 1)
+assert owner_state["random_voter_eligible"] == 5
+assert owner_state["random_voter"] is None
+draw = ok("POST", "/api/owner/nyan-awards/random-voter/draw", 1)
+assert draw["winner"]["name"] in {"@user6", "@user7", "@user8", "@user9", "@user10"}
+assert draw["eligible_count"] == 5
+assert ok("POST", "/api/owner/nyan-awards/random-voter/draw", 1) == draw
 fail(422, "POST", "/api/owner/nyan-awards/winner", 1, category="face_nyan", nomination_id=1)
 fail(422, "POST", "/api/owner/nyan-awards/winner", 1, category="games_legend",
      nomination_id=ids["user2"], justification="none")
@@ -177,13 +193,16 @@ ok("POST", "/api/owner/nyan-awards/winner", 1, category="games_legend",
 ok("POST", "/api/owner/nyan-awards/winner", 1, category="legend_nyan",
    nomination_id=ids["user2"], justification="Равенство голосов")
 assert "results" not in ok("GET", "/api/nyan-awards/status", 6)
+assert "random_voter" not in ok("GET", "/api/nyan-awards/status", 6)
 
 phase[0] = "results"
-results = ok("GET", "/api/nyan-awards/status", 6)["results"]
+final_status = ok("GET", "/api/nyan-awards/status", 6)
+assert final_status["random_voter"] == draw["winner"]
+results = final_status["results"]
 assert next(row for row in results if row["id"] == ids["user2"])["winner"]
 assert next(row for row in results if row["id"] == game["id"])["winner"]
 assert sum(row["winner"] for row in results if row["category"] == "legend_nyan") == 1
 assert sum(row["winner"] for row in results if row["category"] == "games_legend") == 1
 fail(409, "POST", "/api/owner/nyan-awards/winner", 1, category="legend_nyan",
      nomination_id=ids["user3"])
-print("OK: real API auth, nominations, consent, caps, owner, finals, votes, secrecy, ties and laureates")
+print("OK: API auth, nominations, retries, votes, sealed random voter draw, secrecy, ties and laureates")

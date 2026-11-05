@@ -6,12 +6,13 @@ ballot is restricted to verified members of the bound Telegram group.
 
 from __future__ import annotations
 
+import secrets
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, UniqueConstraint, func, select
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, UniqueConstraint, func, select, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from . import backend_app as core
@@ -23,15 +24,15 @@ MSK = ZoneInfo("Europe/Moscow")
 
 CATEGORIES = (
     ("legend_nyan", "Легенда Нян", "Главная награда экосистемы", "100 ⭐ · физ. аккаунт Японии · 600 🐾"),
-    ("soul_nyan", "Душа Нян", "Тот, кто делает сообщество теплее", "250 🐾"),
+    ("soul_nyan", "Душа Нян", "Тот, кто делает сообщество теплее", "25 ⭐ · 250 🐾"),
     ("face_nyan", "Лицо Нян", "Самый узнаваемый участник", "50 ⭐ · 300 🐾"),
-    ("discovery", "Открытие года", "Главное новое имя года", "150 🐾"),
-    ("creator", "Творец Нян", "Идеи, творчество и вдохновение", "200 🐾"),
-    ("engine", "Двигатель Нян", "Человек, который двигает проекты вперёд", "200 🐾"),
+    ("discovery", "Открытие года", "Главное новое имя года", "25 ⭐ · 150 🐾"),
+    ("creator", "Творец Нян", "Идеи, творчество и вдохновение", "25 ⭐ · 200 🐾"),
+    ("engine", "Двигатель Нян", "Человек, который двигает проекты вперёд", "25 ⭐ · 200 🐾"),
     ("games_legend", "Легенда Nyan Games", "Выдающиеся игровые достижения", "25 ⭐ · физ. аккаунт · 250 🐾"),
-    ("mafia_master", "Мастер мафии", "Игра, тактика и победы", "200 🐾"),
-    ("finance", "Финансовый стратег", "Успехи в экономике Nyan Wallet", "150 🐾"),
-    ("admin", "Администратор года", "Забота о проектах и участниках", "200 🐾"),
+    ("mafia_master", "Мастер мафии", "Игра, тактика и победы", "25 ⭐ · 200 🐾"),
+    ("finance", "Финансовый стратег", "Успехи в экономике Nyan Wallet", "25 ⭐ · 150 🐾"),
+    ("admin", "Администратор года", "Забота о проектах и участниках", "25 ⭐ · 200 🐾"),
     ("flood_legend", "Легенда флуда", "Специальная номинация партнёрского флуда", "75 ⭐ · физ. аккаунт · 300 🐾"),
 )
 CATEGORY_IDS = {row[0] for row in CATEGORIES}
@@ -79,6 +80,17 @@ class AwardWinner(core.Base):
     selected_by: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id"), nullable=False)
     justification: Mapped[str] = mapped_column(String(500), nullable=False, default="")
     selected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AwardRandomVoter(core.Base):
+    """One immutable draw among unique ballot participants (excluding the owner)."""
+
+    __tablename__ = "nyan_awards_random_voter_2026"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    winner_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id"), nullable=False)
+    eligible_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    drawn_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class AwardRejection(core.Base):
@@ -236,6 +248,22 @@ def _ballot_counts(session) -> dict[int, int]:
     }
 
 
+def _eligible_voters(session) -> list[int]:
+    """One entry per voting Telegram ID, never one entry per ballot."""
+    return sorted(int(uid) for uid in session.scalars(
+        select(AwardVote.voter_id).distinct().where(AwardVote.voter_id != core.OWNER_TELEGRAM_ID)
+    ).all())
+
+
+def _random_voter_details(session, draw: AwardRandomVoter | None) -> dict | None:
+    if draw is None:
+        return None
+    user = session.get(core.User, draw.winner_id)
+    username = str(getattr(user, "username", "") or "").lstrip("@")
+    name = f"@{username}" if username else str(getattr(user, "first_name", "") or "Участник")
+    return {"name": name, "prize": "50 ⭐"}
+
+
 def _leaders(finalists: list[AwardNomination], counts: dict[int, int]) -> list[int]:
     if not finalists:
         return []
@@ -302,6 +330,7 @@ def awards_status(x_telegram_init_data: str | None = Header(default=None, alias=
                 {**_serialize(n), "votes": counts.get(n.id, 0), "winner": winners.get(n.category) == n.id}
                 for n in nominations if n.status == "finalist"
             ]
+            response["random_voter"] = _random_voter_details(session, session.get(AwardRandomVoter, 1))
         return response
 
 
@@ -430,8 +459,39 @@ def owner_awards_candidates(x_telegram_init_data: str | None = Header(default=No
             category: _leaders([n for n in nominations if n.category == category and n.status == "finalist"], counts)
             for category in CATEGORY_IDS if category not in EVIDENCE_CATEGORIES
         }
+        draw = session.get(AwardRandomVoter, 1)
         return {"phase": phase_at(), "candidates": [{**_serialize(n), "votes": counts.get(n.id, 0)} for n in nominations],
-                "manual_winners": manual, "leaders": ties}
+                "manual_winners": manual, "leaders": ties,
+                "random_voter": _random_voter_details(session, draw),
+                "random_voter_eligible": draw.eligible_count if draw else len(_eligible_voters(session))}
+
+
+@router.post("/api/owner/nyan-awards/random-voter/draw")
+def owner_awards_random_voter_draw(
+    x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
+):
+    tg = _auth(x_telegram_init_data)
+    core.require_owner(tg)
+    if phase_at() not in {"ceremony_wait", "results"}:
+        raise HTTPException(409, "Случайного победителя можно определить только после закрытия голосования")
+    with core.SessionLocal() as session:
+        with session.begin():
+            # Serialize draws across workers. A previously chosen winner cannot be rerolled.
+            if session.bind.dialect.name == "postgresql":
+                session.execute(text("SELECT pg_advisory_xact_lock(20261109, 50)"))
+            draw = session.get(AwardRandomVoter, 1)
+            if draw is None:
+                voters = _eligible_voters(session)
+                if not voters:
+                    raise HTTPException(409, "Пока нет проголосовавших участников для розыгрыша")
+                draw = AwardRandomVoter(
+                    id=1, winner_id=secrets.choice(voters),
+                    eligible_count=len(voters), drawn_at=core.now_utc(),
+                )
+                session.add(draw)
+                session.flush()
+            return {"ok": True, "winner": _random_voter_details(session, draw),
+                    "eligible_count": draw.eligible_count}
 
 
 @router.post("/api/owner/nyan-awards/finalist")
@@ -502,6 +562,7 @@ def register_nyan_awards_2026(app) -> None:
     AwardNomination.__table__.create(bind=core.engine, checkfirst=True)
     AwardVote.__table__.create(bind=core.engine, checkfirst=True)
     AwardWinner.__table__.create(bind=core.engine, checkfirst=True)
+    AwardRandomVoter.__table__.create(bind=core.engine, checkfirst=True)
     AwardRejection.__table__.create(bind=core.engine, checkfirst=True)
     AwardRetryRight.__table__.create(bind=core.engine, checkfirst=True)
     app.include_router(router)

@@ -45,7 +45,9 @@ def main():
     stars = sum(int(amount) for row in categories for amount in re.findall(r"(\d+) ⭐", row[3]))
     lapcoins = sum(int(amount) for row in categories for amount in re.findall(r"(\d+) 🐾", row[3]))
     accounts = sum("физ." in row[3] for row in categories)
-    assert (stars, accounts, lapcoins) == (250, 3, 2800)
+    assert (stars, accounts, lapcoins) == (425, 3, 2800)
+    assert stars + 50 == 475, "50 Stars are drawn separately among unique voters"
+    assert "475 ⭐" in html and "50 ⭐" in html
 
     parser = Assets()
     parser.feed(html)
@@ -63,6 +65,7 @@ def main():
     assert '/api/nyan-awards/vote' in py and '/api/nyan-awards/nominate' in py
     assert 'FLOOD_CATEGORY' in py and '_check_partner_member' in py
     assert 'EVIDENCE_CATEGORIES' in py
+    assert '/api/owner/nyan-awards/random-voter/draw' in py
     print("OK: 11 categories, 11 icons, assets, DOM references, deep link, registration, vote/auth hooks")
 
 

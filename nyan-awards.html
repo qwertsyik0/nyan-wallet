@@ -8,8 +8,8 @@
   <meta name="description" content="NYAN AWARDS 2026 — выбираем легенд экосистемы Нян.">
   <title>NYAN AWARDS 2026 · Nyan Wallet</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="./nyan-awards.css?v=20261105-3">
-  <script defer src="./nyan-awards.js?v=20261105-3"></script>
+  <link rel="stylesheet" href="./nyan-awards.css?v=20261105-4">
+  <script defer src="./nyan-awards.js?v=20261105-4"></script>
 </head>
 <body>
   <div class="awards-app">
@@ -35,10 +35,11 @@
       </section>
 
       <div class="prize-total" aria-label="Общий призовой фонд">
-        <div><strong>250 ⭐</strong><span>Telegram Stars</span></div>
+        <div><strong>475 ⭐</strong><span>Telegram Stars</span></div>
         <div><strong>3</strong><span>физ. аккаунта</span></div>
         <div><strong>2800 🐾</strong><span>лапкоинов</span></div>
       </div>
+      <p class="lucky-prize-note">ещё 50 ⭐ получит случайный участник голосования · каждый голосующий участвует один раз</p>
 
       <section class="schedule" aria-label="Этапы NYAN AWARDS">
         <div class="schedule-stage" data-stage="nominations"><span class="schedule-day">05–06.11</span><strong>выдвижение</strong></div>
@@ -70,8 +71,8 @@
 
       <section id="my-panel" class="panel" hidden aria-labelledby="my-heading"><div class="panel-heading"><span class="kicker">ЛИЧНЫЙ КАБИНЕТ</span><h2 id="my-heading">твои кандидатуры</h2></div><div id="my-nominations"></div></section>
       <section id="vote-panel" class="panel" hidden aria-labelledby="vote-heading"><div class="panel-heading"><span class="kicker">ФИНАЛИСТЫ · 08 НОЯБРЯ</span><h2 id="vote-heading">отдать голос</h2></div><p class="section-copy">Один голос в каждой номинации. До закрытия можно передумать. Промежуточные результаты скрыты.</p><div id="vote-list"></div></section>
-      <section id="results-panel" class="panel" hidden aria-labelledby="results-heading"><div class="panel-heading"><span class="kicker">ЗАЛ СЛАВЫ</span><h2 id="results-heading">результаты</h2></div><div id="results-list"></div></section>
-      <section id="owner-panel" class="panel" hidden aria-labelledby="owner-heading"><div class="panel-heading"><span class="kicker">ТОЛЬКО ДЛЯ ВЛАДЕЛЬЦА</span><h2 id="owner-heading">управление наградами</h2></div><p class="section-copy">7 ноября выбери от 3 до 5 финалистов. 9 ноября до 19:00 утверди лауреатов по достижениям и разреши ничьи. Итоги для участников откроются только на церемонии.</p><div id="owner-list"></div></section>
+      <section id="results-panel" class="panel" hidden aria-labelledby="results-heading"><div class="panel-heading"><span class="kicker">ЗАЛ СЛАВЫ</span><h2 id="results-heading">результаты</h2></div><div id="random-voter-result" class="random-voter-result"></div><div id="results-list"></div></section>
+      <section id="owner-panel" class="panel" hidden aria-labelledby="owner-heading"><div class="panel-heading"><span class="kicker">ТОЛЬКО ДЛЯ ВЛАДЕЛЬЦА</span><h2 id="owner-heading">управление наградами</h2></div><p class="section-copy">7 ноября выбери от 3 до 5 финалистов. 9 ноября до 19:00 утверди лауреатов по достижениям, разреши ничьи и определи случайного получателя 50 ⭐. Итоги откроются на церемонии.</p><div id="random-voter-owner" class="random-voter-owner"></div><div id="owner-list"></div></section>
 
       <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
       <a id="telegram-link" class="telegram-link" href="https://t.me/nyancash_bot?startapp=nyan_awards" hidden>Открыть в Telegram <span aria-hidden="true">↗</span></a>
@@ -79,7 +80,7 @@
       <section class="rules" aria-labelledby="rules-heading"><span class="kicker">ПРОЗРАЧНЫЕ ПРАВИЛА</span><h2 id="rules-heading">как всё устроено</h2><div class="rules-grid">
         <div><b>01</b><span>Предложи кандидата</span><small>Можно выдвинуть себя или другого человека.</small></div>
         <div><b>02</b><span>Подтверди участие</span><small>Чужие кандидатуры принимаются только с согласия.</small></div>
-        <div><b>03</b><span>Выбери финалиста</span><small>Один Telegram-аккаунт — один голос за номинацию.</small></div>
+        <div><b>03</b><span>Выбери финалиста</span><small>Один голос за номинацию. Любой проголосовавший, кроме организатора, участвует в розыгрыше 50 ⭐ один раз.</small></div>
         <div><b>04</b><span>Приходи на церемонию</span><small>Итоги 9 ноября в 19:00 МСК. Ранее их не показываем.</small></div>
       </div></section>
     </main>
