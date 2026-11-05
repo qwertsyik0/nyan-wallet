@@ -13,6 +13,7 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 
@@ -39,20 +40,23 @@ def psql(database: str, query: str, **variables: str) -> str:
 
 
 LIST_SQL = """
-SELECT n.id, n.category, n.display_name, n.candidate_id,
-       n.status, n.nominated_by
-FROM nyan_awards_nominations_2026 n
-ORDER BY n.id;
+SELECT row_to_json(t)::text FROM (
+    SELECT n.id, n.category, n.display_name, n.candidate_id,
+           n.status, n.nominated_by
+    FROM nyan_awards_nominations_2026 n ORDER BY n.id
+) t;
 """
 
 CHECK_SQL = """
-SELECT n.id, n.category, n.display_name, n.candidate_id, n.status,
-       COALESCE(r.replacement_nomination_id::text, 'не использована') AS retry,
-       COALESCE(x.reason, '') AS previous_reason
-FROM nyan_awards_nominations_2026 n
-LEFT JOIN nyan_awards_retry_2026 r ON r.candidate_id = n.candidate_id
-LEFT JOIN nyan_awards_rejections_2026 x ON x.nomination_id = n.id
-WHERE n.id = :'nomination_id'::integer;
+SELECT row_to_json(t)::text FROM (
+    SELECT n.id, n.category, n.display_name, n.candidate_id, n.status,
+           r.replacement_nomination_id AS retry_used,
+           COALESCE(x.reason, '') AS previous_reason
+    FROM nyan_awards_nominations_2026 n
+    LEFT JOIN nyan_awards_retry_2026 r ON r.candidate_id = n.candidate_id
+    LEFT JOIN nyan_awards_rejections_2026 x ON x.nomination_id = n.id
+    WHERE n.id = :'nomination_id'::integer
+) t;
 """
 
 APPLY_SQL = """
@@ -113,14 +117,11 @@ COMMIT;
 """
 
 
-def preview(database: str, nomination_id: int) -> tuple[str, str, str, str, str]:
+def preview(database: str, nomination_id: int) -> dict:
     rows = psql(database, CHECK_SQL, nomination_id=str(nomination_id)).splitlines()
     if len(rows) != 1:
         raise RuntimeError("Кандидатура с таким ID не найдена")
-    parts = rows[0].split("|")
-    if len(parts) < 5:
-        raise RuntimeError("Неожиданный ответ базы данных")
-    return parts[0], parts[1], parts[2], parts[3], parts[4]
+    return json.loads(rows[0])
 
 
 def main() -> int:
@@ -137,17 +138,22 @@ def main() -> int:
     if args.list:
         print("ID | категория | кандидат | Telegram ID | статус | кто предложил")
         for line in psql(args.database, LIST_SQL).splitlines():
-            parts = line.split("|")
-            if len(parts) == 6:
-                parts[1] = AWARDS.get(parts[1], parts[1])
-                print(" | ".join(parts))
+            row = json.loads(line)
+            print(f"{row['id']} | {AWARDS.get(row['category'], row['category'])} | "
+                  f"{row['display_name']} | {row['candidate_id'] or '—'} | "
+                  f"{row['status']} | {row['nominated_by']}")
         return 0
 
     if not args.id or args.id < 1:
         parser.error("Для проверки и отклонения укажи --id <положительный ID>")
-    ident, category, candidate, telegram_id, status = preview(args.database, args.id)
-    print(f"Заявка #{ident} · {AWARDS.get(category, category)} · {candidate}")
-    print(f"Telegram ID: {telegram_id or 'неизвестен'} · статус: {status}")
+    entry = preview(args.database, args.id)
+    ident = entry["id"]
+    print(f"Заявка #{ident} · {AWARDS.get(entry['category'], entry['category'])} · {entry['display_name']}")
+    print(f"Telegram ID: {entry['candidate_id'] or 'неизвестен'} · статус: {entry['status']}")
+    if entry.get("previous_reason"):
+        print("Предыдущий отказ:", entry["previous_reason"])
+    if entry.get("retry_used"):
+        print("Повторная попытка использована:", entry["retry_used"])
     if args.check:
         print("Только проверка: никаких изменений и уведомлений")
         return 0
@@ -155,7 +161,7 @@ def main() -> int:
     reason = " ".join((args.reason or "").split())
     if not 10 <= len(reason) <= 500:
         parser.error("Причина должна содержать от 10 до 500 символов")
-    if status != "confirmed" or not telegram_id:
+    if entry["status"] != "confirmed" or not entry["candidate_id"]:
         raise RuntimeError("Отклонять можно только подтверждённые заявки с Telegram ID")
     print("Причина:", reason)
     answer = input(f"Для отклонения и уведомления напиши ровно REJECT {ident}: ")
