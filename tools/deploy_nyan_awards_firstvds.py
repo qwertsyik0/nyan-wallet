@@ -25,7 +25,7 @@ from pathlib import Path
 
 SERVICE = "nyan-wallet"
 MODULE_URL = "https://raw.githubusercontent.com/qwertsyik0/nyan-wallet/main/server/nyan_awards_2026.py"
-MODULE_SHA256 = "9725ff5521ff73edada7ad236e175f01a2cebd9899295b159059d7f97a21c01c"
+MODULE_SHA256 = "bef3a7ad1f51d56fd35b43bfcab2e5be4d676a5b64b6e540b587f4b9aaa26352"
 IMPORT_AFTER = "from .nyan_future_vote import register_nyan_future_vote"
 IMPORT_NEW = "from .nyan_awards_2026 import register_nyan_awards_2026"
 CALL_AFTER = "    register_nyan_future_vote(backend_app.app)"

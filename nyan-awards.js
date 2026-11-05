@@ -34,7 +34,7 @@
   };
   const STATUS_LABELS = {
     awaiting_confirmation:'ожидает твоего подтверждения', confirmed:'участие подтверждено',
-    finalist:'финалист', rejected:'не прошёл в финал', declined:'кандидатура отклонена',
+    finalist:'финалист', rejected:'кандидатура отклонена', declined:'от участия отказались',
   };
 
   let state = { categories: FALLBACK, phase:'nominations', my_nominations:[], finalists:[], my_votes:{} };
@@ -107,14 +107,26 @@
       const stage = node.dataset.stage;
       node.classList.toggle('active', stage === state.phase || (stage==='results' && ['ceremony_wait','results'].includes(state.phase)));
     });
-    $('#nomination-panel').hidden = state.phase !== 'nominations';
+    $('#nomination-panel').hidden = !(state.phase === 'nominations' || (state.phase === 'review' && state.can_retry));
+    const retryOnly = state.phase === 'review' && state.can_retry;
+    const form = $('#nomination-form');
+    const other = form.querySelector('input[name="who"][value="other"]');
+    other.disabled = retryOnly;
+    if (retryOnly) {
+      form.querySelector('input[name="who"][value="me"]').checked = true;
+      $('#nominee-field').hidden = true;
+      form.elements.nominee.required = false;
+    }
+    $('.rule-note').textContent = retryOnly
+      ? 'У тебя одна повторная попытка. Выбери другую номинацию до конца 7 ноября.'
+      : 'Можно участвовать максимум в двух номинациях. Кандидат, которого выдвинул другой человек, должен подтвердить участие.';
     $('#vote-panel').hidden = state.phase !== 'voting';
     $('#results-panel').hidden = state.phase !== 'results';
     $('#telegram-link').hidden = Boolean(initData);
   }
 
   function chooseCategory(key) {
-    if (state.phase !== 'nominations') return;
+    if (state.phase !== 'nominations' && !(state.phase === 'review' && state.can_retry)) return;
     $('#nomination-category').value = key;
     $('#nomination-panel').scrollIntoView({behavior:'smooth',block:'start'});
     $('#nomination-category').focus({preventScroll:true});
@@ -138,8 +150,10 @@
       content.append(el('p',null,category.description));
       if (category.prize) content.append(el('span','nomination-prize',category.prize));
       const caption = category.evidence_based ? 'по достижениям' : 'по итогам голосования';
-      if (state.phase === 'nominations') {
-        const button = el('button',null,'Выдвинуть ↗');
+      const nominationOpen = state.phase === 'nominations' || (state.phase === 'review' && state.can_retry);
+      const forbidden = (state.rejected_categories || []).includes(category.key);
+      if (nominationOpen && !forbidden) {
+        const button = el('button',null,state.phase === 'review' ? 'Вторая попытка ↗' : 'Выдвинуть ↗');
         button.type = 'button';
         button.addEventListener('click', () => chooseCategory(category.key));
         content.append(button);
@@ -150,9 +164,9 @@
       grid.append(card);
       const option = el('option',null,category.title);
       option.value = category.key;
-      select.append(option);
+      if (!forbidden) select.append(option);
     });
-    if (selected && state.categories.some(row => row.key === selected)) select.value = selected;
+    if (selected && [...select.options].some(row => row.value === selected)) select.value = selected;
   }
 
   function renderMine() {
@@ -164,6 +178,9 @@
       const item = el('article','my-item');
       item.append(el('strong',null,category?.title || candidate.category));
       item.append(el('small',null,STATUS_LABELS[candidate.status] || candidate.status));
+      if (candidate.status === 'rejected' && candidate.rejection_reason) {
+        item.append(el('p','empty-note',`Причина: ${candidate.rejection_reason}`));
+      }
       if (candidate.status === 'awaiting_confirmation' && ['nominations','review'].includes(state.phase)) {
         const buttons = el('div','item-actions');
         const accept = el('button','secondary','Подтвердить');
@@ -377,8 +394,12 @@
       $('#telegram-link').hidden = false;
       return;
     }
-    if (state.phase !== 'nominations') return;
+    if (state.phase !== 'nominations' && !(state.phase === 'review' && state.can_retry)) return;
     const form = event.currentTarget;
+    if (state.phase === 'review' && form.elements.who.value !== 'me') {
+      notice('Повторная попытка доступна только для самостоятельного выдвижения.', true);
+      return;
+    }
     const category = form.elements.category.value;
     const nominee = form.elements.who.value === 'me' ? 'me' : form.elements.nominee.value;
     const reason = form.elements.reason.value;

@@ -107,8 +107,50 @@ fail(409, "POST", "/api/nyan-awards/confirm", 7, nomination_id=pending["nominati
 fail(403, "GET", "/api/owner/nyan-awards/candidates", 2)
 assert "results" not in ok("GET", "/api/nyan-awards/status", 2)
 
+# Moderation grants exactly one other-category retry, and reason is visible.
+replace_me = ok("POST", "/api/nyan-awards/nominate", 8, category="creator", nominee="me")
+reject_id = replace_me["nomination"]["id"]
+with SessionLocal.begin() as session:
+    candidate = session.get(awards.AwardNomination, reject_id)
+    candidate.status = "rejected"
+    session.add(awards.AwardRejection(nomination_id=reject_id, candidate_id=8,
+                                      reason="Категория не соответствует подтверждённым достижениям",
+                                      created_at=datetime.now(timezone.utc)))
+    session.add(awards.AwardRetryRight(candidate_id=8, origin_nomination_id=reject_id,
+                                       granted_at=datetime.now(timezone.utc)))
+my_status = ok("GET", "/api/nyan-awards/status", 8)
+assert my_status["can_retry"] and "creator" in my_status["rejected_categories"]
+assert my_status["my_nominations"][0]["rejection_reason"].startswith("Категория")
+fail(409, "POST", "/api/nyan-awards/nominate", 8, category="creator", nominee="me")
+retry = ok("POST", "/api/nyan-awards/nominate", 8, category="discovery", nominee="me")
+with SessionLocal() as session:
+    assert session.get(awards.AwardRetryRight, 8).replacement_nomination_id == retry["nomination"]["id"]
+fail(409, "POST", "/api/nyan-awards/nominate", 8, category="engine", nominee="me")
+with SessionLocal.begin() as session:
+    used = session.get(awards.AwardNomination, retry["nomination"]["id"])
+    used.status = "rejected"
+    session.add(awards.AwardRejection(nomination_id=used.id, candidate_id=8,
+                                      reason="Повторная заявка также не соответствует критериям",
+                                      created_at=datetime.now(timezone.utc)))
+assert not ok("GET", "/api/nyan-awards/status", 8)["can_retry"]
+fail(409, "POST", "/api/nyan-awards/nominate", 8, category="engine", nominee="me")
+
+late = ok("POST", "/api/nyan-awards/nominate", 10, category="creator", nominee="me")
+with SessionLocal.begin() as session:
+    nom = session.get(awards.AwardNomination, late["nomination"]["id"])
+    nom.status = "rejected"
+    session.add(awards.AwardRejection(nomination_id=nom.id, candidate_id=10,
+                                      reason="Не подтверждены творческие заслуги",
+                                      created_at=datetime.now(timezone.utc)))
+    session.add(awards.AwardRetryRight(candidate_id=10, origin_nomination_id=nom.id,
+                                       granted_at=datetime.now(timezone.utc)))
+
 # Owner picks finalists, three minimum for popular ballots.
 phase[0] = "review"
+review_retry = ok("POST", "/api/nyan-awards/nominate", 10, category="admin", nominee="me")
+assert review_retry["nomination"]["status"] == "confirmed"
+fail(409, "POST", "/api/nyan-awards/nominate", 10, category="engine", nominee="me")
+fail(409, "POST", "/api/nyan-awards/nominate", 11, category="admin", nominee="me")
 admin = ok("GET", "/api/owner/nyan-awards/candidates", 1)
 for category in ("legend_nyan", "games_legend"):
     for nominee in [n for n in admin["candidates"] if n["category"] == category]:

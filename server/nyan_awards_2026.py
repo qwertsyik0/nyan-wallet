@@ -81,6 +81,35 @@ class AwardWinner(core.Base):
     selected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class AwardRejection(core.Base):
+    """Moderation audit: one reason per rejected nomination, never overwritten."""
+
+    __tablename__ = "nyan_awards_rejections_2026"
+
+    nomination_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("nyan_awards_nominations_2026.id"), primary_key=True
+    )
+    candidate_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id"), nullable=False)
+    reason: Mapped[str] = mapped_column(String(500), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AwardRetryRight(core.Base):
+    """Only one replacement nomination per Telegram ID, even after multiple rejections."""
+
+    __tablename__ = "nyan_awards_retry_2026"
+
+    candidate_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id"), primary_key=True)
+    origin_nomination_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("nyan_awards_nominations_2026.id"), nullable=False
+    )
+    replacement_nomination_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("nyan_awards_nominations_2026.id"), nullable=True
+    )
+    granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class NominateBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
     category: str = Field(min_length=3, max_length=32)
@@ -165,6 +194,39 @@ def _serialize(candidate: AwardNomination) -> dict:
     }
 
 
+def _retry_right(session, uid: int, *, lock: bool = False) -> AwardRetryRight | None:
+    query = select(AwardRetryRight).where(AwardRetryRight.candidate_id == uid)
+    if lock:
+        query = query.with_for_update()
+    return session.scalar(query)
+
+
+def _check_slot(session, uid: int, category: str) -> AwardRetryRight | None:
+    """A rejection replaces one attempt; it never grants unlimited extra entries."""
+    right = _retry_right(session, uid, lock=True)
+    active = session.scalar(select(func.count(AwardNomination.id)).where(
+        AwardNomination.candidate_id == uid,
+        AwardNomination.status.in_(("confirmed", "finalist")),
+    )) or 0
+    if active >= 2:
+        raise HTTPException(409, "Можно участвовать максимум в двух активных номинациях")
+    if right is not None:
+        if right.replacement_nomination_id is not None:
+            raise HTTPException(409, "Повторная попытка уже использована")
+        rejected_same = session.scalar(select(AwardNomination.id).join(
+            AwardRejection, AwardRejection.nomination_id == AwardNomination.id
+        ).where(AwardRejection.candidate_id == uid, AwardNomination.category == category))
+        if rejected_same is not None:
+            raise HTTPException(409, "Для повторного выдвижения выбери другую номинацию")
+    return right
+
+
+def _consume_retry(right: AwardRetryRight | None, nomination_id: int) -> None:
+    if right is not None:
+        right.replacement_nomination_id = nomination_id
+        right.used_at = core.now_utc()
+
+
 def _ballot_counts(session) -> dict[int, int]:
     return {
         int(candidate_id): int(total)
@@ -211,6 +273,14 @@ def awards_status(x_telegram_init_data: str | None = Header(default=None, alias=
         nominations = session.scalars(select(AwardNomination).order_by(AwardNomination.id.asc())).all()
         votes = session.scalars(select(AwardVote).where(AwardVote.voter_id == uid)).all()
         mine = [_serialize(n) for n in nominations if _candidate_for_user(n, tg)]
+        rejections = {r.nomination_id: r.reason for r in session.scalars(select(AwardRejection).where(
+            AwardRejection.candidate_id == uid)).all()}
+        for entry in mine:
+            if entry["status"] == "rejected":
+                entry["rejection_reason"] = rejections.get(entry["id"], "")
+        right = _retry_right(session, uid)
+        eligible_retry = bool(right and right.replacement_nomination_id is None)
+        rejected_categories = [n.category for n in nominations if n.id in rejections]
         finalists = [_serialize(n) for n in nominations if n.status == "finalist"] if phase in {"voting", "ceremony_wait", "results"} else []
         response = {
             "phase": phase,
@@ -218,6 +288,8 @@ def awards_status(x_telegram_init_data: str | None = Header(default=None, alias=
                             "evidence_based": k in EVIDENCE_CATEGORIES, "partner": k == FLOOD_CATEGORY}
                            for k, title, description, prize in CATEGORIES],
             "my_nominations": mine,
+            "can_retry": eligible_retry and phase in {"nominations", "review"},
+            "rejected_categories": rejected_categories,
             "finalists": finalists,
             "my_votes": {vote.category: vote.candidate_id for vote in votes},
             "ceremony_at": "2026-11-09T19:00:00+03:00",
@@ -236,8 +308,7 @@ def awards_status(x_telegram_init_data: str | None = Header(default=None, alias=
 @router.post("/api/nyan-awards/nominate")
 def awards_nominate(body: NominateBody, x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data")):
     tg = _auth(x_telegram_init_data)
-    if phase_at() != "nominations":
-        raise HTTPException(409, "Приём кандидатур сейчас закрыт")
+    phase = phase_at()
     if body.category not in CATEGORY_IDS:
         raise HTTPException(422, "Неизвестная номинация")
 
@@ -250,28 +321,30 @@ def awards_nominate(body: NominateBody, x_telegram_init_data: str | None = Heade
     display = _display(tg) if self_nomination else "@" + nominee_username
     with core.SessionLocal() as session:
         with session.begin():
+            if phase != "nominations" and not (
+                phase == "review" and self_nomination
+                and (right := _retry_right(session, uid)) is not None
+                and right.replacement_nomination_id is None
+            ):
+                raise HTTPException(409, "Приём кандидатур сейчас закрыт")
             if self_nomination and body.category == FLOOD_CATEGORY:
                 _check_partner_member(session, uid)
             candidate = session.scalar(select(AwardNomination).where(
                 AwardNomination.category == body.category, AwardNomination.candidate_key == key).with_for_update())
             if candidate is not None:
+                if candidate.status == "rejected":
+                    raise HTTPException(409, "Эту кандидатуру отклонили. Выбери другую номинацию")
                 if self_nomination and candidate.status == "awaiting_confirmation":
-                    confirmed_count = session.scalar(select(func.count(AwardNomination.id)).where(
-                        AwardNomination.candidate_id == uid,
-                        AwardNomination.status.in_(("confirmed", "finalist")))) or 0
-                    if confirmed_count >= 2:
-                        raise HTTPException(409, "Можно участвовать максимум в двух номинациях")
+                    right = _check_slot(session, uid, body.category)
                     candidate.candidate_id = uid
                     candidate.display_name = _display(tg)
                     candidate.status = "confirmed"
                     candidate.confirmed_at = core.now_utc()
+                    _consume_retry(right, candidate.id)
                 return {"ok": True, "nomination": _serialize(candidate), "already_exists": True}
+            right = None
             if self_nomination:
-                confirmed_count = session.scalar(select(func.count(AwardNomination.id)).where(
-                    AwardNomination.candidate_id == uid,
-                    AwardNomination.status.in_(("confirmed", "finalist")))) or 0
-                if confirmed_count >= 2:
-                    raise HTTPException(409, "Можно участвовать максимум в двух номинациях")
+                right = _check_slot(session, uid, body.category)
             candidate = AwardNomination(
                 category=body.category, candidate_key=key, candidate_id=uid if self_nomination else None,
                 candidate_username=nominee_username or None, display_name=display,
@@ -281,6 +354,7 @@ def awards_nominate(body: NominateBody, x_telegram_init_data: str | None = Heade
             )
             session.add(candidate)
             session.flush()
+            _consume_retry(right, candidate.id)
             return {"ok": True, "nomination": _serialize(candidate), "already_exists": False}
 
 
@@ -300,14 +374,12 @@ def awards_confirm(body: ConfirmBody, x_telegram_init_data: str | None = Header(
             if body.accept:
                 if candidate.category == FLOOD_CATEGORY:
                     _check_partner_member(session, uid)
-                count = session.scalar(select(func.count(AwardNomination.id)).where(
-                    AwardNomination.candidate_id == uid, AwardNomination.status.in_(("confirmed", "finalist")))) or 0
-                if count >= 2:
-                    raise HTTPException(409, "Можно участвовать максимум в двух номинациях")
+                right = _check_slot(session, uid, candidate.category)
                 candidate.candidate_id = uid
                 candidate.display_name = _display(tg)
                 candidate.status = "confirmed"
                 candidate.confirmed_at = core.now_utc()
+                _consume_retry(right, candidate.id)
             else:
                 candidate.status = "declined"
             return {"ok": True, "nomination": _serialize(candidate)}
@@ -430,5 +502,7 @@ def register_nyan_awards_2026(app) -> None:
     AwardNomination.__table__.create(bind=core.engine, checkfirst=True)
     AwardVote.__table__.create(bind=core.engine, checkfirst=True)
     AwardWinner.__table__.create(bind=core.engine, checkfirst=True)
+    AwardRejection.__table__.create(bind=core.engine, checkfirst=True)
+    AwardRetryRight.__table__.create(bind=core.engine, checkfirst=True)
     app.include_router(router)
     _REGISTERED = True
