@@ -35,6 +35,7 @@ from .broadcast import register_broadcast
 from .maintenance import register_maintenance
 from .wallet_survey import register_wallet_survey
 from .nyan_future_vote import register_nyan_future_vote
+from .nyan_awards_2026 import register_nyan_awards_2026
 from .nyan_spy import register_nyan_spy
 from .suggestions import register_suggestions
 from .interactive_ideas import register_interactive_ideas
@@ -105,6 +106,7 @@ else:
     register_maintenance(backend_app.app)
     register_quote_reflection(backend_app.app)
     register_nyan_future_vote(backend_app.app)
+    register_nyan_awards_2026(backend_app.app)
     register_nyan_spy(backend_app.app)
     register_suggestions(backend_app.app)
     register_interactive_ideas(backend_app.app)

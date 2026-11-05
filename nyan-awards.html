@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#fff7fa">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="NYAN AWARDS 2026 — выбираем легенд экосистемы Нян.">
+  <title>NYAN AWARDS 2026 · Nyan Wallet</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./nyan-awards.css?v=20261105-2">
+  <script defer src="./nyan-awards.js?v=20261105-2"></script>
+</head>
+<body>
+  <div class="awards-app">
+    <header class="topbar">
+      <a class="back" href="./index.html" aria-label="Назад в Nyan Wallet">‹</a>
+      <div class="identity"><strong>NYAN WALLET</strong><span>церемония сообщества</span></div>
+      <span class="edition">2026 / 01</span>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <span class="eyebrow"><span class="live-dot"></span> ГЛАВНОЕ СОБЫТИЕ НЯН</span>
+          <h1 id="hero-title">NYAN<br><em>AWARDS</em><small>2026</small></h1>
+          <p>Один год. Одиннадцать номинаций. Имена, которые останутся в истории Нян.</p>
+          <div class="hero-status"><span id="phase-label">готовим церемонию</span><b id="phase-countdown">09.11 · 19:00 МСК</b></div>
+        </div>
+        <div class="mascots" aria-label="Талисманы Нян — мишка и Няник">
+          <img class="mascot bear" src="./assets/nyan-future-vote/bear.png" alt="Пиксельный мишка Нян" width="1254" height="1254">
+          <img class="mascot cat" src="./assets/nyan-future-vote/nyanik.png" alt="Пиксельный кот Няник" width="1254" height="1254">
+        </div>
+        <div class="hero-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      </section>
+
+      <div class="prize-total" aria-label="Общий призовой фонд">
+        <div><strong>250 ⭐</strong><span>Telegram Stars</span></div>
+        <div><strong>3</strong><span>физ. аккаунта</span></div>
+        <div><strong>2800 🐾</strong><span>лапкоинов</span></div>
+      </div>
+
+      <section class="schedule" aria-label="Этапы NYAN AWARDS">
+        <div class="schedule-stage" data-stage="nominations"><span class="schedule-day">05–06.11</span><strong>выдвижение</strong></div>
+        <div class="schedule-stage" data-stage="review"><span class="schedule-day">07.11</span><strong>финалисты</strong></div>
+        <div class="schedule-stage" data-stage="voting"><span class="schedule-day">08.11</span><strong>голосование</strong></div>
+        <div class="schedule-stage" data-stage="results"><span class="schedule-day">09.11</span><strong>церемония</strong></div>
+      </section>
+
+      <section class="nominations" aria-labelledby="nominations-heading">
+        <div class="section-head"><div><span class="kicker">11 НАГРАД · 1 ИСТОРИЯ</span><h2 id="nominations-heading">номинации</h2></div><span class="section-aside">NYAN / 26</span></div>
+        <p class="section-copy">Выдвигай себя или того, кто действительно заслужил награду. Данные по кандидатам проверит администрация.</p>
+        <div id="nominations-grid" class="nominations-grid" aria-live="polite"></div>
+      </section>
+
+      <section id="nomination-panel" class="panel" hidden aria-labelledby="nomination-heading">
+        <div class="panel-heading"><span class="kicker">ТВОЙ ГОЛОС В ИСТОРИИ НЯН</span><h2 id="nomination-heading">предложить кандидата</h2></div>
+        <form id="nomination-form">
+          <label class="field"><span>Номинация</span><select name="category" id="nomination-category" required></select></label>
+          <fieldset class="who-field"><legend>Кого выдвигаем?</legend>
+            <label><input type="radio" name="who" value="me" checked><span>себя</span></label>
+            <label><input type="radio" name="who" value="other"><span>другого участника</span></label>
+          </fieldset>
+          <label class="field" id="nominee-field" hidden><span>Telegram кандидата</span><input name="nominee" placeholder="@username" autocomplete="off" maxlength="65"></label>
+          <label class="field"><span>За что ты его выдвигаешь? <small>по желанию</small></span><textarea name="reason" rows="3" maxlength="320" placeholder="Коротко расскажи, почему этот человек достоин награды"></textarea></label>
+          <p class="rule-note">Можно участвовать максимум в двух номинациях. Кандидат, которого выдвинул другой человек, должен подтвердить участие.</p>
+          <button class="primary" id="send-nomination" type="submit">Отправить кандидатуру <span aria-hidden="true">↗</span></button>
+        </form>
+      </section>
+
+      <section id="my-panel" class="panel" hidden aria-labelledby="my-heading"><div class="panel-heading"><span class="kicker">ЛИЧНЫЙ КАБИНЕТ</span><h2 id="my-heading">твои кандидатуры</h2></div><div id="my-nominations"></div></section>
+      <section id="vote-panel" class="panel" hidden aria-labelledby="vote-heading"><div class="panel-heading"><span class="kicker">ФИНАЛИСТЫ · 08 НОЯБРЯ</span><h2 id="vote-heading">отдать голос</h2></div><p class="section-copy">Один голос в каждой номинации. До закрытия можно передумать. Промежуточные результаты скрыты.</p><div id="vote-list"></div></section>
+      <section id="results-panel" class="panel" hidden aria-labelledby="results-heading"><div class="panel-heading"><span class="kicker">ЗАЛ СЛАВЫ</span><h2 id="results-heading">результаты</h2></div><div id="results-list"></div></section>
+      <section id="owner-panel" class="panel" hidden aria-labelledby="owner-heading"><div class="panel-heading"><span class="kicker">ТОЛЬКО ДЛЯ ВЛАДЕЛЬЦА</span><h2 id="owner-heading">управление наградами</h2></div><p class="section-copy">7 ноября выбери от 3 до 5 финалистов. 9 ноября до 19:00 утверди лауреатов по достижениям и разреши ничьи. Итоги для участников откроются только на церемонии.</p><div id="owner-list"></div></section>
+
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+      <a id="telegram-link" class="telegram-link" href="https://t.me/nyancash_bot?startapp=nyan_awards" hidden>Открыть в Telegram <span aria-hidden="true">↗</span></a>
+
+      <section class="rules" aria-labelledby="rules-heading"><span class="kicker">ПРОЗРАЧНЫЕ ПРАВИЛА</span><h2 id="rules-heading">как всё устроено</h2><div class="rules-grid">
+        <div><b>01</b><span>Предложи кандидата</span><small>Можно выдвинуть себя или другого человека.</small></div>
+        <div><b>02</b><span>Подтверди участие</span><small>Чужие кандидатуры принимаются только с согласия.</small></div>
+        <div><b>03</b><span>Выбери финалиста</span><small>Один Telegram-аккаунт — один голос за номинацию.</small></div>
+        <div><b>04</b><span>Приходи на церемонию</span><small>Итоги 9 ноября в 19:00 МСК. Ранее их не показываем.</small></div>
+      </div></section>
+    </main>
+
+    <footer><span>NYAN AWARDS 2026</span><i></i><span>НЯН ШОП × NYAN WALLET</span></footer>
+  </div>
+</body>
+</html>
