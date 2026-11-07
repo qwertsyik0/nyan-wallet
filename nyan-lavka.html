@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#fff9fb">
+  <meta name="description" content="Секретная лавка Няника в Nyan Wallet">
+  <title>Лавка Няника</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./nyan-lavka.css?v=20261108-1">
+  <script defer src="./nyan-lavka.js?v=20261108-1"></script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <a class="back" href="./index.html" aria-label="Назад в Nyan Wallet">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 5-7 7 7 7"/></svg>
+      </a>
+      <div class="brand"><strong>NYAN WALLET</strong><span>особое событие</span></div>
+      <span class="wallet-balance" id="wallet-balance">— 🐾</span>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="shop-title">
+        <div class="hero-copy">
+          <span class="hero-label"><span class="hero-dot"></span> СЕКРЕТНОЕ МЕСТО</span>
+          <h1 id="shop-title">лавка<br><em>Няника</em></h1>
+          <p>маленькие находки, большие сюрпризы</p>
+          <span class="hero-status" id="shop-status">скоро открытие</span>
+        </div>
+        <img class="mascot" src="./assets/nyan-future-vote/nyanik.png" alt="Няник" loading="eager" decoding="async">
+      </section>
+
+      <div class="intro-line"><span id="shop-info">ассортимент меняется во время игры</span><span id="countdown" class="countdown"></span></div>
+      <a id="telegram-entry" class="telegram-entry" href="https://t.me/nyancash_bot?startapp=nyan_lavka" hidden>открыть лавку в Telegram</a>
+      <p id="notice" class="notice" hidden role="status" aria-live="polite"></p>
+
+      <section id="owner-panel" class="owner-panel" hidden aria-label="Управление лавкой">
+        <details>
+          <summary>управление лавкой</summary>
+          <p>Перед открытием укажи остатки. Повторно открыть эту лавку нельзя.</p>
+          <div id="owner-stock" class="owner-stock"></div>
+          <label class="owner-duration">минут работы <input id="owner-minutes" type="number" min="5" max="180" value="60"></label>
+          <div class="owner-actions">
+            <button id="owner-open" type="button">открыть лавку</button>
+            <button id="owner-close" type="button">закрыть</button>
+            <button id="owner-orders" type="button">покупки</button>
+          </div>
+          <div id="owner-orders-list" class="owner-orders" hidden></div>
+        </details>
+      </section>
+
+      <section class="catalog" aria-labelledby="catalog-title">
+        <div class="section-heading"><div><span class="eyebrow">ЧТО ВНУТРИ</span><h2 id="catalog-title">товары лавки</h2></div><span id="visible-count" class="visible-count">6 товаров</span></div>
+        <div class="filters" aria-label="Категории товаров" role="group">
+          <button class="filter is-active" type="button" data-filter="all" aria-pressed="true">всё</button>
+          <button class="filter" type="button" data-filter="boost" aria-pressed="false">бонусы</button>
+          <button class="filter" type="button" data-filter="secret" aria-pressed="false">секретное</button>
+        </div>
+        <div class="product-grid" id="product-grid" aria-live="polite"></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog class="sheet" id="product-dialog" aria-labelledby="dialog-title">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <div class="sheet-head"><span class="sheet-eyebrow" id="dialog-category">ПРЕДМЕТ</span><button class="close" id="dialog-close" type="button" aria-label="Закрыть">×</button></div>
+    <div class="sheet-icon" id="dialog-icon" aria-hidden="true"></div>
+    <h2 id="dialog-title"></h2>
+    <p id="dialog-description"></p>
+    <div class="sheet-price"><span>стоимость</span><strong id="dialog-price"></strong></div>
+    <button class="primary" id="dialog-buy" type="button" disabled>лавка пока закрыта</button>
+    <p class="sheet-note" id="dialog-note">покупки станут доступны после открытия лавки</p>
+  </dialog>
+</body>
+</html>
