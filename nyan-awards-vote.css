@@ -156,3 +156,36 @@
   .stage-footer .confirm-vote[hidden]{display:none}
   .stage-footer:has(.confirm-vote[hidden]) .next-category{grid-column:1/-1}
 }
+
+.modal-identity{padding:22px 31px 0}
+.modal-identity h2{font-size:36px;letter-spacing:-.06em;margin:9px 0 0}
+.modal-profile+.modal-body{padding-top:0}
+
+/* The full nominee bio, not a tall picture, gets priority on small screens. */
+@media(max-width:540px){
+  .candidate-modal{width:calc(100% - 18px);max-height:calc(100dvh - 24px);border-radius:16px;overflow:auto}
+  .modal-profile{display:flex;align-items:center;gap:11px;padding:13px 45px 9px 13px}
+  .modal-photo{flex:0 0 72px;width:72px;height:72px;min-height:0;max-height:72px;border-radius:11px;overflow:hidden}
+  .modal-photo img{width:100%;height:100%;max-height:none;object-fit:cover}
+  .modal-identity{min-width:0;padding:0}
+  .modal-identity .section-kicker{font-size:8px;letter-spacing:.04em}
+  .modal-identity h2{font-size:25px;line-height:1.1;letter-spacing:-.04em;margin:5px 0 3px}
+  .modal-username{font-size:10px;overflow-wrap:anywhere}
+  .modal-close{right:9px;top:9px;width:31px;height:31px;border-radius:9px;font-size:21px}
+  .modal-profile+.modal-body{padding:0 14px 14px}
+  .modal-summary{margin:7px 0 10px;font-size:11px;line-height:1.38}
+  .modal-body h3{margin:10px 0 4px;font-size:9px;letter-spacing:.045em}
+  .modal-contribution{font-size:11px;line-height:1.4}
+  .modal-tags{gap:4px}
+  .modal-tags span{padding:5px 7px;border-radius:7px;font-size:9px}
+  .modal-note{margin-top:11px;font-size:8px}
+}
+@media(max-width:540px) and (max-height:620px){
+  .modal-profile{padding-top:9px;padding-bottom:6px}
+  .modal-photo{flex-basis:58px;width:58px;height:58px;max-height:58px}
+  .modal-identity h2{font-size:21px}
+  .modal-summary{font-size:10px;margin:5px 0 6px}
+  .modal-contribution{font-size:10px;line-height:1.3}
+  .modal-body h3{margin-top:7px}
+  .modal-note{margin-top:7px}
+}
