@@ -1,0 +1,63 @@
+:root { color-scheme: dark; font-family: 'Courier New', Courier, monospace; background: #090606; color: #f1e4dc; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; min-height: 100%; }
+body { min-height: 100svh; overflow-x: hidden; }
+button, a { -webkit-tap-highlight-color: transparent; }
+.horror-scene { position: fixed; inset: 0; z-index: -4; background: #090606 url('./assets/nyan-story/horror-corridor.webp') center / cover no-repeat; transform: scale(1.025); }
+.horror-scene::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg,rgba(5,3,4,.60) 0%,rgba(4,2,3,.35) 18%,rgba(5,3,4,.50) 48%,#070405 100%), linear-gradient(90deg,rgba(4,1,2,.90),transparent 36%,transparent 67%,rgba(4,1,2,.68)); }
+.horror-noise { pointer-events: none; position: fixed; inset: 0; z-index: 10; opacity: .16; background: repeating-linear-gradient(0deg,rgba(0,0,0,.28) 0 1px,transparent 1px 4px); mix-blend-mode: multiply; }
+.horror-noise::after { content: ''; position: absolute; inset: 0; opacity: .13; background-image: radial-gradient(#fff 0.4px,transparent 0.6px); background-size: 5px 5px; }
+.page { width: min(100%, 1040px); margin: 0 auto; min-height: 100svh; padding: max(env(safe-area-inset-top),25px) 28px max(env(safe-area-inset-bottom),16px); display: flex; flex-direction: column; justify-content: space-between; align-items: center; gap: 28px; }
+.topbar, .footer { width: 100%; display: flex; justify-content: space-between; align-items: center; }
+.brand { font-size: 18px; font-weight: 900; letter-spacing: .11em; text-shadow: 2px 2px #430b0b; }
+.brand > span:last-child { color: #f14945; }
+.brand-mark { color: #e83836; font-size: 20px; vertical-align: 1px; margin-right: 4px; }
+.top-code, .footer { color: #b9a39d; font-size: 10px; font-weight: bold; letter-spacing: .14em; }
+.top-code { display: inline-flex; align-items: center; gap: 10px; }
+.alarm-dot { width: 7px; height: 7px; background: #fc413a; box-shadow: 0 0 0 4px rgba(246,45,35,.12),0 0 16px #f43a3a; animation: pulse 2s infinite; }
+.registration { position: relative; isolation: isolate; width: min(100%, 492px); margin: 18px auto 22px; padding: 28px 35px 22px; background: linear-gradient(160deg,rgba(25,12,13,.96),rgba(9,5,7,.98) 72%); border: 2px solid #802723; box-shadow: 0 0 0 5px rgba(0,0,0,.83),0 0 0 6px #2f1110,0 24px 70px #000, inset 0 0 65px rgba(75,0,0,.19); }
+.registration::before { content: ''; position: absolute; left: 12px; right: 12px; top: 11px; height: 4px; background: repeating-linear-gradient(90deg,#622322 0 13px,transparent 13px 19px); opacity: .67; }
+.registration::after { content: ''; position: absolute; left: 16%; right: 16%; bottom: -12px; height: 8px; background: rgba(109,5,9,.7); filter: blur(11px); z-index: -1; }
+.card-corner { position: absolute; height: 18px; width: 18px; border-color: #cf3e39; border-style: solid; pointer-events: none; }
+.card-corner-tl { top: -3px; left: -3px; border-width: 3px 0 0 3px; }
+.card-corner-br { bottom: -3px; right: -3px; border-width: 0 3px 3px 0; }
+.card-topline { display: flex; justify-content: space-between; color: #b47a75; font-size: 10px; font-weight: bold; letter-spacing: .17em; }
+.warning-stamp { width: fit-content; margin: 35px 0 15px; padding: 7px 9px 6px; border: 1px solid rgba(223,75,69,.58); color: #db645d; background: rgba(127,16,19,.13); font-weight: 900; font-size: 9px; letter-spacing: .075em; transform: rotate(-2deg); }
+.warning-stamp .cross { font-size: 12px; margin-right: 4px; }
+h1 { margin: 0; color: #f5e2d8; font-family: 'Press Start 2P', 'Courier New', monospace; font-size: clamp(24px,5vw,34px); line-height: 1.68; letter-spacing: -.075em; text-shadow: 4px 4px 0 #671c1c,0 0 28px rgba(208,14,18,.23); }
+h1 span { color: #ed4640; text-shadow: 4px 4px 0 #4b0b0c,0 0 30px rgba(231,12,16,.23); }
+.tagline { margin: 10px 0 26px; color: #b4a5a0; font-size: 14px; letter-spacing: .025em; }
+.divider { display: flex; align-items: center; gap: 12px; color: #b32c2a; margin-bottom: 25px; }
+.divider span { flex: 1; height: 1px; background: linear-gradient(90deg,transparent,#6d2926); }
+.divider span:last-child { transform: rotate(180deg); }
+.divider b { font-weight: normal; }
+.identity-label { color: #d9a6a1; font-weight: 900; letter-spacing: .12em; font-size: 11px; margin-bottom: 11px; }
+.identity { display: flex; align-items: center; min-height: 59px; background: #110a0b; border: 2px solid #50302b; box-shadow: inset 0 0 0 2px #090506; padding: 0 14px; gap: 11px; }
+.identity-icon { color: #e63b37; font-size: 24px; font-weight: 900; }
+.username { flex: 1; color: #f3ded8; font-size: 16px; font-weight: bold; overflow-wrap: anywhere; min-width: 0; }
+.identity-lock { color: #aa514a; font-size: 19px; }
+.state-line { margin: 18px 0 8px; color: #a99590; font-size: 12px; display: flex; align-items: center; gap: 9px; }
+.small-loader { height: 9px; width: 9px; background: #d93837; box-shadow: 12px 0 #60302e; animation: pulse 1s infinite; }
+.microcopy { font-size: 12px; color: #a5918a; margin: 16px 0 16px; }
+.join-button { cursor: pointer; margin-top: 0; border: 2px solid #f84c44; background: linear-gradient(180deg,#d6312c,#9a191d); color: white; min-height: 62px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 20px; font-family: 'Press Start 2P','Courier New',monospace; font-size: 12px; letter-spacing: -.02em; box-shadow: inset 0 2px rgba(255,255,255,.18),0 6px 0 #490a0c,0 8px 24px rgba(174,8,12,.25); transition: transform .14s, box-shadow .14s, filter .14s; }
+.join-button:hover { filter: brightness(1.14); }
+.join-button:active { transform: translateY(4px); box-shadow: 0 2px 0 #490a0c; }
+.join-button:disabled { cursor: wait; opacity: .65; }
+.button-arrow { font-family: monospace; font-size: 21px; }
+.state-panel { display: flex; gap: 16px; align-items: center; margin-top: 20px; padding: 14px; border: 1px solid #783631; background: #221010; }
+.state-panel.success { border-color: #7f4740; background: #24120f; }
+.state-symbol { color: #fa4b45; font-size: 28px; font-weight: bold; }
+.state-panel strong { color: #f7d6cc; font-size: 15px; letter-spacing: .06em; }
+.state-panel p { color: #b69f95; font-size: 12px; margin: 6px 0 0; line-height: 1.5; }
+.error { color: #ff8f86; border-left: 3px solid #d93936; padding: 10px 12px; background: #2d0d10; font-size: 12px; line-height: 1.5; }
+.retry, .telegram-link { display: inline-block; background: transparent; border: 0; padding: 11px 0; color: #e7978c; font: bold 12px 'Courier New',monospace; text-decoration: underline; cursor: pointer; }
+.card-foot { display: flex; justify-content: space-between; gap: 14px; color: #6f4a47; border-top: 1px dashed #53302d; padding-top: 18px; margin-top: 30px; font-size: 9px; letter-spacing: .15em; font-weight: bold; }
+.footer { color: #97827d; padding-top: 5px; }
+@keyframes pulse { 50% { opacity: .32; } }
+.blood-drops { position: fixed; z-index: -1; top: 0; left: 20%; right: 18%; height: 67px; display: flex; justify-content: space-between; opacity: .83; pointer-events: none; }
+.blood-drops i { display: block; width: 8px; height: 22px; background: linear-gradient(#500a0b,#a6191d); box-shadow: 0 0 16px rgba(143,2,7,.5); }
+.blood-drops i:nth-child(2) { height: 48px; width: 12px; }.blood-drops i:nth-child(3) { height: 12px; }.blood-drops i:nth-child(4) { height: 60px; width: 5px; }.blood-drops i:nth-child(5) { height: 34px; width: 13px; }.blood-drops i:nth-child(6) { height: 13px; }
+@media(max-width:600px) { .page { padding: max(env(safe-area-inset-top),16px) 17px max(env(safe-area-inset-bottom),17px); gap: 20px; } .brand { font-size: 14px; } .brand-mark { font-size: 15px; }.top-code { font-size: 8px; letter-spacing: .03em; }.registration { margin: 10px auto 14px; padding: 26px 23px 20px; }.warning-stamp { margin-top: 30px; } h1 { font-size: clamp(22px,6.5vw,28px); }.tagline { font-size: 13px; }.footer { font-size: 9px; } .card-foot { font-size: 8px; } }
+@media(max-width:360px) { .top-code { display: none; }.registration { padding-left: 18px; padding-right: 18px; }.join-button { font-size: 10px; } }
+@media(prefers-reduced-motion:reduce) { .alarm-dot, .small-loader { animation: none; } .join-button { transition: none; } }
