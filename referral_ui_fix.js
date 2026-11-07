@@ -18,27 +18,34 @@
         const values = [];
         try {
             const url = new URL(window.location.href);
-            values.push(url.searchParams.get("promo"));
-            values.push(url.searchParams.get("slug"));
-            values.push(url.searchParams.get("startapp"));
-            values.push(url.searchParams.get("start_param"));
-            values.push(url.searchParams.get("tgWebAppStartParam"));
+            values.push({ raw: url.searchParams.get("promo"), explicit: true });
+            values.push({ raw: url.searchParams.get("slug"), explicit: true });
+            values.push({ raw: url.searchParams.get("startapp") });
+            values.push({ raw: url.searchParams.get("start_param") });
+            values.push({ raw: url.searchParams.get("tgWebAppStartParam") });
             const pathMatch = url.pathname.match(/\/promo\/([a-z0-9_-]{2,48})/i);
-            if (pathMatch) values.push(pathMatch[1]);
+            if (pathMatch) values.push({ raw: pathMatch[1], explicit: true });
             const hash = url.hash.startsWith("#") ? url.hash.slice(1) : url.hash;
             const hashParams = new URLSearchParams(hash);
-            values.push(hashParams.get("promo"));
-            values.push(hashParams.get("startapp"));
-            values.push(hashParams.get("tgWebAppStartParam"));
+            values.push({ raw: hashParams.get("promo"), explicit: true });
+            values.push({ raw: hashParams.get("startapp") });
+            values.push({ raw: hashParams.get("tgWebAppStartParam") });
         } catch (_) {}
-        values.push(tg?.initDataUnsafe?.start_param || "");
+        values.push({ raw: tg?.initDataUnsafe?.start_param || "" });
+        try {
+            values.push({ raw: new URLSearchParams(tg?.initData || "").get("start_param") });
+        } catch (_) {}
 
-        for (const raw of values) {
+        for (const entry of values) {
+            const raw = entry.raw;
             const value = String(raw || "").trim();
             if (!value) continue;
             const direct = value.match(/^[a-z0-9_-]{2,48}$/i);
             const prefixed = value.match(/^promo[_-]([a-z0-9_-]{2,48})$/i);
-            const slug = prefixed ? prefixed[1] : (direct ? value : "");
+            // Never mistake a game/campaign Mini App start_param for a promo.
+            // Explicit ?promo=... links can still use arbitrary custom slugs.
+            const knownDirect = /^(nyan109|nyan200)$/i.test(value);
+            const slug = prefixed ? prefixed[1] : (direct && (entry.explicit || knownDirect) ? value : "");
             if (slug) return slug.toLowerCase().replaceAll("_", "-");
         }
         return null;
