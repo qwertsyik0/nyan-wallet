@@ -25,7 +25,7 @@ from pathlib import Path
 
 SERVICE = "nyan-wallet"
 MODULE_URL = "https://raw.githubusercontent.com/qwertsyik0/nyan-wallet/main/server/nyan_awards_2026.py"
-MODULE_SHA256 = "6cb4c818303e3e3ff43572716e25457baef4945a1d4006a6c01f09f37fcf104a"
+MODULE_SHA256 = "3ee7daaef3e13b29419c74cb5a9425230870d7650200cfa14fd9852aa89400fa"
 IMPORT_AFTER = "from .nyan_future_vote import register_nyan_future_vote"
 IMPORT_NEW = "from .nyan_awards_2026 import register_nyan_awards_2026"
 CALL_AFTER = "    register_nyan_future_vote(backend_app.app)"
@@ -35,6 +35,9 @@ EXPECTED_ROUTES = (
     "/api/nyan-awards/nominate",
     "/api/nyan-awards/confirm",
     "/api/nyan-awards/vote",
+    "/api/nyan-awards/official/status",
+    "/api/nyan-awards/official/vote",
+    "/api/owner/nyan-awards/official/tally",
     "/api/owner/nyan-awards/candidates",
     "/api/owner/nyan-awards/finalist",
     "/api/owner/nyan-awards/winner",
@@ -115,7 +118,7 @@ def validate_service() -> None:
             with urllib.request.urlopen("http://127.0.0.1:8000/openapi.json", timeout=3) as response:
                 paths = json.load(response).get("paths", {})
             if health.get("ok") is True and all(route in paths for route in EXPECTED_ROUTES):
-                print("OK: сервис работает, все 8 API-маршрутов NYAN AWARDS доступны")
+                print("OK: сервис работает, все маршруты NYAN AWARDS доступны")
                 return
             last = "Не все маршруты API зарегистрированы"
         except (OSError, ValueError) as exc:

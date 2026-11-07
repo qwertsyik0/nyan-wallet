@@ -251,7 +251,7 @@
         }
 
         if (["nyan_awards", "nyan-awards", "awards2026"].includes(startParam)) {
-          const target = new URL("./nyan-awards.html", window.location.href);
+          const target = new URL("./nyan-awards-vote.html", window.location.href);
           const current = new URL(window.location.href);
           for (const [key, value] of current.searchParams.entries()) {
             if (!["startapp", "tgWebAppStartParam"].includes(key)) target.searchParams.set(key, value);
@@ -559,7 +559,7 @@
 <script src="./about.js?v=20260917-1"></script>
 <script src="./privacy.js?v=20260921-1"></script>
 <script src="./interface_shell.js?v=20261005-1"></script>
-<script src="./home_v2.js?v=20261031-retire-seasonal-events"></script>
+<script src="./home_v2.js?v=20261107-awards-vote1"></script>
 <script src="./nyan_id.js?v=20261031-cloudflare-api1"></script>
 <script src="./finance-workspace-entry.js?v=20261031-cloudflare-api1"></script>
 <script src="./profile_overview.js?v=20261031-cloudflare-api1"></script>

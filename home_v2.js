@@ -127,7 +127,7 @@
           return;
         }
         if (target === "nyan-awards-link") {
-          window.location.assign("./nyan-awards.html");
+          window.location.assign("./nyan-awards-vote.html");
           return;
         }
         if (target) proxyClick(target);

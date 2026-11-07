@@ -39,6 +39,17 @@ CATEGORY_IDS = {row[0] for row in CATEGORIES}
 EVIDENCE_CATEGORIES = {"games_legend", "mafia_master", "finance"}
 FLOOD_CATEGORY = "flood_legend"
 
+# The final ballot approved on 7 November is deliberately separate from the
+# earlier open nomination system. In particular, solo nominations cannot win
+# automatically or receive a vote.
+OFFICIAL_BALLOT = {
+    "legend_nyan": (6968551476, 5291356933, 5354595027),  # Пиксель, Фишка, Муся
+    "discovery": (6651466766, 8162240045),                  # Викс, Лолиська
+}
+OFFICIAL_VOTING_OPENS = datetime(2026, 11, 7, 15, 25, tzinfo=MSK)
+OFFICIAL_VOTING_CLOSES = datetime(2026, 11, 9, tzinfo=MSK)
+OFFICIAL_CEREMONY = datetime(2026, 11, 9, 19, tzinfo=MSK)
+
 
 class AwardNomination(core.Base):
     __tablename__ = "nyan_awards_nominations_2026"
@@ -65,6 +76,19 @@ class AwardVote(core.Base):
     voter_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id"), nullable=False)
     category: Mapped[str] = mapped_column(String(32), nullable=False)
     candidate_id: Mapped[int] = mapped_column(Integer, ForeignKey("nyan_awards_nominations_2026.id"), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AwardOfficialVote(core.Base):
+    """The announced shortlist; one changeable secret vote per category/user."""
+
+    __tablename__ = "nyan_awards_official_votes_2026"
+    __table_args__ = (UniqueConstraint("voter_id", "category", name="uq_awards_official_vote_2026"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    voter_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id"), nullable=False)
+    category: Mapped[str] = mapped_column(String(32), nullable=False)
+    candidate_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
@@ -141,6 +165,12 @@ class VoteBody(BaseModel):
     nomination_id: int = Field(ge=1)
 
 
+class OfficialVoteBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    category: str = Field(min_length=3, max_length=32)
+    candidate_id: int = Field(ge=1)
+
+
 class FinalistBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
     nomination_id: int = Field(ge=1)
@@ -167,6 +197,94 @@ def phase_at(now: datetime | None = None) -> str:
     if current < datetime(2026, 11, 9, 19, tzinfo=MSK):
         return "ceremony_wait"
     return "results"
+
+
+def official_phase_at(now: datetime | None = None) -> str:
+    current = (now or core.now_utc()).astimezone(MSK)
+    if current < OFFICIAL_VOTING_OPENS:
+        return "review"
+    if current < OFFICIAL_VOTING_CLOSES:
+        return "voting"
+    if current < OFFICIAL_CEREMONY:
+        return "ceremony_wait"
+    return "results"
+
+
+def _official_counts(session) -> dict[str, dict[int, int]]:
+    totals = {category: {} for category in OFFICIAL_BALLOT}
+    rows = session.execute(select(
+        AwardOfficialVote.category, AwardOfficialVote.candidate_id, func.count(AwardOfficialVote.id)
+    ).group_by(AwardOfficialVote.category, AwardOfficialVote.candidate_id)).all()
+    for category, candidate_id, count in rows:
+        if category in OFFICIAL_BALLOT and candidate_id in OFFICIAL_BALLOT[category]:
+            totals[category][int(candidate_id)] = int(count)
+    return totals
+
+
+@router.get("/api/nyan-awards/official/status")
+def official_awards_status(x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data")):
+    tg = _auth(x_telegram_init_data)
+    uid = int(tg["id"])
+    phase = official_phase_at()
+    with core.SessionLocal() as session:
+        mine = session.scalars(select(AwardOfficialVote).where(AwardOfficialVote.voter_id == uid)).all()
+        result = {
+            "phase": phase,
+            "opens_at": OFFICIAL_VOTING_OPENS.isoformat(),
+            "closes_at": OFFICIAL_VOTING_CLOSES.isoformat(),
+            "ceremony_at": OFFICIAL_CEREMONY.isoformat(),
+            "ballot": {category: list(ids) for category, ids in OFFICIAL_BALLOT.items()},
+            "my_votes": {row.category: row.candidate_id for row in mine},
+        }
+        if phase == "results":
+            counts = _official_counts(session)
+            result["results"] = {}
+            for category, finalist_ids in OFFICIAL_BALLOT.items():
+                scores = counts[category]
+                highest = max(scores.values(), default=0)
+                leaders = [uid for uid in finalist_ids if highest and scores.get(uid, 0) == highest]
+                result["results"][category] = {
+                    "counts": {str(fid): scores.get(fid, 0) for fid in finalist_ids},
+                    "winner_id": leaders[0] if len(leaders) == 1 else None,
+                    "tie": len(leaders) > 1,
+                }
+        return result
+
+
+@router.post("/api/nyan-awards/official/vote")
+def official_awards_vote(body: OfficialVoteBody, x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data")):
+    tg = _auth(x_telegram_init_data)
+    if official_phase_at() != "voting":
+        raise HTTPException(409, "Голосование откроется 7 ноября в 15:25 и завершится 9 ноября")
+    if body.candidate_id not in OFFICIAL_BALLOT.get(body.category, ()):
+        raise HTTPException(422, "В этой номинации нельзя голосовать за выбранного кандидата")
+    uid = int(tg["id"])
+    with core.SessionLocal() as session:
+        with session.begin():
+            # Serialize concurrent submissions by one Telegram ID across workers.
+            if session.bind.dialect.name == "postgresql":
+                session.execute(text("SELECT pg_advisory_xact_lock(:voter)"), {"voter": uid})
+            existing = session.scalar(select(AwardOfficialVote).where(
+                AwardOfficialVote.voter_id == uid, AwardOfficialVote.category == body.category
+            ).with_for_update())
+            if existing:
+                existing.candidate_id = body.candidate_id
+                existing.updated_at = core.now_utc()
+            else:
+                session.add(AwardOfficialVote(
+                    voter_id=uid, category=body.category, candidate_id=body.candidate_id,
+                    updated_at=core.now_utc(),
+                ))
+        return {"ok": True, "category": body.category, "candidate_id": body.candidate_id}
+
+
+@router.get("/api/owner/nyan-awards/official/tally")
+def official_awards_tally(x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data")):
+    tg = _auth(x_telegram_init_data)
+    core.require_owner(tg)
+    with core.SessionLocal() as session:
+        return {"phase": official_phase_at(), "counts": _official_counts(session),
+                "unique_voters": session.scalar(select(func.count(func.distinct(AwardOfficialVote.voter_id)))) or 0}
 
 
 def _auth(init_data: str | None) -> dict:
@@ -251,7 +369,7 @@ def _ballot_counts(session) -> dict[int, int]:
 def _eligible_voters(session) -> list[int]:
     """One entry per voting Telegram ID, never one entry per ballot."""
     return sorted(int(uid) for uid in session.scalars(
-        select(AwardVote.voter_id).distinct().where(AwardVote.voter_id != core.OWNER_TELEGRAM_ID)
+        select(AwardOfficialVote.voter_id).distinct().where(AwardOfficialVote.voter_id != core.OWNER_TELEGRAM_ID)
     ).all())
 
 
@@ -561,6 +679,7 @@ def register_nyan_awards_2026(app) -> None:
         return
     AwardNomination.__table__.create(bind=core.engine, checkfirst=True)
     AwardVote.__table__.create(bind=core.engine, checkfirst=True)
+    AwardOfficialVote.__table__.create(bind=core.engine, checkfirst=True)
     AwardWinner.__table__.create(bind=core.engine, checkfirst=True)
     AwardRandomVoter.__table__.create(bind=core.engine, checkfirst=True)
     AwardRejection.__table__.create(bind=core.engine, checkfirst=True)

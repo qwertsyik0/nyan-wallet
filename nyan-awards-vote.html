@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#fff7fa">
+  <meta name="description" content="NYAN AWARDS 2026 — официальное голосование Nyan Wallet.">
+  <title>NYAN AWARDS 2026 · Голосование</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./nyan-awards-vote.css?v=20261107-1">
+  <script src="./nyan-awards-vote.js?v=20261107-1" defer></script>
+</head>
+<body>
+  <div class="preview-banner" role="status"><span class="preview-dot"></span><strong id="phase-status">проверка доступа</strong><span id="phase-hint">подключаем Nyan Wallet</span></div>
+  <div class="site-shell">
+    <header class="topbar">
+      <div class="identity"><span class="identity-mark" aria-hidden="true">✦</span><span><strong>NYAN WALLET</strong><small>премия сообщества</small></span></div>
+      <div class="topbar-right"><span class="year">2026 / 01</span><span class="desktop-only">официальное голосование</span></div>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-orbit orbit-one" aria-hidden="true"></div><div class="hero-orbit orbit-two" aria-hidden="true"></div>
+        <div class="hero-content">
+          <div class="eyebrow"><span class="live-dot"></span> ПРЕМИЯ ЭКОСИСТЕМЫ НЯН</div>
+          <h1 id="hero-title">NYAN<br><em>AWARDS</em><span>2026</span></h1>
+          <p>Люди, которые делают Нян особенным.<br>Знакомься с финалистами и их историями.</p>
+          <div class="hero-actions"><a href="#finalists" class="button-main">смотреть финалистов <span aria-hidden="true">↗</span></a><div class="ceremony-date"><span>церемония</span><strong>09.11 · 19:00 мск</strong></div></div>
+        </div>
+        <div class="hero-emblem" aria-hidden="true"><span class="emblem-ring"></span><span class="emblem-star">✦</span><span class="emblem-dot d1"></span><span class="emblem-dot d2"></span><span class="emblem-dot d3"></span></div>
+        <span class="hero-bottom-mark">NYAN / TWENTY TWENTY SIX</span>
+      </section>
+
+      <section class="overview" aria-label="Информация о финалистах">
+        <div class="overview-item"><strong>05</strong><span>финалистов голосования</span></div>
+        <div class="overview-item"><strong>02</strong><span>конкурсные номинации</span></div>
+        <div class="overview-item"><strong>07</strong><span>без конкуренции</span></div>
+        <div class="overview-item overview-note"><span class="overview-sparkle">✧</span><p>каждая история<br>по-своему важна</p></div>
+      </section>
+
+      <section class="section-intro" id="finalists" aria-labelledby="nomination-title">
+        <div class="section-heading"><span class="section-kicker">ФИНАЛИСТЫ / 2026</span><h2>каждое имя<br><em>имеет значение.</em></h2></div>
+        <div class="section-context"><p>Голосование возможно только там, где есть выбор. Анкеты остальных участников доступны для просмотра, но одиночные номинации не проводятся.</p><span class="context-rule">2 НОМИНАЦИИ / 5 УЧАСТНИКОВ</span></div>
+      </section>
+
+      <section class="election-layout" aria-label="Категории и кандидаты">
+        <nav class="category-rail" aria-label="Номинации"><div class="rail-caption">НОМИНАЦИИ <span>02 / 09</span></div><div id="category-menu" class="category-menu"></div><div class="rail-footnote">один финалист — нет голосования и автоматической победы</div></nav>
+        <div class="nomination-stage">
+          <div class="stage-heading"><div><span class="stage-number" id="stage-index">01 / 09</span><h3 id="nomination-title">Легенда Нян</h3><p id="nomination-description">За вклад в жизнь сообщества и участие в его развитии.</p></div><span class="stage-badge" id="nomination-type">голосование</span></div>
+          <div class="stage-meta"><span id="candidate-count">3 финалиста</span><span id="vote-hint">можно выбрать одного</span></div>
+          <div id="inactive-note" class="inactive-note" hidden><strong>номинация не проводится</strong><p>Остался только один финалист. Без конкуренции голосование не имеет смысла, а победитель автоматически не назначается.</p></div>
+          <div id="candidates" class="candidates-grid" aria-live="polite"></div>
+          <div class="stage-footer"><div class="selection-status"><span class="selection-mini" id="selection-label">мой голос</span><strong id="selected-name">пока никто не выбран</strong></div><button class="next-category" id="next-category" type="button">следующая номинация <span aria-hidden="true">→</span></button><button class="confirm-vote" id="confirm-vote" type="button" disabled>подтвердить голос <span aria-hidden="true">↗</span></button></div>
+        </div>
+      </section>
+
+      <section class="timeline" aria-labelledby="timeline-title"><div class="timeline-lead"><span class="section-kicker">NYAN AWARDS 2026</span><h2 id="timeline-title">путь к награде</h2><p>Каждому этапу — своё время.</p></div><div class="timeline-items"><div><span>05–06.11</span><strong>выдвижение</strong><small>завершено</small></div><div><span>07.11</span><strong>финалисты</strong><small>определены</small></div><div class="active"><span>07.11</span><strong>голосование</strong><small>с 15:25</small></div><div><span>09.11</span><strong>церемония</strong><small>19:00 мск</small></div></div></section>
+
+      <section class="preview-notice"><span class="notice-symbol">✦</span><div><strong>голосование через Nyan Wallet</strong><p>Один голос на номинацию с подтверждённого Telegram-аккаунта. До закрытия голос можно изменить. Промежуточные результаты скрыты.</p><a id="telegram-entry" href="https://t.me/nyancash_bot?startapp=nyan_awards" hidden>открыть через Telegram ↗</a></div></section>
+    </main>
+    <footer><span>NYAN AWARDS 2026</span><i></i><span>НЯН ШОП × NYAN WALLET</span></footer>
+  </div>
+
+  <dialog id="candidate-modal" class="candidate-modal" aria-labelledby="modal-name"><button class="modal-close" id="modal-close" type="button" aria-label="Закрыть окно">×</button><div id="modal-content"></div></dialog>
+  <dialog id="image-lightbox" class="image-lightbox" aria-label="Фотография финалиста в полном размере"><button id="lightbox-close" class="lightbox-close" type="button" aria-label="Закрыть фотографию">×</button><img id="lightbox-photo" alt=""><div id="lightbox-caption" class="lightbox-caption"></div></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
