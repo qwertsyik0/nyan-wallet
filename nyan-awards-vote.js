@@ -277,7 +277,7 @@ menu.addEventListener('click', event => {
   if (!button) return;
   activeCategory = Number(button.dataset.index);
   renderCategory();
-  document.querySelector('.nomination-stage').scrollIntoView({behavior:'smooth',block:'start'});
+  if (window.innerWidth > 540) document.querySelector('.nomination-stage').scrollIntoView({behavior:'smooth',block:'start'});
 });
 cards.addEventListener('click', event => {
   const photo = event.target.closest('[data-photo]');
@@ -291,7 +291,7 @@ document.getElementById('confirm-vote').addEventListener('click', () => void sub
 document.getElementById('next-category').addEventListener('click',()=>{
   activeCategory = (activeCategory+1)%categories.length;
   renderCategory();
-  document.querySelector('.nomination-stage').scrollIntoView({behavior:'smooth',block:'start'});
+  if (window.innerWidth > 540) document.querySelector('.nomination-stage').scrollIntoView({behavior:'smooth',block:'start'});
 });
 document.getElementById('modal-close').addEventListener('click',()=>modal.close());
 modal.addEventListener('click',event=>{
