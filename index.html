@@ -20,6 +20,7 @@
           values.push(hp.get("tgWebAppStartParam"));
         } catch (_) {}
         values.push(tg?.initDataUnsafe?.start_param || "");
+        try { values.push(new URLSearchParams(tg?.initData || "").get("start_param")); } catch (_) {}
 
         const startParam = values.map(v => String(v || "").trim().toLowerCase()).find(Boolean) || "";
 
@@ -562,7 +563,7 @@
 <script type="module" src="./features.js?v=20261031-cloudflare-api1"></script>
 <script src="./purchase_toast.js?v=20260917-1"></script>
 <script type="module" src="./advanced_features.js?v=20261031-cloudflare-api1"></script>
-<script src="./referral_ui_fix.js?v=20261031-cloudflare-api1"></script>
+<script src="./referral_ui_fix.js?v=20261107-game-route-fix1"></script>
 <script type="module" src="./achievements.js?v=20261031-cloudflare-api1"></script>
 <script src="./referral_share.js?v=20261031-cloudflare-api1"></script>
 <script src="./owner_holo.js?v=20260918-1"></script>
