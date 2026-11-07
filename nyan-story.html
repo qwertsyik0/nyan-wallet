@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#090606">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Запись в сюжетную игру NYAN GAMES">
+  <title>NYAN GAMES // ЗАПИСЬ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="preload" href="./assets/nyan-story/horror-corridor.webp" as="image">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./nyan-story.css?v=1">
+  <script defer src="./nyan-story.js?v=1"></script>
+</head>
+<body>
+  <div class="horror-scene" aria-hidden="true"></div>
+  <div class="horror-noise" aria-hidden="true"></div>
+  <div class="blood-drops" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+
+  <main class="page">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">✖</span> NYAN <span>GAMES</span></div>
+      <span class="top-code"><span class="alarm-dot"></span> РЕГИСТРАЦИЯ / 001</span>
+    </header>
+
+    <section class="registration" aria-labelledby="page-title">
+      <div class="card-corner card-corner-tl" aria-hidden="true"></div>
+      <div class="card-corner card-corner-br" aria-hidden="true"></div>
+      <div class="card-topline"><span>ЛИЧНОЕ ДЕЛО</span><span>№ <span id="round-number">???</span></span></div>
+      <div class="warning-stamp"><span class="cross">✚</span> ВХОД НА СВОЙ СТРАХ И РИСК</div>
+      <h1 id="page-title" data-text="ЗАПИСЬ В ИГРУ">ЗАПИСЬ<br><span>В ИГРУ</span></h1>
+      <p class="tagline">кажется, тебя уже ждали.</p>
+
+      <div class="divider" aria-hidden="true"><span></span><b>✕</b><span></span></div>
+
+      <div class="identity-label">ТВОЙ TELEGRAM</div>
+      <div class="identity" aria-live="polite">
+        <span class="identity-icon" aria-hidden="true">@</span>
+        <span id="username" class="username">проверяем...</span>
+        <span class="identity-lock" aria-hidden="true">◈</span>
+      </div>
+
+      <div id="loading-state" class="state-line" role="status"><span class="small-loader"></span> проверяем запись...</div>
+      <div id="join-state" hidden>
+        <p class="microcopy">нажми на кнопку, чтобы попасть в список участников.</p>
+        <button class="join-button" id="join-button" type="button"><span>ЗАПИСАТЬСЯ</span><span class="button-arrow" aria-hidden="true">➜</span></button>
+      </div>
+      <div id="success-state" class="state-panel success" hidden role="status">
+        <span class="state-symbol">✓</span>
+        <div><strong>ТЫ В СПИСКЕ.</strong><p>запись принята. жди начала игры.</p></div>
+      </div>
+      <div id="closed-state" class="state-panel" hidden>
+        <span class="state-symbol">✕</span>
+        <div><strong id="closed-title">ДВЕРЬ ЗАКРЫТА.</strong><p id="closed-description">набора сейчас нет.</p></div>
+      </div>
+      <p id="error" class="error" role="alert" hidden></p>
+      <button id="retry-button" class="retry" type="button" hidden>повторить попытку ↺</button>
+      <a id="telegram-link" class="telegram-link" href="https://t.me/nyancash_bot?startapp=nyan_story" hidden>открыть через Telegram ↗</a>
+      <div class="card-foot"><span>NYAN // STORY</span><span>НЕ ОГЛЯДЫВАЙСЯ</span></div>
+    </section>
+
+    <footer class="footer"><span>© NYAN GAMES</span><span>NO SIGNAL_</span></footer>
+  </main>
+</body>
+</html>
