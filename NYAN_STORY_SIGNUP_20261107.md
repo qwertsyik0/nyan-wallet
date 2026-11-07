@@ -36,11 +36,22 @@
 На хосте бота нужен рабочий HTTPS-адрес API через `NYAN_STORY_API_URL`
 или уже существующую `NYAN_WALLET_API`/`NYAN_WALLET_API_URL`.
 
-Сначала обновить код на сервере FirstVDS и перезапустить существующий сервис
-`nyan-wallet`, проверив его health endpoint. Новый модуль при старте создаёт
-только две собственные таблицы `nyan_story_rounds` и `nyan_story_signups`.
+На FirstVDS рабочая папка `/opt/nyan-wallet` содержит ручные изменения. **Не делать
+`git pull` поверх неё.** Для установки только API регистрации предусмотрен
+отдельный установщик с предварительной проверкой, резервной копией и откатом:
 
-Затем на хосте Telegram-бота из обновлённого репозитория:
+```bash
+curl -fsSLo /tmp/install_nyan_story_firstvds.py https://raw.githubusercontent.com/qwertsyik0/nyan-wallet/feat/nyan-story-signup-20261107/tools/install_nyan_story_firstvds.py
+sudo python3 /tmp/install_nyan_story_firstvds.py --check
+sudo python3 /tmp/install_nyan_story_firstvds.py --apply
+```
+
+При успешной установке проверяются четыре маршрута API. Новый модуль при
+старте создаёт только две собственные таблицы `nyan_story_rounds` и
+`nyan_story_signups`; он не открывает запись и не рассылает сообщения.
+
+На **отдельном** хосте Telegram-бота (не FirstVDS API) из обновлённого
+репозитория, после объединения PR:
 
 ```bash
 python3 tools/install_nyan_story_bot.py --root /home/nyanteam/new_bot --check
