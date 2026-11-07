@@ -1,0 +1,109 @@
+/*
+ * Нян Кэш · 01 · тихий глитч
+ * Один дизайн, две палитры. Статичный фон целиком на CSS, без внешних файлов.
+ *
+ * Подключение вручную:
+ * 1. Загрузить этот файл ПОСЛЕ остальных стилей кошелька.
+ * 2. На существующую .balance-card добавить:
+ *    data-nyan-design="glitch" data-nyan-mode="light"
+ * 3. Для тёмного оформления заменить light на dark.
+ *
+ * data-nyan-design и data-nyan-mode — новые атрибуты этого оформления.
+ * В Nyan Wallet светлая и тёмная палитры доступны как два варианта одного оформления.
+ * Без data-nyan-design="glitch" стили ничего не меняют.
+ *
+ * Проверка перед установкой:
+ * - Обе палитры на экранах 320, 375 и 430 px.
+ * - Баланс 999 999 999 999, длинное имя и статус владельца.
+ * - Подписи, номер и статус читаются без увеличения; контраст от 4.5:1.
+ * - Полосы остаются у краёв, центр свободен, горизонтальной прокрутки нет.
+ */
+
+.balance-card[data-nyan-design="glitch"] {
+  --gl-paper: #fbf8fc;
+  --gl-ink: #342238;
+  --gl-muted: #56425c;
+  --gl-line: #e4dce8;
+  --gl-chip: #f4edf7;
+  --gl-pink: rgba(199, 54, 128, 0.28);
+  --gl-cyan: rgba(0, 117, 141, 0.22);
+  --gl-scan: rgba(83, 52, 96, 0.035);
+  --gl-glow: rgba(201, 89, 148, 0.055);
+  --gl-shadow: rgba(72, 35, 72, 0.09);
+
+  background:
+    linear-gradient(90deg, var(--gl-pink) 62%, var(--gl-cyan) 62%)
+      right 0 top 31% / 19% 3px no-repeat,
+    linear-gradient(90deg, var(--gl-cyan) 55%, var(--gl-pink) 55%)
+      right 4% top 33% / 12% 2px no-repeat,
+    linear-gradient(var(--gl-pink), var(--gl-pink))
+      right 0 top 35% / 5% 7px no-repeat,
+    linear-gradient(90deg, var(--gl-cyan) 42%, var(--gl-pink) 42%)
+      left 0 bottom 29% / 14% 3px no-repeat,
+    linear-gradient(var(--gl-cyan), var(--gl-cyan))
+      left 3% bottom 27% / 7% 2px no-repeat,
+    repeating-linear-gradient(0deg,
+      transparent 0 7px, var(--gl-scan) 7px 8px)
+      right center / 9% 100% no-repeat,
+    radial-gradient(ellipse at 100% 0,
+      var(--gl-glow), transparent 48%),
+    linear-gradient(var(--gl-paper), var(--gl-paper));
+  color: var(--gl-ink);
+  border-color: var(--gl-line);
+  box-shadow: 0 16px 40px var(--gl-shadow);
+  text-shadow: none;
+}
+
+.balance-card[data-nyan-design="glitch"][data-nyan-mode="dark"] {
+  --gl-paper: #19151f;
+  --gl-ink: #f8eefa;
+  --gl-muted: #cbbcd2;
+  --gl-line: #4b3e55;
+  --gl-chip: #2a2230;
+  --gl-pink: rgba(239, 130, 185, 0.30);
+  --gl-cyan: rgba(101, 211, 228, 0.25);
+  --gl-scan: rgba(233, 218, 245, 0.035);
+  --gl-glow: rgba(191, 90, 148, 0.07);
+  --gl-shadow: rgba(0, 0, 0, 0.24);
+}
+
+/* Убираем прежний декоративный слой только у выбранной карточки. */
+.balance-card[data-nyan-design="glitch"]::before,
+.balance-card[data-nyan-design="glitch"]::after,
+.balance-card[data-nyan-design="glitch"] .wallet-status::after {
+  content: none;
+  animation: none;
+}
+
+/* В текущем интерфейсе эти элементы имеют собственные цвета. */
+.balance-card[data-nyan-design="glitch"] :is(
+  .wallet-card-name, .balance, .wallet-number, .wallet-holder
+) {
+  color: var(--gl-ink);
+  text-shadow: none;
+}
+
+.balance-card[data-nyan-design="glitch"] :is(
+  .wallet-card-type, .balance-label, .currency-name, .wallet-detail-label
+) {
+  color: var(--gl-muted);
+  text-shadow: none;
+}
+
+.balance-card[data-nyan-design="glitch"] :is(
+  .wallet-card-mark, .wallet-status
+) {
+  background: var(--gl-chip);
+  color: var(--gl-ink);
+  border-color: var(--gl-line);
+  box-shadow: none;
+  text-shadow: none;
+}
+
+.balance-card[data-nyan-design="glitch"] .wallet-card-bottom {
+  border-top-color: var(--gl-line);
+}
+
+.balance-card[data-nyan-design="glitch"].owner-holo-active {
+  box-shadow: 0 16px 40px var(--gl-shadow);
+}
