@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Safely attach /story and /story_close to the existing Telegram bot.
 
-On the bot host, from a current nyan-wallet checkout:
-  python3 tools/install_nyan_story_bot.py --root /home/nyanteam/new_bot --check
-  python3 tools/install_nyan_story_bot.py --root /home/nyanteam/new_bot --apply
+On the bot host, directly from a downloaded copy or repo checkout:
+  python3 install_nyan_story_bot.py --root /home/nyanteam/new_bot --check
+  python3 install_nyan_story_bot.py --root /home/nyanteam/new_bot --apply --restart
 
-This does not send Telegram messages or restart the running process.
+This never opens a game round or sends a Telegram invitation.
 """
 
 from __future__ import annotations
@@ -13,17 +13,62 @@ from __future__ import annotations
 import argparse
 import ast
 import datetime
+import hashlib
+import importlib.util
+import json
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+import urllib.request
 from pathlib import Path
 
 
 SOURCE = Path(__file__).resolve().parents[1] / "bot_addons/nyan_story_bot.py"
+SOURCE_URL = (
+    "https://raw.githubusercontent.com/qwertsyik0/nyan-wallet/"
+    "feat/nyan-story-signup-20261107/bot_addons/nyan_story_bot.py"
+)
+SOURCE_SHA256 = "f57f204f0ef45449dc0eea7dd1a924a7720916acaef065b5b4d7de353b066479"
 IMPORT = "from nyan_story_bot import register_nyan_story_bot_handlers"
 REGISTER = "register_nyan_story_bot_handlers"
+
+
+def read_addon() -> bytes:
+    if SOURCE.is_file():
+        data = SOURCE.read_bytes()
+    else:
+        with urllib.request.urlopen(
+            urllib.request.Request(SOURCE_URL, headers={"User-Agent": "Nyan-Story-Bot-Install/1"}),
+            timeout=25,
+        ) as response:
+            data = response.read(100_001)
+    if len(data) > 100_000 or hashlib.sha256(data).hexdigest() != SOURCE_SHA256:
+        raise RuntimeError("контрольная сумма модуля бота не совпала")
+    ast.parse(data, filename="nyan_story_bot.py")
+    return data
+
+
+def bot_supervisor(root: Path):
+    script = Path("/home/nyanteam/nyan-wallet/tools/nyan_bot_autodeploy.py")
+    if not script.is_file():
+        raise RuntimeError("на VPS не найден действующий supervisor бота")
+    spec = importlib.util.spec_from_file_location("nyan_story_existing_supervisor", script)
+    supervisor = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(supervisor)
+    if supervisor.BOT.resolve() != root:
+        raise RuntimeError("supervisor обслуживает другой каталог бота")
+    if supervisor.CONFIG.is_file():
+        cfg = json.loads(supervisor.CONFIG.read_text(encoding="utf-8"))
+        if Path(cfg.get("bot_root", "")).resolve() != root:
+            raise RuntimeError("настройки supervisor указывают на другой каталог бота")
+        if supervisor.service_command(cfg, "is-active", check=False).returncode:
+            raise RuntimeError("служба бота не активна; перезапуск отменён")
+        return lambda: supervisor.service_command(cfg, "restart")
+    if len(supervisor.find_bot_processes()) != 1:
+        raise RuntimeError("не найден единственный активный бот; перезапуск отменён")
+    return supervisor.restart_nohup
 
 
 def patch_bot(source: bytes) -> bytes:
@@ -88,15 +133,17 @@ def main() -> None:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--check", action="store_true")
     mode.add_argument("--apply", action="store_true")
+    parser.add_argument("--restart", action="store_true", help="Перезапустить только штатный процесс Telegram-бота")
     parser.add_argument("--root", type=Path, default=Path("/home/nyanteam/new_bot"))
     args = parser.parse_args()
+    if args.restart and not args.apply:
+        raise RuntimeError("--restart применим только вместе с --apply")
     root = args.root.resolve()
     bot = root / "bot.py"
     addon = root / "nyan_story_bot.py"
     if not bot.is_file() or bot.is_symlink() or addon.is_symlink():
         raise RuntimeError("файл bot.py не найден или обнаружена символическая ссылка")
-    module = SOURCE.read_bytes()
-    ast.parse(module, filename="nyan_story_bot.py")
+    module = read_addon()
     updated = patch_bot(bot.read_bytes())
     changes = [(path, content) for path, content in ((bot, updated), (addon, module))
                if not path.exists() or path.read_bytes() != content]
@@ -105,8 +152,11 @@ def main() -> None:
     if args.check:
         print("проверено, файлы не изменены")
         return
+    restart = bot_supervisor(root) if args.restart else None
     if not changes:
-        print("команда /story уже подключена")
+        if restart:
+            restart()
+        print("команда /story уже подключена, бот проверен")
         return
 
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d-%H%M%S")
@@ -129,15 +179,23 @@ def main() -> None:
         )
         if result.returncode:
             raise RuntimeError(result.stderr[-1200:])
-    except Exception:
+        if restart:
+            restart()
+    except BaseException:
         for path, payload in reversed(before):
             if payload is None:
                 path.unlink(missing_ok=True)
             else:
                 atomic_write(path, payload)
+        if restart:
+            try:
+                restart()
+            except Exception as error:
+                print("ВНИМАНИЕ: восстановленный бот не запустился:", error, file=sys.stderr)
         raise
     print("/story подключена; резервная копия:", backup)
-    print("бот не перезапускался, уведомления не отправлялись")
+    print("бот перезапущен" if restart else "бот не перезапускался")
+    print("приглашения и уведомления не отправлялись")
 
 
 if __name__ == "__main__":

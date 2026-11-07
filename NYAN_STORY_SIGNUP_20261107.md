@@ -50,18 +50,17 @@ sudo python3 /tmp/install_nyan_story_firstvds.py --apply
 старте создаёт только две собственные таблицы `nyan_story_rounds` и
 `nyan_story_signups`; он не открывает запись и не рассылает сообщения.
 
-На **отдельном** хосте Telegram-бота (не FirstVDS API) из обновлённого
-репозитория, после объединения PR:
+На **отдельном** хосте Telegram-бота (не FirstVDS API) одной командой:
 
 ```bash
-python3 tools/install_nyan_story_bot.py --root /home/nyanteam/new_bot --check
-python3 tools/install_nyan_story_bot.py --root /home/nyanteam/new_bot --apply
+curl -fsSLo /tmp/install_nyan_story_bot.py https://raw.githubusercontent.com/qwertsyik0/nyan-wallet/feat/nyan-story-signup-20261107/tools/install_nyan_story_bot.py && python3 /tmp/install_nyan_story_bot.py --root /home/nyanteam/new_bot --apply --restart
 ```
 
-Установщик делает резервные копии изменённых файлов и проверяет синтаксис.
-Он **не перезапускает** бота и ничего не отправляет. После проверки нужно
-перезапустить уже используемый процесс бота штатным способом, не запуская
-вторую параллельную копию.
+Установщик скачивает проверенный модуль, сохраняет исходные файлы,
+проверяет синтаксис и перезапускает **только** существующий процесс через
+установленный на хосте supervisor. При ошибке возвращает прежние файлы;
+второй параллельный бот не запускается. Если supervisor или активный бот не
+найдены, установка останавливается без изменений.
 
 GitHub Pages должен обновить статические файлы с основной ветки отдельно.
 До обновления сайта и обоих серверных компонентов команду `/story` не запускать.

@@ -21,7 +21,7 @@ def _api_base() -> str:
         os.getenv("NYAN_STORY_API_URL")
         or os.getenv("NYAN_WALLET_API")
         or os.getenv("NYAN_WALLET_API_URL")
-        or ""
+        or "https://nyan-wallet.tail327bb6.ts.net"
     ).strip().rstrip("/")
     parsed = urllib.parse.urlsplit(value)
     if parsed.scheme != "https" or not parsed.hostname:
