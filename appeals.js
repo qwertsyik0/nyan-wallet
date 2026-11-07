@@ -529,9 +529,29 @@
         return url;
     }
 
+    const CSS_GLITCH_MODES = Object.freeze({
+        "nyan:css:glitch:light": "light",
+        "nyan:css:glitch:dark": "dark",
+    });
+
+    function cssGlitchMode(skin) {
+        return CSS_GLITCH_MODES[skin?.description] || null;
+    }
+
     async function applySkin(skin) {
         const card = document.getElementById("wallet-card");
         if (!card) return;
+        delete card.dataset.nyanDesign;
+        delete card.dataset.nyanMode;
+        const glitchMode = cssGlitchMode(skin);
+        if (glitchMode) {
+            card.classList.remove("has-custom-skin", "skin-text-light", "skin-text-dark");
+            card.style.removeProperty("--custom-wallet-image");
+            card.dataset.nyanDesign = "glitch";
+            card.dataset.nyanMode = glitchMode;
+            activeSkinId = skin.id;
+            return;
+        }
         if (!skin) {
             card.classList.remove("has-custom-skin", "skin-text-light", "skin-text-dark");
             card.style.removeProperty("--custom-wallet-image");
@@ -581,10 +601,23 @@
                     '<div class="appeal-skin-meta">' + (skin.active ? "Установлен сейчас" : "Доступен") + '</div>' +
                     '<button type="button" ' + (skin.active ? "disabled" : "") + '>' + (skin.active ? "Установлен" : "Установить") + '</button></div>';
                 box.appendChild(card);
-                skinUrl(skin.id).then((url) => {
+                const glitchMode = cssGlitchMode(skin);
+                if (glitchMode) {
                     const preview = card.querySelector(".appeal-skin-preview");
-                    if (preview) preview.style.backgroundImage = 'url("' + url + '")';
-                }).catch(() => {});
+                    preview.classList.add("balance-card");
+                    preview.dataset.nyanDesign = "glitch";
+                    preview.dataset.nyanMode = glitchMode;
+                    preview.style.minHeight = "0";
+                    preview.style.padding = "0";
+                    preview.style.border = "0";
+                    preview.style.borderRadius = "0";
+                    preview.style.boxShadow = "none";
+                } else {
+                    skinUrl(skin.id).then((url) => {
+                        const preview = card.querySelector(".appeal-skin-preview");
+                        if (preview) preview.style.backgroundImage = 'url("' + url + '")';
+                    }).catch(() => {});
+                }
                 card.querySelector("button")?.addEventListener("click", () => activateSkin(skin.id));
             }
         } catch (error) {
