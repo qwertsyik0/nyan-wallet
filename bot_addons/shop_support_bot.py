@@ -121,6 +121,105 @@ async def close_ticket(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     raise ApplicationHandlerStop
 
 
+def is_admin_update(update: Update) -> bool:
+    return bool(enabled() and update.effective_user and update.effective_user.id == owner_id()
+                and update.effective_chat and update.effective_chat.type == "private")
+
+
+def ticket_arg(context: ContextTypes.DEFAULT_TYPE) -> int | None:
+    if not context.args:
+        return None
+    raw = context.args[0].upper().removeprefix("NS-")
+    return int(raw) if raw.isdecimal() and int(raw) > 0 else None
+
+
+async def admin_tickets(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not is_admin_update(update):
+        return
+    with connect() as db:
+        rows = db.execute("SELECT id, user_id, status, created_at FROM shop_tickets ORDER BY id DESC LIMIT 20").fetchall()
+    result = "\n".join(f"NS-{r['id']:06d} · {r['status']} · {r['user_id']} · {r['created_at']}" for r in rows)
+    await update.effective_message.reply_text(result or "Обращений пока нет.")
+    raise ApplicationHandlerStop
+
+
+async def admin_ticket(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not is_admin_update(update):
+        return
+    ident = ticket_arg(context)
+    if ident is None:
+        await update.effective_message.reply_text("Использование: /ticket 1")
+        raise ApplicationHandlerStop
+    with connect() as db:
+        row = db.execute("SELECT * FROM shop_tickets WHERE id=?", (ident,)).fetchone()
+        history = db.execute("SELECT sender,text,created_at FROM shop_messages WHERE ticket_id=? ORDER BY id DESC LIMIT 15", (ident,)).fetchall()
+    if not row:
+        await update.effective_message.reply_text("Обращение не найдено.")
+    else:
+        lines = [f"NS-{ident:06d} · {row['status']} · пользователь {row['user_id']}"]
+        for msg in reversed(history):
+            lines.append(f"{msg['created_at']} · {msg['sender']}: {(msg['text'] or '[вложение]')[:350]}")
+        await update.effective_message.reply_text("\n".join(lines)[:4000])
+    raise ApplicationHandlerStop
+
+
+async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not is_admin_update(update):
+        return
+    ident = ticket_arg(context)
+    body = " ".join(context.args[1:]).strip() if ident is not None else ""
+    if not body:
+        await update.effective_message.reply_text("Использование: /reply 1 текст ответа")
+        raise ApplicationHandlerStop
+    with connect() as db:
+        ticket = db.execute("SELECT user_id,status FROM shop_tickets WHERE id=?", (ident,)).fetchone()
+        if not ticket or ticket['status'] != 'open':
+            await update.effective_message.reply_text("Открытое обращение не найдено.")
+            raise ApplicationHandlerStop
+        await context.bot.send_message(ticket['user_id'], body)
+        db.execute("INSERT INTO shop_messages(ticket_id,sender,text) VALUES(?,?,?)", (ident, 'admin', body))
+    await update.effective_message.reply_text(f"Ответ по NS-{ident:06d} доставлен.")
+    raise ApplicationHandlerStop
+
+
+async def admin_status(update: Update, context: ContextTypes.DEFAULT_TYPE, status: str) -> None:
+    if not is_admin_update(update):
+        return
+    ident = ticket_arg(context)
+    if ident is None:
+        await update.effective_message.reply_text("Укажите номер обращения, например /close 1")
+        raise ApplicationHandlerStop
+    with connect() as db:
+        row = db.execute("SELECT user_id,status FROM shop_tickets WHERE id=?", (ident,)).fetchone()
+        if row:
+            db.execute("UPDATE shop_tickets SET status=? WHERE id=?", (status, ident))
+    if not row:
+        await update.effective_message.reply_text("Обращение не найдено.")
+    else:
+        label = "закрыто" if status == "closed" else "снова открыто"
+        await update.effective_message.reply_text(f"Обращение NS-{ident:06d} {label}.")
+        if row['status'] != status:
+            await context.bot.send_message(row['user_id'], f"Ваше обращение NS-{ident:06d} {label}.")
+    raise ApplicationHandlerStop
+
+
+async def admin_close(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await admin_status(update, context, "closed")
+
+
+async def admin_reopen(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await admin_status(update, context, "open")
+
+
+async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not is_admin_update(update):
+        return
+    with connect() as db:
+        counts = dict(db.execute("SELECT status,COUNT(*) FROM shop_tickets GROUP BY status").fetchall())
+    await update.effective_message.reply_text(f"Обращения: {sum(counts.values())}\nОткрытые: {counts.get('open',0)}\nЗакрытые: {counts.get('closed',0)}")
+    raise ApplicationHandlerStop
+
+
 async def support_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not enabled() or not update.effective_user or not allowed(update.effective_user.id):
         return
@@ -139,9 +238,8 @@ async def support_message(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 if ticket and ticket['status'] == 'open':
                     target = ticket['user_id']
                     if message.text:
-                        await context.bot.send_message(target, "Администрация Нян Шопа:\n\n" + message.text)
+                        await context.bot.send_message(target, message.text)
                     else:
-                        await context.bot.send_message(target, "Администрация Нян Шопа:")
                         await context.bot.copy_message(target, message.chat_id, message.message_id)
                     db.execute("INSERT INTO shop_messages(ticket_id,sender,telegram_message_id,text) VALUES(?,?,?,?)", (link['ticket_id'], 'admin', message.message_id, message.text))
                     await message.reply_text("Ответ доставлен.")
@@ -167,4 +265,10 @@ def register_shop_support_handlers(app: Application) -> None:
     app.add_handler(CommandHandler("newticket", new_ticket), group=-45)
     app.add_handler(CommandHandler("tickets", tickets), group=-45)
     app.add_handler(CommandHandler("closeticket", close_ticket), group=-45)
+    app.add_handler(CommandHandler("admin_tickets", admin_tickets), group=-45)
+    app.add_handler(CommandHandler("ticket", admin_ticket), group=-45)
+    app.add_handler(CommandHandler("reply", admin_reply), group=-45)
+    app.add_handler(CommandHandler("close", admin_close), group=-45)
+    app.add_handler(CommandHandler("reopen", admin_reopen), group=-45)
+    app.add_handler(CommandHandler("stats_support", admin_stats), group=-45)
     app.add_handler(MessageHandler(filters.ChatType.PRIVATE & ~filters.COMMAND, support_message), group=-45)
