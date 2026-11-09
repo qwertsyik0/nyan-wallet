@@ -22,7 +22,33 @@ CATEGORIES = {"order": "Проблема с заказом", "account": "Акк�
 def customer_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(title, callback_data=f"shop:new:{code}")] for code, title in CATEGORIES.items()
-    ] + [[InlineKeyboardButton("Мои обращения", callback_data="shop:mine")]])
+    ] + [
+        [InlineKeyboardButton("Мои обращения", callback_data="shop:mine")],
+        [InlineKeyboardButton("Полный список команд /help", callback_data="shop:help")],
+    ])
+
+
+def help_text(is_admin: bool) -> str:
+    result = (
+        "Команды поддержки Нян Шопа\n\n"
+        "/support — открыть меню поддержки\n"
+        "/newticket — создать обращение\n"
+        "/tickets — мои обращения\n"
+        "/closeticket — закрыть своё активное обращение\n"
+        "/helps — полный список команд поддержки"
+    )
+    if is_admin:
+        result += (
+            "\n\nКоманды администратора\n"
+            "/support_admin — панель с кнопками\n"
+            "/admin_tickets — последние обращения\n"
+            "/ticket 1 — история обращения №1\n"
+            "/reply 1 текст — ответить покупателю\n"
+            "/close 1 — закрыть обращение\n"
+            "/reopen 1 — открыть повторно\n"
+            "/stats_support — статистика"
+        )
+    return result
 
 
 def admin_menu() -> InlineKeyboardMarkup:
@@ -110,6 +136,15 @@ async def support(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     if update.effective_user.id == owner_id():
         await update.effective_message.reply_text("Панель администратора", reply_markup=admin_menu())
+
+
+async def helps(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not enabled() or not update.effective_user or not allowed(update.effective_user.id):
+        return
+    if not update.effective_chat or update.effective_chat.type != "private":
+        return
+    await update.effective_message.reply_text(help_text(update.effective_user.id == owner_id()))
+    raise ApplicationHandlerStop
 
 
 async def new_ticket(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -302,6 +337,10 @@ async def support_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await query.message.reply_text("Обращение закрыто." if result.rowcount else "Обращение уже закрыто или не найдено.")
     elif query.data == "shop:menu":
         await query.message.reply_text("Выберите тему:", reply_markup=customer_menu())
+    elif query.data == "shop:help":
+        await query.message.reply_text(help_text(user.id == owner_id()), reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("Назад к поддержке", callback_data="shop:menu")],
+        ]))
     elif user.id == owner_id() and query.data.startswith("shop:admin:"):
         action = parts[2] if len(parts) >= 3 else ""
         if action in ("open", "all") and len(parts) == 3:
@@ -382,6 +421,7 @@ async def support_message(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 def register_shop_support_handlers(app: Application) -> None:
     """Use one negative handler group; inactive until pilot env flag is enabled."""
     app.add_handler(CommandHandler("support", support), group=-45)
+    app.add_handler(CommandHandler("helps", helps), group=-45)
     app.add_handler(CommandHandler("newticket", new_ticket), group=-45)
     app.add_handler(CommandHandler("tickets", tickets), group=-45)
     app.add_handler(CommandHandler("closeticket", close_ticket), group=-45)
