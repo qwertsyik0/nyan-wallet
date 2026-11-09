@@ -9,12 +9,34 @@ import os
 import sqlite3
 from pathlib import Path
 
-from telegram import KeyboardButton, ReplyKeyboardMarkup, Update
-from telegram.ext import Application, ApplicationHandlerStop, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, Update
+from telegram.ext import Application, ApplicationHandlerStop, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
 TESTER_ID = 8587776155
 DEFAULT_OWNER_ID = 6289461565
 SUPPORT_BUTTON = "Поддержка"
+CATEGORIES = {"order": "Проблема с заказом", "payment": "Оплата", "account": "Аккаунты", "other": "Другой вопрос"}
+
+
+def customer_menu() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(title, callback_data=f"shop:new:{code}")] for code, title in CATEGORIES.items()
+    ] + [[InlineKeyboardButton("Мои обращения", callback_data="shop:mine")]])
+
+
+def admin_menu() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("Открытые обращения", callback_data="shop:admin:open")],
+        [InlineKeyboardButton("Все обращения", callback_data="shop:admin:all"),
+         InlineKeyboardButton("Статистика", callback_data="shop:admin:stats")],
+    ])
+
+
+def ticket_controls(ticket_id: int, status: str) -> InlineKeyboardMarkup:
+    action = "reopen" if status == "closed" else "close"
+    label = "Открыть повторно" if status == "closed" else "Закрыть обращение"
+    return InlineKeyboardMarkup([[InlineKeyboardButton(label, callback_data=f"shop:admin:{action}:{ticket_id}")],
+                                 [InlineKeyboardButton("К списку", callback_data="shop:admin:open")]])
 
 
 def owner_id() -> int:
@@ -69,13 +91,13 @@ async def support(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     if update.effective_chat.type != "private":
         return
+    await update.effective_message.reply_text("Поддержка Нян Шопа (закрытый тест)\nВыберите тему обращения:", reply_markup=customer_menu())
     await update.effective_message.reply_text(
-        "Поддержка Нян Шопа (закрытый тест)\n\n"
-        "Чтобы создать обращение, напишите /newticket и опишите проблему.\n"
-        "Ваши обращения: /tickets\n"
-        "Закрыть активное обращение: /closeticket",
+        "Быстрый доступ к поддержке:",
         reply_markup=ReplyKeyboardMarkup([[KeyboardButton(SUPPORT_BUTTON)]], resize_keyboard=True),
     )
+    if update.effective_user.id == owner_id():
+        await update.effective_message.reply_text("Панель администратора", reply_markup=admin_menu())
 
 
 async def new_ticket(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -140,6 +162,13 @@ async def admin_tickets(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         rows = db.execute("SELECT id, user_id, status, created_at FROM shop_tickets ORDER BY id DESC LIMIT 20").fetchall()
     result = "\n".join(f"NS-{r['id']:06d} · {r['status']} · {r['user_id']} · {r['created_at']}" for r in rows)
     await update.effective_message.reply_text(result or "Обращений пока нет.")
+    raise ApplicationHandlerStop
+
+
+async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not is_admin_update(update):
+        return
+    await update.effective_message.reply_text("Панель поддержки Нян Шопа", reply_markup=admin_menu())
     raise ApplicationHandlerStop
 
 
@@ -220,6 +249,84 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     raise ApplicationHandlerStop
 
 
+async def support_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query or not query.data or not query.data.startswith("shop:"):
+        return
+    user = update.effective_user
+    if not enabled() or not user or not allowed(user.id) or not update.effective_chat or update.effective_chat.type != "private":
+        await query.answer("Функция пока недоступна", show_alert=True)
+        raise ApplicationHandlerStop
+    await query.answer()
+    parts = query.data.split(":")
+    if len(parts) == 3 and parts[1] == "new" and parts[2] in CATEGORIES:
+        with connect() as db:
+            row = db.execute("SELECT id FROM shop_tickets WHERE user_id=? AND status='open' ORDER BY id DESC LIMIT 1", (user.id,)).fetchone()
+            if row:
+                await query.message.reply_text(f"У вас уже открыто NS-{row['id']:06d}. Отправьте сообщение сюда или закройте обращение.")
+                raise ApplicationHandlerStop
+            cur = db.execute("INSERT INTO shop_tickets(user_id,category) VALUES(?,?)", (user.id, CATEGORIES[parts[2]]))
+            ident = cur.lastrowid
+        await query.message.reply_text(f"Создано обращение NS-{ident:06d} · {CATEGORIES[parts[2]]}\nОпишите проблему следующим сообщением.")
+        if user.id != owner_id():
+            await context.bot.send_message(owner_id(), f"Новое обращение NS-{ident:06d} · {CATEGORIES[parts[2]]} · пользователь {user.id}")
+    elif query.data == "shop:mine":
+        with connect() as db:
+            rows = db.execute("SELECT id,category,status FROM shop_tickets WHERE user_id=? ORDER BY id DESC LIMIT 10", (user.id,)).fetchall()
+        buttons = [[InlineKeyboardButton(f"NS-{r['id']:06d} · {r['status']}", callback_data=f"shop:mine:{r['id']}")] for r in rows]
+        await query.message.reply_text("Ваши обращения:" if rows else "Обращений пока нет.", reply_markup=InlineKeyboardMarkup(buttons) if buttons else customer_menu())
+    elif len(parts) == 3 and parts[1] == "mine" and parts[2].isdecimal():
+        ident = int(parts[2])
+        with connect() as db:
+            row = db.execute("SELECT category,status FROM shop_tickets WHERE id=? AND user_id=?", (ident, user.id)).fetchone()
+        if not row:
+            await query.message.reply_text("Обращение не найдено.")
+        else:
+            buttons = [[InlineKeyboardButton("Закрыть обращение", callback_data=f"shop:mineclose:{ident}")]] if row['status'] == 'open' else [[InlineKeyboardButton("Создать новое", callback_data="shop:menu")]]
+            await query.message.reply_text(f"NS-{ident:06d} · {row['category']} · {row['status']}", reply_markup=InlineKeyboardMarkup(buttons))
+    elif len(parts) == 3 and parts[1] == "mineclose" and parts[2].isdecimal():
+        with connect() as db:
+            result = db.execute("UPDATE shop_tickets SET status='closed' WHERE id=? AND user_id=? AND status='open'", (int(parts[2]), user.id))
+        await query.message.reply_text("Обращение закрыто." if result.rowcount else "Обращение уже закрыто или не найдено.")
+    elif query.data == "shop:menu":
+        await query.message.reply_text("Выберите тему:", reply_markup=customer_menu())
+    elif user.id == owner_id() and query.data.startswith("shop:admin:"):
+        action = parts[2] if len(parts) >= 3 else ""
+        if action in ("open", "all") and len(parts) == 3:
+            with connect() as db:
+                sql = "SELECT id,user_id,status FROM shop_tickets"
+                if action == "open":
+                    sql += " WHERE status='open'"
+                rows = db.execute(sql + " ORDER BY id DESC LIMIT 20").fetchall()
+            buttons = [[InlineKeyboardButton(f"NS-{r['id']:06d} · {r['user_id']} · {r['status']}", callback_data=f"shop:admin:view:{r['id']}")] for r in rows]
+            buttons.append([InlineKeyboardButton("Назад", callback_data="shop:admin:home")])
+            await query.message.reply_text("Обращения:" if rows else "Обращений нет.", reply_markup=InlineKeyboardMarkup(buttons))
+        elif action == "home":
+            await query.message.reply_text("Панель администратора", reply_markup=admin_menu())
+        elif action == "stats":
+            with connect() as db:
+                counts = dict(db.execute("SELECT status,COUNT(*) FROM shop_tickets GROUP BY status").fetchall())
+            await query.message.reply_text(f"Всего: {sum(counts.values())}\nОткрыто: {counts.get('open',0)}\nЗакрыто: {counts.get('closed',0)}", reply_markup=admin_menu())
+        elif action in ("view", "close", "reopen") and len(parts) == 4 and parts[3].isdecimal():
+            ident = int(parts[3])
+            with connect() as db:
+                if action in ("close", "reopen"):
+                    db.execute("UPDATE shop_tickets SET status=? WHERE id=?", ("closed" if action == "close" else "open", ident))
+                ticket = db.execute("SELECT user_id,category,status FROM shop_tickets WHERE id=?", (ident,)).fetchone()
+                last = db.execute("SELECT sender,text FROM shop_messages WHERE ticket_id=? ORDER BY id DESC LIMIT 5", (ident,)).fetchall()
+            if not ticket:
+                await query.message.reply_text("Обращение не найдено.")
+            else:
+                history = "\n".join(f"{r['sender']}: {(r['text'] or '[вложение]')[:180]}" for r in reversed(last))
+                await query.message.reply_text(
+                    f"NS-{ident:06d} · {ticket['status']}\nТема: {ticket['category']}\nПользователь: {ticket['user_id']}\n\n{history}\n\nОтвет: /reply {ident} текст",
+                    reply_markup=ticket_controls(ident, ticket['status']),
+                )
+                if action in ("close", "reopen"):
+                    await context.bot.send_message(ticket['user_id'], f"Ваше обращение NS-{ident:06d} {'закрыто' if action == 'close' else 'снова открыто'}.")
+    raise ApplicationHandlerStop
+
+
 async def support_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not enabled() or not update.effective_user or not allowed(update.effective_user.id):
         return
@@ -266,9 +373,11 @@ def register_shop_support_handlers(app: Application) -> None:
     app.add_handler(CommandHandler("tickets", tickets), group=-45)
     app.add_handler(CommandHandler("closeticket", close_ticket), group=-45)
     app.add_handler(CommandHandler("admin_tickets", admin_tickets), group=-45)
+    app.add_handler(CommandHandler("support_admin", admin_panel), group=-45)
     app.add_handler(CommandHandler("ticket", admin_ticket), group=-45)
     app.add_handler(CommandHandler("reply", admin_reply), group=-45)
     app.add_handler(CommandHandler("close", admin_close), group=-45)
     app.add_handler(CommandHandler("reopen", admin_reopen), group=-45)
     app.add_handler(CommandHandler("stats_support", admin_stats), group=-45)
+    app.add_handler(CallbackQueryHandler(support_buttons, pattern=r"^shop:"), group=-45)
     app.add_handler(MessageHandler(filters.ChatType.PRIVATE & ~filters.COMMAND, support_message), group=-45)
