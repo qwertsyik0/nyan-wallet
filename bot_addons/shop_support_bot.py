@@ -15,6 +15,8 @@ from telegram.ext import Application, ApplicationHandlerStop, CallbackQueryHandl
 
 TESTER_ID = 8587776155
 DEFAULT_OWNER_ID = 6289461565
+MAX_TICKETS_PER_DAY = 5
+MAX_MESSAGES_PER_HOUR = 30
 SUPPORT_BUTTON = "🛟 Поддержка"
 CATEGORIES = {"order": "Проблема с заказом", "account": "Аккаунты", "other": "Другой вопрос"}
 CATEGORY_ICONS = {"order": "📦", "account": "👤", "other": "💬"}
@@ -71,13 +73,20 @@ def owner_id() -> int:
 
 
 def enabled() -> bool:
-    # Registering the addon is the explicit pilot opt-in. An emergency override
-    # can disable it without removing the registration.
+    # Emergency switch, independent from the public/closed access setting.
     return os.getenv("NYAN_SHOP_SUPPORT_PILOT", "1") == "1"
 
 
 def allowed(user_id: int) -> bool:
-    return user_id in (TESTER_ID, owner_id())
+    return user_id in (TESTER_ID, owner_id()) or os.getenv("NYAN_SHOP_SUPPORT_PUBLIC", "1") == "1"
+
+
+def ticket_quota_reached(db: sqlite3.Connection, user_id: int) -> bool:
+    count = db.execute(
+        "SELECT COUNT(*) FROM shop_tickets WHERE user_id=? AND created_at>=datetime('now','-1 day')",
+        (user_id,),
+    ).fetchone()[0]
+    return count >= MAX_TICKETS_PER_DAY
 
 
 def customer_identity(user) -> str:
@@ -129,13 +138,14 @@ async def support(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     if update.effective_chat.type != "private":
         return
-    await update.effective_message.reply_text("Поддержка Нян Шопа (закрытый тест)\n\nВыберите тему обращения.\n\n/helps — полный список команд", reply_markup=customer_menu())
+    await update.effective_message.reply_text("Поддержка Нян Шопа\n\nВыберите тему обращения.\n\n/helps — полный список команд", reply_markup=customer_menu())
     await update.effective_message.reply_text(
         "Быстрый доступ к поддержке:",
         reply_markup=ReplyKeyboardMarkup([[KeyboardButton(SUPPORT_BUTTON)]], resize_keyboard=True),
     )
     if update.effective_user.id == owner_id():
         await update.effective_message.reply_text("Панель администратора", reply_markup=admin_menu())
+    raise ApplicationHandlerStop
 
 
 async def helps(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -157,6 +167,9 @@ async def new_ticket(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         existing = db.execute("SELECT id FROM shop_tickets WHERE user_id=? AND status='open' ORDER BY id DESC LIMIT 1", (user_id,)).fetchone()
         if existing:
             await update.effective_message.reply_text(f"У вас уже открыто обращение NS-{existing['id']:06d}. Напишите сообщение сюда.")
+            raise ApplicationHandlerStop
+        if ticket_quota_reached(db, user_id):
+            await update.effective_message.reply_text("Вы достигли лимита обращений на 24 часа. Пожалуйста, попробуйте позднее.")
             raise ApplicationHandlerStop
         cursor = db.execute("INSERT INTO shop_tickets(user_id) VALUES(?)", (user_id,))
         ticket_id = cursor.lastrowid
@@ -312,6 +325,9 @@ async def support_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             if row:
                 await query.message.reply_text(f"У вас уже открыто NS-{row['id']:06d}. Отправьте сообщение сюда или закройте обращение.")
                 raise ApplicationHandlerStop
+            if ticket_quota_reached(db, user.id):
+                await query.message.reply_text("Лимит — 5 обращений за 24 часа. Попробуйте позднее.")
+                raise ApplicationHandlerStop
             cur = db.execute("INSERT INTO shop_tickets(user_id,category) VALUES(?,?)", (user.id, CATEGORIES[parts[2]]))
             ident = cur.lastrowid
         await query.message.reply_text(f"Создано обращение NS-{ident:06d} · {CATEGORIES[parts[2]]}\nОпишите проблему следующим сообщением.")
@@ -408,6 +424,13 @@ async def support_message(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         if user_id == owner_id():
             return  # Owner replies only to linked admin messages.
         ticket_id = ticket['id']
+        sent_count = db.execute(
+            "SELECT COUNT(*) FROM shop_messages WHERE ticket_id=? AND sender='customer' AND created_at>=datetime('now','-1 hour')",
+            (ticket_id,),
+        ).fetchone()[0]
+        if sent_count >= MAX_MESSAGES_PER_HOUR:
+            await message.reply_text("Лимит — 30 сообщений в час. Пожалуйста, подождите.")
+            raise ApplicationHandlerStop
         copied = await context.bot.copy_message(owner_id(), message.chat_id, message.message_id)
         header = await context.bot.send_message(owner_id(), f"NS-{ticket_id:06d} · {customer_identity(update.effective_user)}\nОтветьте на это сообщение, чтобы ответить покупателю.", reply_to_message_id=copied.message_id, parse_mode="HTML")
         db.execute("INSERT INTO shop_admin_links(admin_message_id,ticket_id) VALUES(?,?)", (header.message_id, ticket_id))
