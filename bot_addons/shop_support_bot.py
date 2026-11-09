@@ -15,7 +15,7 @@ from telegram.ext import Application, ApplicationHandlerStop, CallbackQueryHandl
 TESTER_ID = 8587776155
 DEFAULT_OWNER_ID = 6289461565
 SUPPORT_BUTTON = "Поддержка"
-CATEGORIES = {"order": "Проблема с заказом", "payment": "Оплата", "account": "Аккаунты", "other": "Другой вопрос"}
+CATEGORIES = {"order": "Проблема с заказом", "account": "Аккаунты", "other": "Другой вопрос"}
 
 
 def customer_menu() -> InlineKeyboardMarkup:
