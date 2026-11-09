@@ -15,16 +15,16 @@ from telegram.ext import Application, ApplicationHandlerStop, CallbackQueryHandl
 
 TESTER_ID = 8587776155
 DEFAULT_OWNER_ID = 6289461565
-SUPPORT_BUTTON = "Поддержка"
+SUPPORT_BUTTON = "🛟 Поддержка"
 CATEGORIES = {"order": "Проблема с заказом", "account": "Аккаунты", "other": "Другой вопрос"}
+CATEGORY_ICONS = {"order": "📦", "account": "👤", "other": "💬"}
 
 
 def customer_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton(title, callback_data=f"shop:new:{code}")] for code, title in CATEGORIES.items()
+        [InlineKeyboardButton(f"{CATEGORY_ICONS[code]} {title}", callback_data=f"shop:new:{code}")] for code, title in CATEGORIES.items()
     ] + [
-        [InlineKeyboardButton("Мои обращения", callback_data="shop:mine")],
-        [InlineKeyboardButton("Полный список команд /help", callback_data="shop:help")],
+        [InlineKeyboardButton("📋 Мои обращения", callback_data="shop:mine")],
     ])
 
 
@@ -53,17 +53,17 @@ def help_text(is_admin: bool) -> str:
 
 def admin_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("Открытые обращения", callback_data="shop:admin:open")],
-        [InlineKeyboardButton("Все обращения", callback_data="shop:admin:all"),
-         InlineKeyboardButton("Статистика", callback_data="shop:admin:stats")],
+        [InlineKeyboardButton("📨 Открытые обращения", callback_data="shop:admin:open")],
+        [InlineKeyboardButton("📋 Все обращения", callback_data="shop:admin:all"),
+         InlineKeyboardButton("📊 Статистика", callback_data="shop:admin:stats")],
     ])
 
 
 def ticket_controls(ticket_id: int, status: str) -> InlineKeyboardMarkup:
     action = "reopen" if status == "closed" else "close"
-    label = "Открыть повторно" if status == "closed" else "Закрыть обращение"
+    label = "🔓 Открыть повторно" if status == "closed" else "🔒 Закрыть обращение"
     return InlineKeyboardMarkup([[InlineKeyboardButton(label, callback_data=f"shop:admin:{action}:{ticket_id}")],
-                                 [InlineKeyboardButton("К списку", callback_data="shop:admin:open")]])
+                                 [InlineKeyboardButton("◀️ К списку", callback_data="shop:admin:open")]])
 
 
 def owner_id() -> int:
@@ -129,7 +129,7 @@ async def support(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     if update.effective_chat.type != "private":
         return
-    await update.effective_message.reply_text("Поддержка Нян Шопа (закрытый тест)\nВыберите тему обращения:", reply_markup=customer_menu())
+    await update.effective_message.reply_text("Поддержка Нян Шопа (закрытый тест)\n\nВыберите тему обращения.\n\n/helps — полный список команд", reply_markup=customer_menu())
     await update.effective_message.reply_text(
         "Быстрый доступ к поддержке:",
         reply_markup=ReplyKeyboardMarkup([[KeyboardButton(SUPPORT_BUTTON)]], resize_keyboard=True),
@@ -329,7 +329,7 @@ async def support_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         if not row:
             await query.message.reply_text("Обращение не найдено.")
         else:
-            buttons = [[InlineKeyboardButton("Закрыть обращение", callback_data=f"shop:mineclose:{ident}")]] if row['status'] == 'open' else [[InlineKeyboardButton("Создать новое", callback_data="shop:menu")]]
+            buttons = [[InlineKeyboardButton("🔒 Закрыть обращение", callback_data=f"shop:mineclose:{ident}")]] if row['status'] == 'open' else [[InlineKeyboardButton("➕ Создать новое", callback_data="shop:menu")]]
             await query.message.reply_text(f"NS-{ident:06d} · {row['category']} · {row['status']}", reply_markup=InlineKeyboardMarkup(buttons))
     elif len(parts) == 3 and parts[1] == "mineclose" and parts[2].isdecimal():
         with connect() as db:
@@ -338,9 +338,8 @@ async def support_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     elif query.data == "shop:menu":
         await query.message.reply_text("Выберите тему:", reply_markup=customer_menu())
     elif query.data == "shop:help":
-        await query.message.reply_text(help_text(user.id == owner_id()), reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("Назад к поддержке", callback_data="shop:menu")],
-        ]))
+        # Legacy button on messages sent before this menu revision.
+        await query.message.reply_text(help_text(user.id == owner_id()))
     elif user.id == owner_id() and query.data.startswith("shop:admin:"):
         action = parts[2] if len(parts) >= 3 else ""
         if action in ("open", "all") and len(parts) == 3:
@@ -386,7 +385,7 @@ async def support_message(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return
     message = update.effective_message
     user_id = update.effective_user.id
-    if message.text == SUPPORT_BUTTON:
+    if message.text in {SUPPORT_BUTTON, "Поддержка"}:
         await support(update, context)
         raise ApplicationHandlerStop
     with connect() as db:
