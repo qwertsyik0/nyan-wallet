@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+from html import escape
 from pathlib import Path
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, Update
@@ -51,6 +52,17 @@ def enabled() -> bool:
 
 def allowed(user_id: int) -> bool:
     return user_id in (TESTER_ID, owner_id())
+
+
+def customer_identity(user) -> str:
+    """User-facing admin label; links work even without public usernames."""
+    telegram_id = int(user.id)
+    username = f"@{escape(user.username)} · " if user.username else ""
+    return f'{username}<a href="tg://user?id={telegram_id}">{telegram_id}</a>'
+
+
+def linked_id(telegram_id: int) -> str:
+    return f'<a href="tg://user?id={int(telegram_id)}">{int(telegram_id)}</a>'
 
 
 def db_path() -> Path:
@@ -115,7 +127,7 @@ async def new_ticket(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         ticket_id = cursor.lastrowid
     await update.effective_message.reply_text(f"Обращение NS-{ticket_id:06d} создано. Опишите проблему следующим сообщением. Можно прислать фото или документ.")
     if user_id != owner_id():
-        await context.bot.send_message(owner_id(), f"Новое обращение NS-{ticket_id:06d} от тестировщика {user_id}. Ответьте на следующее сообщение с обращением.")
+        await context.bot.send_message(owner_id(), f"Новое обращение NS-{ticket_id:06d} · {customer_identity(update.effective_user)}\nОтветьте на следующее сообщение с обращением.", parse_mode="HTML")
     raise ApplicationHandlerStop
 
 
@@ -160,8 +172,8 @@ async def admin_tickets(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         return
     with connect() as db:
         rows = db.execute("SELECT id, user_id, status, created_at FROM shop_tickets ORDER BY id DESC LIMIT 20").fetchall()
-    result = "\n".join(f"NS-{r['id']:06d} · {r['status']} · {r['user_id']} · {r['created_at']}" for r in rows)
-    await update.effective_message.reply_text(result or "Обращений пока нет.")
+    result = "\n".join(f"NS-{r['id']:06d} · {r['status']} · {linked_id(r['user_id'])} · {r['created_at']}" for r in rows)
+    await update.effective_message.reply_text(result or "Обращений пока нет.", parse_mode="HTML")
     raise ApplicationHandlerStop
 
 
@@ -181,14 +193,14 @@ async def admin_ticket(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         raise ApplicationHandlerStop
     with connect() as db:
         row = db.execute("SELECT * FROM shop_tickets WHERE id=?", (ident,)).fetchone()
-        history = db.execute("SELECT sender,text,created_at FROM shop_messages WHERE ticket_id=? ORDER BY id DESC LIMIT 15", (ident,)).fetchall()
+        history = db.execute("SELECT sender,text,created_at FROM shop_messages WHERE ticket_id=? ORDER BY id DESC LIMIT 8", (ident,)).fetchall()
     if not row:
         await update.effective_message.reply_text("Обращение не найдено.")
     else:
-        lines = [f"NS-{ident:06d} · {row['status']} · пользователь {row['user_id']}"]
+        lines = [f"NS-{ident:06d} · {row['status']} · пользователь {linked_id(row['user_id'])}"]
         for msg in reversed(history):
-            lines.append(f"{msg['created_at']} · {msg['sender']}: {(msg['text'] or '[вложение]')[:350]}")
-        await update.effective_message.reply_text("\n".join(lines)[:4000])
+            lines.append(f"{msg['created_at']} · {msg['sender']}: {escape((msg['text'] or '[вложение]')[:350])}")
+        await update.effective_message.reply_text("\n".join(lines)[:4000], parse_mode="HTML")
     raise ApplicationHandlerStop
 
 
@@ -269,7 +281,7 @@ async def support_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             ident = cur.lastrowid
         await query.message.reply_text(f"Создано обращение NS-{ident:06d} · {CATEGORIES[parts[2]]}\nОпишите проблему следующим сообщением.")
         if user.id != owner_id():
-            await context.bot.send_message(owner_id(), f"Новое обращение NS-{ident:06d} · {CATEGORIES[parts[2]]} · пользователь {user.id}")
+            await context.bot.send_message(owner_id(), f"Новое обращение NS-{ident:06d} · {CATEGORIES[parts[2]]}\nПокупатель: {customer_identity(user)}", parse_mode="HTML")
     elif query.data == "shop:mine":
         with connect() as db:
             rows = db.execute("SELECT id,category,status FROM shop_tickets WHERE user_id=? ORDER BY id DESC LIMIT 10", (user.id,)).fetchall()
@@ -317,10 +329,11 @@ async def support_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             if not ticket:
                 await query.message.reply_text("Обращение не найдено.")
             else:
-                history = "\n".join(f"{r['sender']}: {(r['text'] or '[вложение]')[:180]}" for r in reversed(last))
+                history = "\n".join(f"{r['sender']}: {escape((r['text'] or '[вложение]')[:180])}" for r in reversed(last))
                 await query.message.reply_text(
-                    f"NS-{ident:06d} · {ticket['status']}\nТема: {ticket['category']}\nПользователь: {ticket['user_id']}\n\n{history}\n\nОтвет: /reply {ident} текст",
+                    f"NS-{ident:06d} · {ticket['status']}\nТема: {escape(ticket['category'])}\nПользователь: {linked_id(ticket['user_id'])}\n\n{history}\n\nОтвет: /reply {ident} текст",
                     reply_markup=ticket_controls(ident, ticket['status']),
+                    parse_mode="HTML",
                 )
                 if action in ("close", "reopen"):
                     await context.bot.send_message(ticket['user_id'], f"Ваше обращение NS-{ident:06d} {'закрыто' if action == 'close' else 'снова открыто'}.")
@@ -358,7 +371,7 @@ async def support_message(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             return  # Owner replies only to linked admin messages.
         ticket_id = ticket['id']
         copied = await context.bot.copy_message(owner_id(), message.chat_id, message.message_id)
-        header = await context.bot.send_message(owner_id(), f"NS-{ticket_id:06d} · сообщение от {user_id}\nОтветьте на это сообщение, чтобы ответить покупателю.", reply_to_message_id=copied.message_id)
+        header = await context.bot.send_message(owner_id(), f"NS-{ticket_id:06d} · {customer_identity(update.effective_user)}\nОтветьте на это сообщение, чтобы ответить покупателю.", reply_to_message_id=copied.message_id, parse_mode="HTML")
         db.execute("INSERT INTO shop_admin_links(admin_message_id,ticket_id) VALUES(?,?)", (header.message_id, ticket_id))
         db.execute("INSERT INTO shop_admin_links(admin_message_id,ticket_id) VALUES(?,?)", (copied.message_id, ticket_id))
         db.execute("INSERT INTO shop_messages(ticket_id,sender,telegram_message_id,text) VALUES(?,?,?,?)", (ticket_id, 'customer', message.message_id, message.text))
