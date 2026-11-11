@@ -101,8 +101,11 @@ def price(cost: int) -> int:
 def patch(source: str) -> tuple[str, bool]:
     if source.count(SEED_BEFORE) == 1:
         return source.replace(SEED_BEFORE, SEED_AFTER, 1), True
-    if source.count(SEED_AFTER) == 1 and "reward.cost = cost" not in source:
-        return source, False
+    seed_body = source.split("def seed_rewards() -> None:", 1)
+    if len(seed_body) == 2:
+        block = seed_body[1].split("@router.get(", 1)[0]
+        if "reward.cost = cost" not in block and "reward.description = description" in block:
+            return source, False
     raise RuntimeError(
         "Не найдена ожидаемая функция seed_rewards. "
         "Сервер может содержать дополнительные изменения — ничего не трогаю."
@@ -150,6 +153,7 @@ def apply_prices(rows: list[dict]) -> None:
 BEGIN;
 SELECT pg_advisory_xact_lock(761108291);
 DO $guard$
+DECLARE updated_count INTEGER;
 BEGIN
   IF EXISTS (SELECT 1 FROM admin_audit WHERE action = '{ACTION}') THEN
     RAISE EXCEPTION 'NYAN reprice already applied';
@@ -164,31 +168,32 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'Catalog prices changed since preview; no prices updated';
   END IF;
+
+  UPDATE reward_catalog AS r SET cost = e.new_cost
+  FROM (VALUES {values}) AS e(id, old_cost, new_cost)
+  WHERE r.id = e.id AND r.cost = e.old_cost;
+  GET DIAGNOSTICS updated_count = ROW_COUNT;
+  IF updated_count != 24 THEN
+    RAISE EXCEPTION 'Expected 24 updated prices, got %; transaction rolled back', updated_count;
+  END IF;
 END $guard$;
 
-WITH expected(id, old_cost, new_cost) AS (
-  VALUES {values}
-), updated AS (
-  UPDATE reward_catalog AS r
-  SET cost = e.new_cost
-  FROM expected AS e
-  WHERE r.id = e.id AND r.cost = e.old_cost
-  RETURNING r.id, r.title, e.old_cost, r.cost AS new_cost, r.is_active
-)
+WITH original(id, old_cost, new_cost) AS (VALUES {values})
 INSERT INTO admin_audit (action, target_telegram_id, details, created_at)
 SELECT '{ACTION}', NULL,
        jsonb_build_object(
          'factor', '44/35',
          'rounding', 'nearest 50 pawcoins',
-         'items', (SELECT jsonb_agg(
-             jsonb_build_object(
-               'id', id, 'title', title,
-               'old_cost', old_cost, 'new_cost', new_cost,
-               'is_active', is_active
-             ) ORDER BY id
-           ) FROM updated)
+         'items', jsonb_agg(
+           jsonb_build_object(
+             'id', r.id, 'title', r.title,
+             'old_cost', o.old_cost, 'new_cost', r.cost,
+             'is_active', r.is_active
+           ) ORDER BY r.id)
        )::text,
-       now();
+       now()
+FROM reward_catalog AS r
+JOIN original AS o ON o.id = r.id;
 COMMIT;
 """
     pg(sql)
