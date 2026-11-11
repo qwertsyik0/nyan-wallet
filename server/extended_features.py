@@ -144,7 +144,8 @@ def seed_rewards() -> None:
         for title, description, cost, sort_order in star_rewards:
             reward = session.scalar(select(Reward).where(Reward.title == title))
             if reward:
-                reward.cost = cost
+                # Existing catalog prices are owner-managed. Never overwrite
+                # repricing done in PostgreSQL when the API restarts.
                 reward.description = description
                 reward.sort_order = sort_order
             else:
