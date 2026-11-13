@@ -14,6 +14,7 @@
   let auth = tg?.initData || "";
   let nextAt = null;
   let blocked = false;
+  let paused = false;
   let busy = false;
   let currentRotation = 0;
 
@@ -69,6 +70,12 @@
   }
 
   function refreshControls() {
+    if (paused) {
+      timer.textContent = "Временно недоступно";
+      button.disabled = true;
+      button.textContent = "Временно недоступно";
+      return;
+    }
     if (busy) return;
     if (blocked) {
       timer.textContent = "Участие недоступно";
@@ -154,7 +161,7 @@
   }
 
   async function spin() {
-    if (busy || button.disabled || !auth) return;
+    if (paused || busy || button.disabled || !auth) return;
     busy = true;
     button.disabled = true;
     button.textContent = "Подготавливаем колесо…";
@@ -187,6 +194,10 @@
       showResult(result.spin);
       setMessage(result.spin.reward ? `Поздравляем! +${result.spin.reward} 🐾` : "Сегодня удача решила отдохнуть ♡");
     } catch (error) {
+      if (error.message === "Временно недоступно") {
+        paused = true;
+        $("fortune-result").hidden = true;
+      }
       if (error.nextAt) nextAt = error.nextAt;
       // A network timeout could occur after the award was committed. Keep the
       // same key so retrying cannot produce another award.
@@ -211,7 +222,14 @@
       const data = await api("/api/fortune");
       nextAt = data.next_at;
       blocked = data.blocked;
+      paused = data.paused === true;
       window.setInterval(refreshControls, 1000);
+      if (paused) {
+        $("fortune-result").hidden = true;
+        setMessage("Временно недоступно");
+        refreshControls();
+        return;
+      }
       if (data.last_spin) {
         showResult(data.last_spin);
         showPreviousPosition(data.last_spin);
