@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 import secrets
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
@@ -28,6 +29,13 @@ SECTORS = (10, 25, 50, 100, 0, 200, 25, 500)
 COOLDOWN = timedelta(hours=24)
 MAX_BALANCE = 2_147_483_647  # The existing users.balance column is INTEGER.
 REQUEST_KEY_RE = re.compile(r"[A-Za-z0-9_-]{16,64}\Z")
+PAUSE_FILE = Path(__file__).resolve().parents[1] / ".fortune_disabled"
+
+
+def _paused() -> bool:
+    """Owner-managed switch, checked per request; removing it re-enables spins."""
+    return PAUSE_FILE.is_file()
+
 
 
 class FortuneSpin(core.Base):
@@ -114,6 +122,7 @@ def fortune_status(
 ):
     tg_user = core.verify_init_data(x_telegram_init_data or "")
     now = core.now_utc()
+    paused = _paused()
     with core.SessionLocal() as session:
         blocked = session.get(BlockedUser, int(tg_user["id"])) is not None
         last = _latest(session, int(tg_user["id"]))
@@ -122,7 +131,8 @@ def fortune_status(
             "ok": True,
             "sectors": SECTORS,
             "cooldown_seconds": int(COOLDOWN.total_seconds()),
-            "available": not blocked and (next_at is None or next_at <= now),
+            "available": not paused and not blocked and (next_at is None or next_at <= now),
+            "paused": paused,
             "blocked": blocked,
             "next_at": next_at.isoformat() if next_at else None,
             "last_spin": _serialize(last) if last else None,
@@ -135,6 +145,8 @@ def fortune_spin(
     x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
 ):
     tg_user = core.verify_init_data(x_telegram_init_data or "")
+    if _paused():
+        raise HTTPException(status_code=503, detail="Временно недоступно")
     if not REQUEST_KEY_RE.fullmatch(payload.request_key):
         raise HTTPException(status_code=422, detail="Некорректный ключ вращения")
 

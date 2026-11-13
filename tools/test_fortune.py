@@ -88,6 +88,13 @@ def spin(uid=1001, key="a" * 32):
 assert "/api/fortune" in core.app.openapi()["paths"]
 assert "/api/fortune/spin" in core.app.openapi()["paths"]
 rejects(lambda: fortune.fortune_status(x_telegram_init_data=None), 401)
+with patch.object(fortune, "_paused", return_value=True):
+    paused_state = status(1004)
+    assert paused_state["paused"] and not paused_state["available"]
+    rejects(lambda: spin(uid=1004, key="z" * 32), 503)
+with core.SessionLocal() as session:
+    assert session.scalar(select(func.count()).select_from(fortune.FortuneSpin)) == 0
+assert status(1004)["paused"] is False
 assert status()["available"]
 assert tuple(status()["sectors"]) == (10, 25, 50, 100, 0, 200, 25, 500)
 rejects(lambda: spin(key="a" * 15 + "!"), 422)
