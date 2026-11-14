@@ -7,6 +7,7 @@ PostgreSQL, and every nonzero award shares a transaction with the spin record.
 
 from __future__ import annotations
 
+import json
 import re
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -30,11 +31,27 @@ COOLDOWN = timedelta(hours=24)
 MAX_BALANCE = 2_147_483_647  # The existing users.balance column is INTEGER.
 REQUEST_KEY_RE = re.compile(r"[A-Za-z0-9_-]{16,64}\Z")
 PAUSE_FILE = Path(__file__).resolve().parents[1] / ".fortune_disabled"
+ZERO_DAY_FILE = Path(__file__).resolve().parents[1] / ".fortune_zero_day.json"
+ZERO_SECTOR_INDEX = SECTORS.index(0)
 
 
 def _paused() -> bool:
     """Owner-managed switch, checked per request; removing it re-enables spins."""
     return PAUSE_FILE.is_file()
+
+
+def _zero_day_ends_at(timestamp: datetime) -> datetime | None:
+    """The announced special 0-paw mode expires after 24 hours without a restart."""
+    try:
+        payload = json.loads(ZERO_DAY_FILE.read_text(encoding="utf-8"))
+        start = float(payload["starts_at_unix"])
+        end = float(payload["ends_at_unix"])
+        now = _utc(timestamp).timestamp()
+        if start <= now < end and 0 < end - start <= 24 * 60 * 60 + 1:
+            return datetime.fromtimestamp(end, tz=timezone.utc)
+    except (OSError, ValueError, TypeError, KeyError, OverflowError):
+        pass
+    return None
 
 
 
@@ -123,6 +140,7 @@ def fortune_status(
     tg_user = core.verify_init_data(x_telegram_init_data or "")
     now = core.now_utc()
     paused = _paused()
+    zero_day_ends = _zero_day_ends_at(now)
     with core.SessionLocal() as session:
         blocked = session.get(BlockedUser, int(tg_user["id"])) is not None
         last = _latest(session, int(tg_user["id"]))
@@ -133,6 +151,8 @@ def fortune_status(
             "cooldown_seconds": int(COOLDOWN.total_seconds()),
             "available": not paused and not blocked and (next_at is None or next_at <= now),
             "paused": paused,
+            "zero_day": zero_day_ends is not None,
+            "zero_day_ends_at": zero_day_ends.isoformat() if zero_day_ends else None,
             "blocked": blocked,
             "next_at": next_at.isoformat() if next_at else None,
             "last_spin": _serialize(last) if last else None,
@@ -173,7 +193,13 @@ def fortune_spin(
                     "next_at": next_at.isoformat(),
                 })
 
-            sector_index = secrets.randbelow(len(SECTORS))
+            # During the clearly labelled special event each spin receives 0.
+            # Ordinary secure random selection resumes automatically at expiry.
+            sector_index = (
+                ZERO_SECTOR_INDEX
+                if _zero_day_ends_at(timestamp) is not None
+                else secrets.randbelow(len(SECTORS))
+            )
             reward = SECTORS[sector_index]
             if user.balance + reward > MAX_BALANCE:
                 raise HTTPException(status_code=409, detail="Достигнут предел баланса")
