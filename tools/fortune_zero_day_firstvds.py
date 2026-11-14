@@ -191,9 +191,19 @@ def main() -> None:
     if opt.stop:
         if old_hash != NEW_BLOB:
             raise RuntimeError("The current server module has no zero-day support")
-        EVENT_FILE.unlink(missing_ok=True)
+        event = event_info()
+        if event and active_event():
+            event["ends_at_unix"] = max(
+                float(event["starts_at_unix"]) + 0.001, time.time()
+            )
+            event["stopped_early"] = True
+            atomic_bytes(
+                EVENT_FILE,
+                (json.dumps(event, ensure_ascii=False) + "\n").encode("utf-8"),
+            )
         PAUSE_FILE.unlink(missing_ok=True)
         print("OK: Обычные случайные вращения восстановлены.")
+        print("Даты мероприятия сохранены для учёта будущего бонуса.")
         return
 
     new = get_new_source()
@@ -218,6 +228,10 @@ def main() -> None:
     os.chmod(backup, 0o700)
     shutil.copy2(MODULE, backup / "fortune.py")
     old_event = EVENT_FILE.read_bytes() if EVENT_FILE.exists() else None
+    if old_event is not None:
+        archived = backup / "previous_zero_day.json"
+        archived.write_bytes(old_event)
+        os.chmod(archived, 0o600)
     was_paused = PAUSE_FILE.is_file()
     modified_source = False
 
