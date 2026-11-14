@@ -41,13 +41,13 @@ def _paused() -> bool:
 
 
 def _zero_day_ends_at(timestamp: datetime) -> datetime | None:
-    """The announced special 0-paw mode expires after 24 hours without a restart."""
+    """The announced special 0-paw mode expires after up to four days."""
     try:
         payload = json.loads(ZERO_DAY_FILE.read_text(encoding="utf-8"))
         start = float(payload["starts_at_unix"])
         end = float(payload["ends_at_unix"])
         now = _utc(timestamp).timestamp()
-        if start <= now < end and 0 < end - start <= 24 * 60 * 60 + 1:
+        if start <= now < end and 0 < end - start <= 4 * 24 * 60 * 60 + 1:
             return datetime.fromtimestamp(end, tz=timezone.utc)
     except (OSError, ValueError, TypeError, KeyError, OverflowError):
         pass
