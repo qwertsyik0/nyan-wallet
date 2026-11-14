@@ -157,4 +157,16 @@ with core.SessionLocal() as session:
     assert session.scalar(select(func.count()).select_from(fortune.FortuneSpin).where(
         fortune.FortuneSpin.telegram_id == 1003)) == 0
 
+# Special event must preserve persistence and disallow any nonzero awards.
+future = core.now_utc() + timedelta(hours=24)
+with patch.object(fortune, "_zero_day_ends_at", return_value=future), \
+     patch.object(fortune.secrets, "randbelow", side_effect=AssertionError("RNG used in special 0-day")):
+    special = spin(uid=2001, key="q" * 32)
+assert special["spin"]["sector_index"] == 4 and special["spin"]["reward"] == 0
+with core.SessionLocal() as session:
+    assert session.get(core.User, 2001).balance == 0
+    assert session.scalar(select(func.count()).select_from(core.Transaction)
+                          .where(core.Transaction.telegram_id == 2001)) == 0
+assert fortune._zero_day_ends_at(core.now_utc()) is None
+
 print("OK: 24h cooldown, auth, retry, payout, zero sector, ban, balance cap, relay outbox")
