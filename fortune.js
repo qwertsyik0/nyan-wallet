@@ -5,6 +5,8 @@
   const SECTORS = [10, 25, 50, 100, 0, 200, 25, 500];
   const COLORS = ["#f8e1e9", "#fff0d8", "#f0cfdc", "#e9e3f8", "#ebe8f0", "#fae4ec", "#f5dec1", "#ded7f5"];
   const PENDING_KEY = "nyan-fortune-pending-v1";
+  const NORMAL_RULES = "У каждого из восьми секторов одинаковый шанс выпадения — 1 из 8. Результат определяет сервер, а награда сразу поступает на кошелёк. При выпадении 0 🐾 баланс не меняется.";
+  const ZERO_RULES = "Специальный режим: сегодня все вращения дают ровно 0 🐾. Обычные шансы вернутся автоматически после завершения 24-часового события.";
   const tg = window.Telegram?.WebApp;
   const $ = id => document.getElementById(id);
   const rotor = $("fortune-rotor");
@@ -15,6 +17,8 @@
   let nextAt = null;
   let blocked = false;
   let paused = false;
+  let zeroDay = false;
+  let zeroDayEndsAt = null;
   let busy = false;
   let currentRotation = 0;
 
@@ -23,6 +27,8 @@
 
   function drawWheel() {
     const svg = $("fortune-wheel");
+    svg.replaceChildren();
+    const values = zeroDay ? SECTORS.map(() => 0) : SECTORS;
     const ns = "http://www.w3.org/2000/svg";
     function node(name, attrs, content) {
       const e = document.createElementNS(ns, name);
@@ -36,7 +42,7 @@
       const rad = degrees * Math.PI / 180;
       return [center + r * Math.cos(rad), center + r * Math.sin(rad)];
     };
-    SECTORS.forEach((amount, i) => {
+    values.forEach((amount, i) => {
       const start = -90 + i * 45;
       const end = start + 45;
       const [x1, y1] = point(radius, start);
@@ -70,6 +76,13 @@
   }
 
   function refreshControls() {
+    if (zeroDay && zeroDayEndsAt && Date.now() >= Date.parse(zeroDayEndsAt)) {
+      zeroDay = false;
+      zeroDayEndsAt = null;
+      $("fortune-zero-day").hidden = true;
+      $("fortune-rules-text").textContent = NORMAL_RULES;
+      drawWheel();
+    }
     if (paused) {
       timer.textContent = "Временно недоступно";
       button.disabled = true;
@@ -133,7 +146,7 @@
     $("fortune-prize").textContent = `+${spin.reward} 🐾`;
     $("fortune-result-description").textContent = spin.reward
       ? "Лапкоины уже начислены на твой кошелёк."
-      : "В этот раз без награды. Возвращайся завтра!";
+      : (zeroDay ? "Специальный режим: сегодня каждое вращение приносит 0 🐾." : "В этот раз без награды. Возвращайся завтра!");
   }
 
   function showPreviousPosition(spin) {
@@ -192,7 +205,9 @@
       await animateTo(result.spin);
       clearPending();
       showResult(result.spin);
-      setMessage(result.spin.reward ? `Поздравляем! +${result.spin.reward} 🐾` : "Сегодня удача решила отдохнуть ♡");
+      setMessage(result.spin.reward
+        ? `Поздравляем! +${result.spin.reward} 🐾`
+        : (zeroDay ? "Особый день: 0 🐾 за вращение." : "Сегодня удача решила отдохнуть ♡"));
     } catch (error) {
       if (error.message === "Временно недоступно") {
         paused = true;
@@ -223,6 +238,11 @@
       nextAt = data.next_at;
       blocked = data.blocked;
       paused = data.paused === true;
+      zeroDay = data.zero_day === true;
+      zeroDayEndsAt = data.zero_day_ends_at || null;
+      $("fortune-zero-day").hidden = !zeroDay || paused;
+      $("fortune-rules-text").textContent = zeroDay ? ZERO_RULES : NORMAL_RULES;
+      drawWheel();
       window.setInterval(refreshControls, 1000);
       if (paused) {
         $("fortune-result").hidden = true;
