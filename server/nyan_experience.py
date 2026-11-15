@@ -7,12 +7,13 @@ events are recorded by the wallet owner after confirming completion.
 from __future__ import annotations
 
 import re
+import hashlib
 from datetime import datetime
 from typing import Literal
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, UniqueConstraint, func, inspect, select, text
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, UniqueConstraint, column, func, inspect, or_, select, table, text, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -169,6 +170,149 @@ def experience_for_user(session, telegram_id: int) -> dict:
     summary = level_for_xp(sum(source["xp"] for source in sources))
     summary["sources"] = sources
     return summary
+
+
+
+def _leaderboard_query(session, current_id: int, limit: int = 20):
+    """Aggregate the same XP sources as an individual Nyan ID, for all users.
+
+    Each source is grouped before UNION ALL, so even large histories cannot
+    produce Cartesian products. Ties share a place (RANK); display order is
+    stable by the user ID. The viewer is included even when outside the top 20.
+    """
+    sources = [
+        select(
+            ActivityCheckIn.telegram_id.label("telegram_id"),
+            (func.count(ActivityCheckIn.id) * XP_CHECKIN).label("xp"),
+        ).group_by(ActivityCheckIn.telegram_id),
+        select(
+            UserTaskProgress.telegram_id.label("telegram_id"),
+            (func.count(UserTaskProgress.id) * XP_TASK).label("xp"),
+        ).where(UserTaskProgress.reward_claimed.is_(True))
+        .group_by(UserTaskProgress.telegram_id),
+        select(
+            AchievementUnlock.telegram_id.label("telegram_id"),
+            (func.count(AchievementUnlock.id) * XP_ACHIEVEMENT).label("xp"),
+        ).group_by(AchievementUnlock.telegram_id),
+        select(
+            InteractiveIdea.telegram_id.label("telegram_id"),
+            (func.count(InteractiveIdea.id) * XP_STUDIO_APPROVAL).label("xp"),
+        ).where(InteractiveIdea.status == "approved")
+        .group_by(InteractiveIdea.telegram_id),
+        select(
+            NyanExperienceEvent.telegram_id.label("telegram_id"),
+            func.sum(NyanExperienceEvent.xp).label("xp"),
+        ).where(NyanExperienceEvent.kind.in_(tuple(EXTERNAL_XP)))
+        .group_by(NyanExperienceEvent.telegram_id),
+    ]
+
+    # Mafia is an optional module. It is counted only when both production
+    # tables are present and only when there is an actual game result.
+    inspector = inspect(session.get_bind())
+    if (inspector.has_table("nyan_mafia_rounds")
+            and inspector.has_table("nyan_mafia_players")):
+        players = table(
+            "nyan_mafia_players",
+            column("round_id"), column("telegram_id"),
+        )
+        rounds = table(
+            "nyan_mafia_rounds",
+            column("id"), column("phase"), column("winner"),
+        )
+        sources.append(
+            select(
+                players.c.telegram_id.label("telegram_id"),
+                (func.count() * 30).label("xp"),
+            )
+            .select_from(players.join(rounds, players.c.round_id == rounds.c.id))
+            .where(rounds.c.phase == "finished", rounds.c.winner.is_not(None))
+            .group_by(players.c.telegram_id)
+        )
+
+    events = union_all(*sources).subquery("xp_events")
+    totals = (
+        select(
+            events.c.telegram_id.label("telegram_id"),
+            func.sum(events.c.xp).label("xp"),
+        )
+        .group_by(events.c.telegram_id)
+        .having(func.sum(events.c.xp) > 0)
+        .subquery("xp_totals")
+    )
+    ranked = (
+        select(
+            totals.c.telegram_id,
+            totals.c.xp,
+            core.User.username,
+            func.rank().over(order_by=totals.c.xp.desc()).label("place"),
+            func.row_number().over(
+                order_by=(totals.c.xp.desc(), totals.c.telegram_id.asc())
+            ).label("row_number"),
+        )
+        .join(core.User, core.User.telegram_id == totals.c.telegram_id)
+        .subquery("xp_ranked")
+    )
+    query = (
+        select(
+            ranked.c.telegram_id, ranked.c.username, ranked.c.xp,
+            ranked.c.place, ranked.c.row_number,
+        )
+        .where(or_(
+            ranked.c.row_number <= limit,
+            ranked.c.telegram_id == int(current_id),
+        ))
+        .order_by(ranked.c.row_number)
+    )
+    return session.execute(query).all()
+
+
+def _leaderboard_label(telegram_id: int, username: str | None) -> str:
+    """Use public @username if present, otherwise a stable anonymous nickname.
+
+    Never expose Telegram IDs, real names or wallet data to other users.
+    """
+    if username and re.fullmatch(r"[A-Za-z0-9_]{5,32}", username):
+        return "@" + username
+    digest = hashlib.blake2s(
+        f"nyan-leaderboard:v1:{int(telegram_id)}".encode("ascii"),
+        digest_size=5,
+    ).hexdigest().upper()
+    return "Участник " + digest[:8]
+
+
+def leaderboard_for_user(session, telegram_id: int, limit: int = 20) -> dict:
+    rows = _leaderboard_query(session, telegram_id, limit)
+    leaders = []
+    own = {"place": None, "xp": 0, "level": 1}
+    for row in rows:
+        uid = int(row.telegram_id)
+        xp = max(0, int(row.xp))
+        entry = {
+            "place": int(row.place),
+            "name": _leaderboard_label(uid, row.username),
+            "xp": xp,
+            "level": level_for_xp(xp)["level"],
+            "is_me": uid == int(telegram_id),
+        }
+        if int(row.row_number) <= limit:
+            leaders.append(entry)
+        if uid == int(telegram_id):
+            own = {"place": int(row.place), "xp": xp,
+                   "level": entry["level"]}
+    return {"leaders": leaders, "me": own}
+
+
+@router.get("/api/nyan-id/leaderboard")
+def nyan_id_leaderboard(
+    x_telegram_init_data: str | None = Header(
+        default=None, alias="X-Telegram-Init-Data",
+    ),
+):
+    """Private authenticated leaderboard, top 20 and viewer position only."""
+    telegram = core.verify_init_data(x_telegram_init_data or "")
+    with core.SessionLocal() as session:
+        result = leaderboard_for_user(session, int(telegram["id"]))
+    return {"ok": True, **result}
 
 
 @router.post("/api/owner/nyan-id/experience")
