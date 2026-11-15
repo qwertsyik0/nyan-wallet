@@ -61,6 +61,7 @@ permissions:
 
 jobs:
   validation:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -592,3 +593,20 @@ jobs:
           for file in ./*.js; do
             node --check "$file"
           done
+
+  nyan-id-validation:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Compile changed backend modules
+        run: python -m py_compile server/nyan_experience.py server/nyan_id.py server/__init__.py
+      - name: Regression checks
+        run: |
+          python tools/test_nyan_experience.py
+          python tools/test_nyan_id_png.py
+      - name: Client JavaScript syntax
+        run: node --check nyan_id.js
