@@ -47,7 +47,50 @@
     });
   }
 
+  function updateExperience(experience) {
+    const valid = experience && Number.isFinite(Number(experience.level))
+      && Number.isFinite(Number(experience.total_xp));
+    const track = el("nyid-xp-track");
+    const fill = el("nyid-xp-fill");
+    const sources = el("nyid-xp-sources");
+    if (!valid) {
+      text("nyid-xp-level", "Уровень недоступен");
+      text("nyid-xp-total", "");
+      text("nyid-xp-info", "Не удалось загрузить общий опыт.");
+      if (fill) fill.style.width = "0%";
+      if (sources) sources.replaceChildren();
+      return;
+    }
+    const level = Math.max(1, Math.floor(Number(experience.level)));
+    const total = Math.max(0, Math.floor(Number(experience.total_xp)));
+    const next = Math.max(1, Math.floor(Number(experience.next_level_xp) || 100));
+    const current = Math.min(next, Math.max(0, Math.floor(Number(experience.current_level_xp) || 0)));
+    const percent = Math.max(0, Math.min(100, current / next * 100));
+    text("nyid-xp-level", "Уровень " + level);
+    text("nyid-xp-total", total.toLocaleString("ru-RU") + " XP");
+    text("nyid-xp-info", current + " / " + next + " XP до следующего уровня");
+    if (fill) fill.style.width = percent + "%";
+    if (track) {
+      track.setAttribute("aria-valuenow", String(Math.round(percent)));
+      track.setAttribute("aria-valuetext", current + " из " + next + " XP");
+    }
+    if (sources) {
+      sources.replaceChildren();
+      for (const source of Array.isArray(experience.sources) ? experience.sources : []) {
+        const item = document.createElement("div");
+        item.className = "nyid-xp-source";
+        const name = document.createElement("span");
+        name.textContent = String(source.label || "");
+        const value = document.createElement("strong");
+        value.textContent = Math.max(0, Number(source.xp) || 0).toLocaleString("ru-RU") + " XP";
+        item.append(name, value);
+        sources.appendChild(item);
+      }
+    }
+  }
+
   function updateCard(data) {
+    updateExperience(data.experience);
     text("nyid-name", data.display_name || "Пользователь");
     text("nyid-handle", data.username ? "@" + data.username : "участник экосистемы Nyan");
     text("nyid-number", data.number);
@@ -113,6 +156,12 @@
       '    </div>',
       '    <div class="nyid-card-foot"><span>NYAN ID • 2026</span><b id="nyid-badge">загрузка значка...</b></div>',
       '  </div>',
+      '  <section class="nyid-xp" aria-label="Общий прогресс Nyan ID">',
+      '    <div class="nyid-xp-head"><strong id="nyid-xp-level">Уровень</strong><span id="nyid-xp-total">Загрузка...</span></div>',
+      '    <div id="nyid-xp-track" class="nyid-xp-track" role="progressbar" aria-label="Прогресс уровня" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="nyid-xp-fill"></span></div>',
+      '    <div id="nyid-xp-info" class="nyid-xp-info">Подключаем данные...</div>',
+      '    <div class="nyid-xp-sources" id="nyid-xp-sources"></div>',
+      '  </section>',
       '  <div class="nyid-note" id="nyid-notice" role="status" aria-live="polite">Подключаем данные...</div>',
       '  <div class="nyid-themes" role="group" aria-label="Оформление Nyan ID">',
       '    <button type="button" class="nyid-theme-button" data-choice="powder" aria-pressed="true"><span class="nyid-theme-dot"></span>Пудровый</button>',
@@ -339,6 +388,24 @@
       ctx.fillStyle = muted; ctx.font = "800 19px system-ui, Arial, sans-serif"; ctx.fillText(item.label, item.x, 526);
       ctx.fillStyle = ink;
       ctx.fillText(fitText(ctx, item.value, item.x === 780 ? 270 : 315, 32, 20, 900), item.x, 569);
+    }
+
+    if (identity.experience && Number.isFinite(Number(identity.experience.level))) {
+      const exp = identity.experience;
+      const value = Math.max(0, Number(exp.current_level_xp) || 0);
+      const goal = Math.max(1, Number(exp.next_level_xp) || 100);
+      ctx.fillStyle = muted;
+      ctx.font = "800 18px system-ui, Arial, sans-serif";
+      ctx.fillText("УРОВЕНЬ " + exp.level + "   ·   " + Number(exp.total_xp || 0) + " XP", 91, 617);
+      drawRoundRect(ctx, 91, 631, 1018, 8, 4);
+      ctx.fillStyle = night ? "rgba(255,240,247,.2)" : "#edd4df";
+      ctx.fill();
+      const width = Math.max(0, Math.min(1018, 1018 * value / goal));
+      if (width > 0) {
+        drawRoundRect(ctx, 91, 631, width, 8, Math.min(4, width / 2));
+        ctx.fillStyle = night ? "#f7cadf" : "#a63869";
+        ctx.fill();
+      }
     }
 
     ctx.fillStyle = muted; ctx.font = "700 22px system-ui, Arial, sans-serif";

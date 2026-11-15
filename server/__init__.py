@@ -21,6 +21,7 @@ from .referral_fix import register_referral_fix
 from .release_hardening import register_release_hardening
 from .achievements import register_achievements
 from .nyan_id import register_nyan_id
+from .nyan_experience import register_nyan_experience
 from .activity import register_activity
 from .daily_tasks import register_daily_tasks
 from .daily_tasks_defaults_v2 import register_daily_tasks_defaults_v2
@@ -92,6 +93,7 @@ else:
     register_referral_fix(backend_app.app)
     register_release_hardening(backend_app.app)
     register_achievements(backend_app.app)
+    register_nyan_experience(backend_app.app)
     register_nyan_id(backend_app.app)
     register_activity(backend_app.app)
     register_daily_tasks(backend_app.app)
