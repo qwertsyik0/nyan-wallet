@@ -34,7 +34,7 @@ RAW = (
     "https://raw.githubusercontent.com/qwertsyik0/nyan-wallet/main/"
     "tools/install_nyan_quest_firstvds.py"
 )
-INSTALLER_BLOB = "1661c69f179912087eda7e4b4678b46701fa0559"
+INSTALLER_BLOB = "92e1e1628f360a4fbabf5d8e72e7e9e165fc4fc6"
 REQUIRED = (
     "/api/nyan-quest/status", "/api/nyan-quest/join",
     "/api/internal/nyan-quest/open", "/api/internal/nyan-quest/close",
@@ -69,23 +69,51 @@ def check_routes():
 
 
 def known_token() -> str:
-    # python-dotenv is installed in the Nyan Wallet API virtual environment.
-    # The token is returned only into this process's memory, not printed or logged.
-    code = (
-        "from dotenv import dotenv_values; import os; "
-        "e=dotenv_values('/opt/nyan-wallet/.env'); "
-        "print(os.getenv('BOT_TOKEN') or e.get('BOT_TOKEN') or '')"
+    """Read BOT_TOKEN without displaying it or putting it in a command line.
+
+    FirstVDS can supply BOT_TOKEN through the live systemd service instead of
+    /opt/nyan-wallet/.env. Read the running service process environment as root.
+    """
+    token = (os.environ.get("BOT_TOKEN") or "").strip()
+    if token and ":" in token:
+        return token
+
+    from pathlib import Path
+    env_file = ROOT / ".env"
+    if env_file.is_file():
+        try:
+            from dotenv import dotenv_values
+        except ImportError:
+            # The script uses system python; dotenv may only exist in .venv.
+            pass
+        else:
+            token = (dotenv_values(env_file).get("BOT_TOKEN") or "").strip()
+            if token and ":" in token:
+                return token
+
+    try:
+        proc = subprocess.run(
+            ["systemctl", "show", "nyan-wallet", "-p", "MainPID", "--value"],
+            capture_output=True, text=True, timeout=12, check=True,
+        )
+        pid = int(proc.stdout.strip())
+        if pid <= 1:
+            raise ValueError("the service is not running")
+        environ = Path(f"/proc/{pid}/environ").read_bytes()
+        for item in environ.split(b"\\x00"):
+            if item.startswith(b"BOT_TOKEN="):
+                token = item.partition(b"=")[2].decode("utf-8").strip()
+                if token and ":" in token:
+                    return token
+    except (OSError, ValueError, UnicodeError, subprocess.SubprocessError) as error:
+        raise RuntimeError(
+            "Не удалось получить BOT_TOKEN из работающей службы nyan-wallet. "
+            "Проверь, что служба активна; секрет не выводится."
+        ) from error
+
+    raise RuntimeError(
+        "BOT_TOKEN отсутствует в оболочке, .env и окружении запущенной службы nyan-wallet"
     )
-    proc = subprocess.run(
-        [str(PYTHON), "-c", code],
-        capture_output=True, text=True, timeout=15,
-    )
-    if proc.returncode:
-        raise RuntimeError("Не удаётся прочитать конфигурацию API: " + proc.stderr[-250:])
-    token = proc.stdout.strip()
-    if not token or ":" not in token:
-        raise RuntimeError("BOT_TOKEN отсутствует в /opt/nyan-wallet/.env")
-    return token
 
 
 def download_installer():
