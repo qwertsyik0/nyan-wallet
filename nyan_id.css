@@ -67,3 +67,19 @@
 #nyid-open-chat[hidden]{display:none!important}
 #nyid-save,#nyid-share{min-height:44px}
 #nyid-notice{white-space:normal;overflow-wrap:anywhere}
+
+
+/* Unified level, using the existing Nyan Wallet powder palette. */
+.nyid-xp{margin-top:12px;padding:13px 14px;border:1px solid #efd6e2;border-radius:16px;background:#fff7fb}
+.nyid-xp-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;color:#742b50}
+.nyid-xp-head strong{font-size:14px;font-weight:900}
+.nyid-xp-head span{font-size:12px;font-weight:800;color:#934869;font-variant-numeric:tabular-nums}
+.nyid-xp-track{height:7px;margin-top:11px;border-radius:99px;overflow:hidden;background:#eedbe5}
+.nyid-xp-track>span{display:block;height:100%;width:0;background:#a63869;border-radius:inherit;transition:width .18s ease}
+.nyid-xp-info{margin-top:7px;font-size:10px;font-weight:650;color:#a07086}
+.nyid-xp-sources{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 12px;margin-top:12px}
+.nyid-xp-source{display:flex;align-items:center;justify-content:space-between;gap:5px;min-width:0;font-size:10px;color:#98627e}
+.nyid-xp-source span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nyid-xp-source strong{white-space:nowrap;color:#783351;font-weight:850;font-variant-numeric:tabular-nums}
+@media(prefers-reduced-motion:reduce){.nyid-xp-track>span{transition:none}}
+
