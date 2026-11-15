@@ -1,6 +1,18 @@
 name: Backend and client syntax check
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "server/nyan_experience.py"
+      - "server/nyan_id.py"
+      - "server/__init__.py"
+      - "nyan_id.js"
+      - "nyan_id.css"
+      - "nyan-id.html"
+      - "index.html"
+      - "tools/test_nyan_experience.py"
+      - ".github/workflows/backend-check.yml"
   push:
     branches: [main]
     paths:
