@@ -100,7 +100,7 @@ def known_token() -> str:
         if pid <= 1:
             raise ValueError("the service is not running")
         environ = Path(f"/proc/{pid}/environ").read_bytes()
-        for item in environ.split(b"\\x00"):
+        for item in environ.split(bytes((0,))):
             if item.startswith(b"BOT_TOKEN="):
                 token = item.partition(b"=")[2].decode("utf-8").strip()
                 if token and ":" in token:
