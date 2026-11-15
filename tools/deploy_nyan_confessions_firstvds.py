@@ -36,6 +36,7 @@ REGISTER = "    register_nyan_confessions(backend_app.app)"
 CAMPAIGN = "broadcast:nyan-confessions:v1:"
 # Keep the original prefix so older installers also recognize the campaign.
 REPEAT_CAMPAIGN = CAMPAIGN + "repeat1:"
+CHANNEL_CAMPAIGN = "broadcast:nyan-confessions:channel:v1:"
 ANNOUNCEMENT = (
     "💌 <b>nyan confessions уже открыт</b>\n\n"
     "если есть что рассказать, напиши об этом анонимно. "
@@ -210,28 +211,37 @@ def enqueue_broadcast(cursor, *, campaign: str, envelope: str, owner: int) -> tu
     return cursor.rowcount, carried
 
 
+def database_dsn() -> str:
+    dsn = service_setting("DATABASE_URL").replace("postgresql+psycopg://", "postgresql://", 1)
+    if not dsn.startswith(("postgresql://", "postgres://")):
+        raise RuntimeError("Не настроена PostgreSQL база Nyan Wallet.")
+    return dsn
+
+
+def broadcast_envelope() -> str:
+    secret = service_setting("NYAN_TELEGRAM_RELAY_SECRET")
+    if len(secret) < 32:
+        raise RuntimeError("Telegram Relay не подключён к Nyan Wallet.")
+    health, _ = read_url(
+        LOCAL + "/api/internal/telegram-relay/status", {"X-Nyan-Relay-Secret": secret}
+    )
+    if not json.loads(health).get("ok"):
+        raise RuntimeError("Telegram Relay не отвечает.")
+    return "NYAN_TG_RICH_V1:" + json.dumps(
+        {"text": ANNOUNCEMENT, "buttons": [BUTTON]}, ensure_ascii=False
+    )
+
+
 def broadcast(send: bool, *, repeat: bool = False) -> None:
     from psycopg import connect
 
     campaign = REPEAT_CAMPAIGN if repeat else CAMPAIGN
-    dsn = service_setting("DATABASE_URL").replace("postgresql+psycopg://", "postgresql://", 1)
-    if not dsn.startswith(("postgresql://", "postgres://")):
-        raise RuntimeError("Не настроена PostgreSQL база Nyan Wallet.")
+    dsn = database_dsn()
     if send:
-        secret = service_setting("NYAN_TELEGRAM_RELAY_SECRET")
-        if len(secret) < 32:
-            raise RuntimeError("Telegram Relay не подключён к Nyan Wallet.")
-        health, _ = read_url(
-            LOCAL + "/api/internal/telegram-relay/status", {"X-Nyan-Relay-Secret": secret}
-        )
-        if not json.loads(health).get("ok"):
-            raise RuntimeError("Telegram Relay не отвечает.")
+        envelope = broadcast_envelope()
         owner = int(service_setting("OWNER_TELEGRAM_ID"))
         if owner <= 0:
             raise RuntimeError("Не настроен владелец Nyan Wallet.")
-        envelope = "NYAN_TG_RICH_V1:" + json.dumps(
-            {"text": ANNOUNCEMENT, "buttons": [BUTTON]}, ensure_ascii=False
-        )
 
     with connect(dsn, connect_timeout=8) as connection:
         with connection.cursor() as cursor:
@@ -250,27 +260,74 @@ def broadcast(send: bool, *, repeat: bool = False) -> None:
     print("Статус рассылки", json.dumps(counts, ensure_ascii=False), flush=True)
 
 
+def publish_channel(channel: str, *, send: bool) -> None:
+    from psycopg import connect
+
+    source_key = CHANNEL_CAMPAIGN + channel
+    dsn = database_dsn()
+    if send:
+        envelope = broadcast_envelope()
+        with connect(dsn, connect_timeout=8) as connection:
+            connection.execute("""
+                INSERT INTO telegram_relay_outbox (source_key, chat_id, body, state, attempts, created_at)
+                VALUES (%s, %s, %s, 'pending', 0, now())
+                ON CONFLICT (source_key) DO UPDATE SET state = 'pending', attempts = 0,
+                    lease_token = NULL, lease_until = NULL, retry_at = NULL, last_error = NULL
+                WHERE telegram_relay_outbox.state = 'failed'
+                """, (source_key, int(channel), envelope))
+
+    with connect(dsn, connect_timeout=8, autocommit=True) as connection:
+        for attempt in range(6 if send else 1):
+            row = connection.execute("""
+                SELECT state, telegram_message_id, last_error
+                FROM telegram_relay_outbox WHERE source_key = %s
+                """, (source_key,)).fetchone()
+            if row is None:
+                print(f"Анонс для канала {channel} ещё не поставлен в очередь.")
+                return
+            state, message_id, error = row
+            if state == "sent":
+                print(f"Анонс опубликован в канале {channel}.")
+                if message_id:
+                    print(f"https://t.me/c/{channel[4:]}/{message_id}")
+                return
+            if state == "failed":
+                raise RuntimeError(f"Telegram отклонил анонс для канала {channel}. {error or ''}".strip())
+            if send and attempt < 5:
+                time.sleep(2)
+    print(f"Анонс для канала {channel} ожидает подтверждения от Telegram.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--revision")
     parser.add_argument("--announce", action="store_true")
     parser.add_argument("--repeat", action="store_true", help="Повторить рассылку установленного сайта")
+    parser.add_argument("--channel", help="Опубликовать анонс в канале по полному Telegram ID")
     parser.add_argument("--status", action="store_true")
     args = parser.parse_args()
     if os.geteuid() != 0:
         parser.error("Запусти команду от root на FirstVDS.")
     if args.status and (args.revision or args.announce):
-        parser.error("--status используется отдельно или с --repeat.")
+        parser.error("--status используется отдельно, с --repeat или с --channel.")
+    if args.channel is not None:
+        if not re.fullmatch(r"-100[1-9][0-9]{6,11}", args.channel):
+            parser.error("Укажи полный ID канала, начинающийся с -100.")
+        if args.revision or args.announce or args.repeat:
+            parser.error("--channel можно использовать отдельно или с --status.")
     if args.repeat and (args.revision or args.announce):
         parser.error("--repeat использует установленный сайт.")
-    if not (args.status or args.repeat) and not re.fullmatch(r"[a-f0-9]{40}", args.revision or ""):
+    if not (args.status or args.repeat or args.channel) and not re.fullmatch(r"[a-f0-9]{40}", args.revision or ""):
         parser.error("Укажи SHA опубликованного коммита через --revision.")
 
     from psycopg import Error as DatabaseError
 
     def run_broadcast(send: bool) -> None:
         try:
-            broadcast(send, repeat=args.repeat)
+            if args.channel:
+                publish_channel(args.channel, send=send)
+            else:
+                broadcast(send, repeat=args.repeat)
         except DatabaseError:
             raise RuntimeError("Ошибка соединения с базой или записи рассылки.") from None
 
@@ -279,13 +336,13 @@ def main() -> None:
         if args.status:
             run_broadcast(False)
             return
-        if args.repeat:
+        if args.repeat or args.channel:
             verify_site(LOCAL)
         else:
             deploy(args.revision)
         wait_for(lambda: verify_site(PUBLIC), 5)
         print(PUBLIC + ROUTE, flush=True)
-        if args.announce or args.repeat:
+        if args.announce or args.repeat or args.channel:
             wait_for(wallet_ready, 10)
             run_broadcast(True)
 
