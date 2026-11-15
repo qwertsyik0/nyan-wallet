@@ -12,7 +12,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, UniqueConstraint, func, select
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, UniqueConstraint, func, inspect, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -115,10 +115,24 @@ def experience_for_user(session, telegram_id: int) -> dict:
         )
     ) or 0)
 
+    # Mafia is optional and may run in a separate deployment. Count only
+    # genuinely finished rounds with a winner, never mere registration.
+    # An absent game schema must not prevent the Nyan ID card from loading.
+    inspector = inspect(session.get_bind())
+    mafia_rounds = 0
+    if (inspector.has_table("nyan_mafia_rounds")
+            and inspector.has_table("nyan_mafia_players")):
+        mafia_rounds = int(session.scalar(text(
+            "SELECT count(*) FROM nyan_mafia_players p "
+            "JOIN nyan_mafia_rounds r ON r.id = p.round_id "
+            "WHERE p.telegram_id = :uid AND r.phase = 'finished' "
+            "AND r.winner IS NOT NULL"
+        ), {"uid": uid}) or 0)
+
     totals = {
         "wallet": [checkins * XP_CHECKIN + tasks * XP_TASK
                    + achievements * XP_ACHIEVEMENT, checkins + tasks + achievements],
-        "games": [0, 0],
+        "games": [mafia_rounds * 30, mafia_rounds],
         "quest": [0, 0],
         "shop": [0, 0],
         "studio": [ideas * XP_STUDIO_APPROVAL, ideas],
