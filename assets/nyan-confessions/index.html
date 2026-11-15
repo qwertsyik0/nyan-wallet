@@ -7,8 +7,8 @@
   <meta name="description" content="Анонимные признания сообщества Nyan">
   <title>Nyan Confessions</title>
   <link rel="icon" href="/api/nyan-confessions/nyanik.webp" type="image/webp">
-  <link rel="stylesheet" href="/api/nyan-confessions/style.css?v=2">
-  <script src="/api/nyan-confessions/confessions.js?v=2" defer></script>
+  <link rel="stylesheet" href="/api/nyan-confessions/style.css?v=3">
+  <script src="/api/nyan-confessions/confessions.js?v=3" defer></script>
 </head>
 <body>
   <main class="app">
@@ -29,6 +29,8 @@
       <p id="submit-status" class="status" role="status"></p>
     </form>
 
+    <p id="owner-status" class="status" data-state="error" role="status"></p>
+
     <section class="feed" aria-labelledby="feed-title">
       <h2 id="feed-title">Признания</h2>
       <p id="feed-status" class="feed-state" role="status" hidden></p>
@@ -47,8 +49,12 @@
           <span aria-hidden="true">👎</span> <span data-count>0</span>
         </button>
       </div>
+      <button type="button" class="post-action owner-heart" aria-pressed="false"
+        aria-label="Поставить сердечко от Кверта" hidden>🤍</button>
       <button type="button" class="post-action comments-toggle" aria-expanded="false">Комментировать</button>
     </div>
+    <p class="owner-heart-badge" hidden>❤️ Понравилось Кверту</p>
+    <p class="status owner-heart-status" data-state="error" role="status"></p>
     <p class="status reaction-status" data-state="error" role="status"></p>
     <div class="comments" hidden>
       <form class="comment-form" method="post">

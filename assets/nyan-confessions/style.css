@@ -213,6 +213,13 @@ button:disabled { cursor: wait; opacity: 0.65; }
 }
 .post-action[aria-pressed="true"]:hover:enabled { background: #ffdceb; }
 .post-reactions button { min-width: 50px; }
+.owner-heart-badge {
+  margin-top: 8px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 
 .comments {
   margin-top: 12px;

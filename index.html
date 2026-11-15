@@ -35,8 +35,12 @@
           return;
         }
 
-        if (startParam === "nyan_confessions") {
-          window.location.replace("https://nyan-wallet-bridge.qwertsyik.workers.dev/api/nyan-confessions");
+        if (startParam === "nyan_confessions" || startParam === "nyan_confessions_owner") {
+          const target = new URL("https://nyan-wallet-bridge.qwertsyik.workers.dev/api/nyan-confessions");
+          if (startParam === "nyan_confessions_owner") {
+            target.hash = new URLSearchParams({ owner: tg?.initData || "" }).toString();
+          }
+          window.location.replace(target.toString());
           return;
         }
 

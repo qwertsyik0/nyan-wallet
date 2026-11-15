@@ -18,6 +18,7 @@ const dateFormat = new Intl.DateTimeFormat("ru-RU", {
 });
 
 let cursor = null;
+let ownerHeaders = null;
 
 async function api(path, options) {
   const response = await fetch(path, options);
@@ -29,10 +30,10 @@ async function api(path, options) {
   return data;
 }
 
-function postJson(path, payload) {
+function postJson(path, payload, headers = {}) {
   return api(path, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify(payload),
   });
 }
@@ -55,6 +56,50 @@ function renderEntry(entry, className) {
   body.textContent = entry.body;
   article.append(meta, body);
   return article;
+}
+
+async function loadOwner() {
+  const params = new URLSearchParams(location.hash.slice(1));
+  if (!params.has("owner")) return;
+
+  const headers = { "X-Telegram-Init-Data": params.get("owner") };
+  history.replaceState(history.state, "", location.pathname + location.search);
+  try {
+    const data = await api("/api/nyan-confessions/owner-heart/access", { headers });
+    if (data.owner === true) ownerHeaders = headers;
+  } catch (error) {
+    document.querySelector("#owner-status").textContent =
+      error.message || "Не удалось войти в режим владельца. Открой ссылку в Telegram заново.";
+  }
+}
+
+function mountOwnerHeart(controls, post, path) {
+  const heart = controls.querySelector(".owner-heart");
+  const badge = controls.querySelector(".owner-heart-badge");
+  const status = controls.querySelector(".owner-heart-status");
+
+  function show(liked) {
+    badge.hidden = !liked;
+    heart.textContent = liked ? "❤️" : "🤍";
+    heart.setAttribute("aria-pressed", String(liked));
+    heart.setAttribute("aria-label", liked ? "Снять сердечко от Кверта" : "Поставить сердечко от Кверта");
+  }
+
+  show(post.liked_by_owner === true);
+  if (!ownerHeaders) return;
+  heart.hidden = false;
+  heart.addEventListener("click", async () => {
+    heart.disabled = true;
+    status.textContent = "";
+    try {
+      const result = await postJson(path + "/owner-heart", { liked: badge.hidden }, ownerHeaders);
+      show(result.liked_by_owner);
+    } catch (error) {
+      status.textContent = error.message || "Не удалось сохранить сердечко.";
+    } finally {
+      heart.disabled = false;
+    }
+  });
 }
 
 function mountReactions(controls, post, path) {
@@ -225,6 +270,7 @@ function renderPost(post, prepend = false) {
   const controls = interactionTemplate.content.cloneNode(true);
   const path = feedPath + "/" + post.id;
   mountReactions(controls, post, path);
+  mountOwnerHeart(controls, post, path);
   mountComments(controls, post, path + "/comments");
   article.append(controls);
 
@@ -296,4 +342,4 @@ submit.disabled = false;
 updateCount();
 feedStatus.textContent = "Загружаем признания…";
 feedStatus.hidden = false;
-loadPosts();
+loadOwner().finally(loadPosts);

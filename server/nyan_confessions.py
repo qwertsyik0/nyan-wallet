@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Header, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy import (
     CheckConstraint, DateTime, ForeignKey, Index, Integer, SmallInteger, String, Text,
@@ -66,6 +66,12 @@ class ConfessionReaction(core.Base):
     value: Mapped[int] = mapped_column(SmallInteger, nullable=False)
 
 
+class ConfessionOwnerHeart(core.Base):
+    __tablename__ = "nyan_confession_owner_hearts"
+
+    post_id: Mapped[int] = mapped_column(ForeignKey("nyan_confessions.id", ondelete="CASCADE"), primary_key=True)
+
+
 class ConfessionComment(core.Base):
     __tablename__ = "nyan_confession_comments"
     __table_args__ = (
@@ -107,6 +113,9 @@ def serialize_feed(session: Session, records: Sequence[Confession]) -> list[dict
         return []
     post_ids = [post.id for post in records]
     reactions = reaction_counts(session, post_ids)
+    hearts = set(session.scalars(select(ConfessionOwnerHeart.post_id).where(
+        ConfessionOwnerHeart.post_id.in_(post_ids)
+    )))
     comment = ConfessionComment
     comments = dict(session.execute(
         select(comment.post_id, func.count()).where(comment.post_id.in_(post_ids)).group_by(comment.post_id)
@@ -116,6 +125,7 @@ def serialize_feed(session: Session, records: Sequence[Confession]) -> list[dict
             **serialize(post),
             **reactions.get(post.id, {"likes": 0, "dislikes": 0}),
             "comment_count": comments.get(post.id, 0),
+            "liked_by_owner": post.id in hearts,
         }
         for post in records
     ]
@@ -153,7 +163,7 @@ def store_confession(body: str) -> dict:
         post = Confession(body=body, created_at=core.now_utc())
         session.add(post)
         session.flush()
-        return {**serialize(post), "likes": 0, "dislikes": 0, "comment_count": 0}
+        return {**serialize(post), "likes": 0, "dislikes": 0, "comment_count": 0, "liked_by_owner": False}
 
 
 def error_response(message: str, status_code: int) -> JSONResponse:
@@ -238,6 +248,36 @@ async def react(post_id: int, request: Request):
     return JSONResponse(result, headers={"Cache-Control": "no-store"})
 
 
+@router.get("/owner-heart/access")
+def owner_heart_access(init_data: str = Header(default="", alias="X-Telegram-Init-Data")):
+    core.require_owner(core.verify_init_data(init_data))
+    return JSONResponse({"owner": True}, headers={"Cache-Control": "no-store"})
+
+
+def set_owner_heart(post_id: int, liked: bool) -> dict:
+    heart = ConfessionOwnerHeart
+    with core.SessionLocal.begin() as session:
+        require_post(session, post_id)
+        if liked:
+            session.execute(insert(heart).values(post_id=post_id).on_conflict_do_nothing())
+        else:
+            session.execute(delete(heart).where(heart.post_id == post_id))
+    return {"liked_by_owner": liked}
+
+
+@router.post("/feed/{post_id}/owner-heart")
+async def owner_heart(post_id: int, request: Request, init_data: str = Header(default="", alias="X-Telegram-Init-Data")):
+    core.require_owner(core.verify_init_data(init_data))
+    payload = await read_payload(request, "реакции")
+    if isinstance(payload, Response):
+        return payload
+    liked = payload.get("liked")
+    if not isinstance(liked, bool):
+        return error_response("Некорректная реакция.", 400)
+    result = await run_in_threadpool(set_owner_heart, post_id, liked)
+    return JSONResponse(result, headers={"Cache-Control": "no-store"})
+
+
 @router.get("/feed/{post_id}/comments")
 def comments(post_id: int, response: Response, before: int | None = Query(default=None, ge=1, le=2147483647)):
     response.headers["Cache-Control"] = "no-store"
@@ -286,5 +326,6 @@ def asset_file(asset: str):
 def register_nyan_confessions(app):
     core.Base.metadata.create_all(core.engine, tables=[
         Confession.__table__, ConfessionReaction.__table__, ConfessionComment.__table__,
+        ConfessionOwnerHeart.__table__,
     ])
     app.include_router(router)
