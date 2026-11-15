@@ -31,7 +31,7 @@ PREFIX = "https://raw.githubusercontent.com/qwertsyik0/nyan-wallet/main/"
 MODULE_URL = PREFIX + "bot_addons/partner_flood_welcome.py"
 IMAGE_URL = PREFIX + "nyan-kitten-original.png"
 IMAGE_GIT_BLOB = "369a534b5f0d245a028cd6c551d3578a7cb7ab74"
-MODULE_GIT_BLOB = "REPLACE_MODULE_SHA"
+MODULE_GIT_BLOB = "c3579d630a8ebbfdb03ae91e1c5de5f5b58173bf"
 MARKER = "register_partner_flood_welcome"
 OPEN = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
