@@ -608,5 +608,6 @@ jobs:
         run: |
           python tools/test_nyan_experience.py
           python tools/test_nyan_id_png.py
+          python tools/test_install_nyan_id_xp_firstvds.py
       - name: Client JavaScript syntax
         run: node --check nyan_id.js
