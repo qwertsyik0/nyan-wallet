@@ -6,6 +6,7 @@
   const BOT_LINK = "https://t.me/nyancash_bot?startapp=nyanid";
   let identity = null;
   let fetching = false;
+  let leaderboardBusy = false;
   let layer = null;
   let previousFocus = null;
   let theme = "powder";
@@ -89,6 +90,75 @@
     }
   }
 
+  function renderLeaderboard(data) {
+    const list = el("nyid-leaderboard-list");
+    if (!list) return;
+    list.replaceChildren();
+    const me = data.me || {};
+    text("nyid-leaderboard-me", Number.isInteger(me.place) && me.place > 0
+      ? "Твоё место: №" + me.place + " · " + (Number(me.xp) || 0).toLocaleString("ru-RU") + " XP"
+      : "Ты пока вне рейтинга");
+    const entries = Array.isArray(data.leaders) ? data.leaders.slice(0, 20) : [];
+    text("nyid-leaderboard-status", entries.length ? "" : "Пока нет участников с опытом.");
+    for (const entry of entries) {
+      const row = document.createElement("div");
+      row.className = "nyid-leaderboard-row";
+      if (entry.is_me) row.classList.add("is-me");
+      const place = document.createElement("strong");
+      place.className = "nyid-leaderboard-place";
+      place.textContent = String(entry.place || "—");
+      const user = document.createElement("span");
+      user.className = "nyid-leaderboard-name";
+      user.textContent = String(entry.name || "Участник");
+      const score = document.createElement("span");
+      score.className = "nyid-leaderboard-score";
+      score.textContent = (Number(entry.xp) || 0).toLocaleString("ru-RU") + " XP";
+      row.append(place, user, score);
+      list.appendChild(row);
+    }
+  }
+
+  async function toggleLeaderboard() {
+    const button = el("nyid-leaderboard-toggle");
+    const panel = el("nyid-leaderboard-body");
+    if (!button || !panel || leaderboardBusy) return;
+    const expand = panel.hidden;
+    panel.hidden = !expand;
+    button.setAttribute("aria-expanded", String(expand));
+    if (!expand) return;
+
+    leaderboardBusy = true;
+    button.disabled = true;
+    text("nyid-leaderboard-status", "Загружаем рейтинг...");
+    if (!TELEGRAM?.initData) {
+      text("nyid-leaderboard-status", "Открой Nyan ID через Telegram.");
+      leaderboardBusy = false;
+      button.disabled = false;
+      return;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    try {
+      const response = await fetch(API + "/api/nyan-id/leaderboard", {
+        headers: { "X-Telegram-Init-Data": TELEGRAM.initData },
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error("сервер вернул HTTP " + response.status);
+      const data = await response.json();
+      if (!data?.ok || !Array.isArray(data.leaders)) throw new Error("некорректные данные рейтинга");
+      renderLeaderboard(data);
+    } catch (error) {
+      text("nyid-leaderboard-status", error?.name === "AbortError"
+        ? "Сервер долго отвечает. Закрой рейтинг и попробуй снова."
+        : "Не удалось загрузить рейтинг. Закрой и попробуй снова.");
+    } finally {
+      clearTimeout(timer);
+      leaderboardBusy = false;
+      button.disabled = false;
+    }
+  }
+
   function updateCard(data) {
     updateExperience(data.experience);
     text("nyid-name", data.display_name || "Пользователь");
@@ -162,6 +232,12 @@
       '    <div id="nyid-xp-info" class="nyid-xp-info">Подключаем данные...</div>',
       '    <div class="nyid-xp-sources" id="nyid-xp-sources"></div>',
       '  </section>',
+      '  <button id="nyid-leaderboard-toggle" class="nyid-leaderboard-toggle" type="button" aria-controls="nyid-leaderboard-body" aria-expanded="false">Рейтинг Nyan ID <span>Топ 20</span></button>',
+      '  <section id="nyid-leaderboard-body" class="nyid-leaderboard" aria-label="Рейтинг Nyan ID по XP" hidden>',
+      '    <div id="nyid-leaderboard-me" class="nyid-leaderboard-me">Твоё место: загружаем...</div>',
+      '    <div id="nyid-leaderboard-status" class="nyid-leaderboard-status" role="status" aria-live="polite"></div>',
+      '    <div id="nyid-leaderboard-list" class="nyid-leaderboard-list"></div>',
+      '  </section>',
       '  <div class="nyid-note" id="nyid-notice" role="status" aria-live="polite">Подключаем данные...</div>',
       '  <div class="nyid-themes" role="group" aria-label="Оформление Nyan ID">',
       '    <button type="button" class="nyid-theme-button" data-choice="powder" aria-pressed="true"><span class="nyid-theme-dot"></span>Пудровый</button>',
@@ -190,6 +266,7 @@
         TELEGRAM?.HapticFeedback?.selectionChanged?.();
       });
     });
+    el("nyid-leaderboard-toggle")?.addEventListener("click", toggleLeaderboard);
     el("nyid-send")?.addEventListener("click", sendCardToBot);
     el("nyid-open-chat")?.addEventListener("click", () => {
       if (typeof TELEGRAM?.openTelegramLink === "function") TELEGRAM.openTelegramLink("https://t.me/nyancash_bot");
@@ -251,6 +328,9 @@
   function close() {
     if (!layer) return;
     layer.hidden = true;
+    const ranking = el("nyid-leaderboard-body");
+    if (ranking) ranking.hidden = true;
+    el("nyid-leaderboard-toggle")?.setAttribute("aria-expanded", "false");
     document.documentElement.style.overflow = "";
     if (previousFocus && document.contains(previousFocus)) previousFocus.focus();
   }
