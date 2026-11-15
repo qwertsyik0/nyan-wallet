@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Safe single-command FirstVDS installer for Nyan ID shared XP.
+"""Safe single-command FirstVDS installer for Nyan ID XP and leaderboard.
 
   curl -fsSL https://raw.githubusercontent.com/qwertsyik0/nyan-wallet/main/tools/install_nyan_id_xp_firstvds.py | sudo python3 - --apply
 
@@ -50,7 +50,7 @@ def download(ref: str) -> bytes:
         raise RuntimeError("Некорректный размер модуля Nyan XP")
     source = body.decode("utf-8")
     ast.parse(source, filename=MODULE)
-    for expected in ('"/api/owner/nyan-id/experience"', "def register_nyan_experience"):
+    for expected in ('"/api/owner/nyan-id/experience"', '"/api/nyan-id/leaderboard"', "def register_nyan_experience"):
         if expected not in source:
             raise RuntimeError("В скачанном модуле отсутствует " + expected)
     return body
@@ -110,7 +110,7 @@ def write_atomic(path: Path, body: bytes, mode: int) -> None:
 def verify() -> None:
     last_error = "сервис не ответил"
     expected = {"/api/nyan-id", "/api/nyan-id/send-png",
-                "/api/owner/nyan-id/experience"}
+                "/api/nyan-id/leaderboard", "/api/owner/nyan-id/experience"}
     for _ in range(15):
         try:
             if run("systemctl", "is-active", SERVICE) != "active":
@@ -133,7 +133,14 @@ def verify() -> None:
                     raise RuntimeError(f"Неожиданный ответ Nyan ID: HTTP {e.code}")
             else:
                 raise RuntimeError("Nyan ID не проверяет авторизацию")
-            print("OK: сервис активен, таблицы и маршруты подключены")
+            try:
+                urllib.request.urlopen("http://127.0.0.1:8000/api/nyan-id/leaderboard", timeout=4)
+            except urllib.error.HTTPError as e:
+                if e.code not in (401, 503):
+                    raise RuntimeError(f"Неожиданный ответ рейтинга: HTTP {e.code}")
+            else:
+                raise RuntimeError("Рейтинг доступен без Telegram-авторизации")
+            print("OK: сервис активен, Nyan ID и рейтинг защищены авторизацией")
             return
         except Exception as e:
             last_error = str(e)
@@ -208,7 +215,7 @@ def main() -> None:
         print("ОШИБКА: прежние файлы восстановлены, сервис перезапущен", file=sys.stderr)
         raise
 
-    print("ГОТОВО: Nyan ID XP установлен. Балансы и данные пользователей не сброшены.")
+    print("ГОТОВО: Nyan ID XP и рейтинг установлены. Балансы не изменены.")
 
 
 if __name__ == "__main__":
