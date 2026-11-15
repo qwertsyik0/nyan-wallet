@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import html
 import logging
 from pathlib import Path
@@ -19,6 +20,18 @@ LOGGER = logging.getLogger("nyan_wallet.partner_flood_welcome")
 def _mention(user) -> str:
     name = html.escape(user.full_name or "лапочка", quote=True)
     return f'<a href="tg://user?id={user.id}">{name}</a>'
+
+
+def _is_connect_timeout(error: BaseException) -> bool:
+    """Retry only pre-connection timeouts, never ambiguous write/read failures."""
+    current: BaseException | None = error
+    for _ in range(10):
+        if current is None:
+            break
+        if type(current).__name__ == "ConnectTimeout":
+            return True
+        current = current.__cause__ or current.__context__
+    return False
 
 
 async def welcome_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -40,18 +53,39 @@ async def welcome_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE
     buttons = InlineKeyboardMarkup([[
         InlineKeyboardButton("🛍 NYAN SHOP", url="https://t.me/NyanShoping")
     ]])
-    try:
-        with IMAGE.open("rb") as picture:
-            await context.bot.send_photo(
-                chat_id=GROUP_ID,
-                photo=picture,
-                caption=caption,
-                parse_mode=ParseMode.HTML,
-                reply_to_message_id=message.message_id,
-                reply_markup=buttons,
+    for attempt in range(1, 4):
+        try:
+            with IMAGE.open("rb") as picture:
+                await context.bot.send_photo(
+                    chat_id=GROUP_ID,
+                    photo=picture,
+                    caption=caption,
+                    parse_mode=ParseMode.HTML,
+                    reply_to_message_id=message.message_id,
+                    reply_markup=buttons,
+                    connect_timeout=25,
+                    read_timeout=35,
+                    write_timeout=45,
+                    pool_timeout=20,
+                )
+            LOGGER.info("Welcome sent for join event %s", message.message_id)
+            return
+        except TelegramError as error:
+            if attempt < 3 and _is_connect_timeout(error):
+                LOGGER.warning(
+                    "Telegram ConnectTimeout at join event %s, retry %s/3",
+                    message.message_id, attempt + 1,
+                )
+                await asyncio.sleep(2 * attempt)
+                continue
+            LOGGER.exception(
+                "Cannot greet join event %s after %s attempt(s)",
+                message.message_id, attempt,
             )
-    except (TelegramError, OSError):
-        LOGGER.exception("Cannot greet join event %s", message.message_id)
+            return
+        except OSError:
+            LOGGER.exception("Cannot read welcome banner for event %s", message.message_id)
+            return
 
 
 def register_partner_flood_welcome(app: Application) -> None:
