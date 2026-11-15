@@ -31,7 +31,7 @@ RESTART_HELPER = Path("/home/nyanteam/nyan-wallet/tools/nyan_bot_autodeploy.py")
 PREFIX = "https://raw.githubusercontent.com/qwertsyik0/nyan-wallet/main/"
 MODULE_URL = PREFIX + "bot_addons/partner_flood_welcome.py"
 IMAGE_SHA256 = "7e68cab99ac73ffca0d4005b13a6ff529234994cc2692bd900662c0922bd8244"
-MODULE_GIT_BLOB = "ad3f28f56461acb3043a61585ff3e082038afedb"
+MODULE_GIT_BLOB = "f9c3de8e285da4c4ad7927c97d97d89990b82ef0"
 MARKER = "register_partner_flood_welcome"
 OPEN = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
