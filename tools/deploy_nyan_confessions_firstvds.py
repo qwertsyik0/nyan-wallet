@@ -34,6 +34,8 @@ FILES = (
 IMPORT = "from .nyan_confessions import register_nyan_confessions"
 REGISTER = "    register_nyan_confessions(backend_app.app)"
 CAMPAIGN = "broadcast:nyan-confessions:v1:"
+# Keep the original prefix so older installers also recognize the campaign.
+REPEAT_CAMPAIGN = CAMPAIGN + "repeat1:"
 ANNOUNCEMENT = (
     "💌 <b>nyan confessions уже открыт</b>\n\n"
     "если есть что рассказать, напиши об этом анонимно. "
@@ -182,9 +184,36 @@ def service_setting(name: str) -> str:
     return (dotenv_values(ROOT / ".env").get(name) or "").strip()
 
 
-def broadcast(send: bool) -> None:
+def enqueue_broadcast(cursor, *, campaign: str, envelope: str, owner: int) -> tuple[int, int]:
+    cursor.execute("SELECT pg_advisory_xact_lock(%s)", (2026111509,))
+    cursor.execute("""
+        SELECT EXISTS (SELECT 1 FROM telegram_relay_outbox WHERE starts_with(source_key, %s))
+        """, (campaign,))
+    if cursor.fetchone()[0]:
+        return 0, 0
+
+    carried = 0
+    if campaign == REPEAT_CAMPAIGN:
+        # The relay acknowledges by row ID and lease token, so in-flight jobs keep their lease.
+        cursor.execute("""
+            UPDATE telegram_relay_outbox SET source_key = %s || CAST(chat_id AS text)
+            WHERE source_key = %s || CAST(chat_id AS text) AND state IN ('pending', 'leased')
+            """, (campaign, CAMPAIGN))
+        carried = cursor.rowcount
+
+    cursor.execute("""
+        INSERT INTO telegram_relay_outbox (source_key, chat_id, body, state, attempts, created_at)
+        SELECT %s || CAST(telegram_id AS text), telegram_id, %s, 'pending', 0, now()
+        FROM users WHERE telegram_id > 0 AND telegram_id <> %s
+        ON CONFLICT (source_key) DO NOTHING
+        """, (campaign, envelope, owner))
+    return cursor.rowcount, carried
+
+
+def broadcast(send: bool, *, repeat: bool = False) -> None:
     from psycopg import connect
 
+    campaign = REPEAT_CAMPAIGN if repeat else CAMPAIGN
     dsn = service_setting("DATABASE_URL").replace("postgresql+psycopg://", "postgresql://", 1)
     if not dsn.startswith(("postgresql://", "postgres://")):
         raise RuntimeError("Не настроена PostgreSQL база Nyan Wallet.")
@@ -207,26 +236,17 @@ def broadcast(send: bool) -> None:
     with connect(dsn, connect_timeout=8) as connection:
         with connection.cursor() as cursor:
             if send:
-                cursor.execute("SELECT pg_advisory_xact_lock(%s)", (2026111509,))
-                cursor.execute("""
-                    INSERT INTO telegram_relay_outbox (source_key, chat_id, body, state, attempts, created_at)
-                    SELECT %s || CAST(telegram_id AS text), telegram_id, %s, 'pending', 0, now()
-                    FROM users
-                    WHERE telegram_id > 0 AND telegram_id <> %s
-                      AND NOT EXISTS (
-                        SELECT 1 FROM telegram_relay_outbox WHERE starts_with(source_key, %s)
-                      )
-                    ON CONFLICT (source_key) DO NOTHING
-                    """, (CAMPAIGN, envelope, owner, CAMPAIGN))
-                added = cursor.rowcount
+                added, carried = enqueue_broadcast(cursor, campaign=campaign, envelope=envelope, owner=owner)
             cursor.execute("""
                 SELECT state, count(*) FROM telegram_relay_outbox
-                WHERE starts_with(source_key, %s) GROUP BY state ORDER BY state
-                """, (CAMPAIGN,))
+                WHERE source_key = %s || CAST(chat_id AS text) GROUP BY state ORDER BY state
+                """, (campaign,))
             counts = dict(cursor.fetchall())
 
     if send:
         print(f"Добавлено получателей в рассылку: {added}", flush=True)
+        if repeat:
+            print(f"Перенесено ожидающих и отправляемых сообщений: {carried}", flush=True)
     print("Статус рассылки", json.dumps(counts, ensure_ascii=False), flush=True)
 
 
@@ -234,20 +254,23 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--revision")
     parser.add_argument("--announce", action="store_true")
+    parser.add_argument("--repeat", action="store_true", help="Повторить рассылку установленного сайта")
     parser.add_argument("--status", action="store_true")
     args = parser.parse_args()
     if os.geteuid() != 0:
         parser.error("Запусти команду от root на FirstVDS.")
     if args.status and (args.revision or args.announce):
-        parser.error("--status используется отдельно.")
-    if not args.status and not re.fullmatch(r"[a-f0-9]{40}", args.revision or ""):
+        parser.error("--status используется отдельно или с --repeat.")
+    if args.repeat and (args.revision or args.announce):
+        parser.error("--repeat использует установленный сайт.")
+    if not (args.status or args.repeat) and not re.fullmatch(r"[a-f0-9]{40}", args.revision or ""):
         parser.error("Укажи SHA опубликованного коммита через --revision.")
 
     from psycopg import Error as DatabaseError
 
     def run_broadcast(send: bool) -> None:
         try:
-            broadcast(send)
+            broadcast(send, repeat=args.repeat)
         except DatabaseError:
             raise RuntimeError("Ошибка соединения с базой или записи рассылки.") from None
 
@@ -256,10 +279,13 @@ def main() -> None:
         if args.status:
             run_broadcast(False)
             return
-        deploy(args.revision)
+        if args.repeat:
+            verify_site(LOCAL)
+        else:
+            deploy(args.revision)
         wait_for(lambda: verify_site(PUBLIC), 5)
         print(PUBLIC + ROUTE, flush=True)
-        if args.announce:
+        if args.announce or args.repeat:
             wait_for(wallet_ready, 10)
             run_broadcast(True)
 
