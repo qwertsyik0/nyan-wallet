@@ -235,6 +235,38 @@ button:disabled { cursor: wait; opacity: 0.65; }
 .post-comment .text { margin-top: 4px; font-size: 14px; }
 .comments-more { margin-top: 4px; }
 
+.weekly-question, .owner-tools {
+  margin-top: 15px;
+  padding: 14px 17px;
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  background: #fff0f6;
+}
+
+.weekly-question strong { color: var(--accent); font-size: 13px; }
+.weekly-question p { margin-top: 5px; overflow-wrap: anywhere; line-height: 1.45; }
+.owner-tools { background: #fff; }
+.owner-tools summary { cursor: pointer; color: var(--accent); font-weight: 700; }
+#question-form, .moderation { margin-top: 14px; }
+#question-form label, .moderation h2 { font-size: 15px; }
+#question-form textarea { min-height: 65px; margin: 8px 0; }
+.moderation .post-comment { border-top: 1px solid var(--line); }
+.moderation .text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.post-pin { margin-top: 7px; color: var(--accent); font-size: 13px; font-weight: 700; }
+.comment-actions { margin-top: 6px; }
+.comment-actions .post-action { min-height: 34px; }
+.reply-preview, .reply-quote {
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border-inline-start: 2px solid #df9ab8;
+  background: #fff4f8;
+  color: var(--muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.reply-preview .post-action { margin-top: 5px; }
+.reply-quote { margin: 6px 0 0; }
+
 .secondary {
   width: 100%;
   margin-top: 10px;
