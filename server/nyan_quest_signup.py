@@ -133,7 +133,6 @@ def quest_open(x_nyan_quest_chat: str | None = Header(default=None, alias='X-Nya
                 'твоё имя узнает ведущий.\n\n'
                 '<b>ДВЕРЬ НЕ ОСТАНЕТСЯ ОТКРЫТОЙ НАВСЕГДА.</b>'
             ),
-            'parse_mode': 'HTML',
             'buttons': [{'text': '🩸 ЗАПИСАТЬСЯ НА КВЕСТ',
                          'url': 'https://t.me/nyancash_bot?startapp=nyan_quest'}],
         }
