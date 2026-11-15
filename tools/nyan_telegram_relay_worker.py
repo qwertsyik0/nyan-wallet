@@ -140,13 +140,21 @@ def telegram_send_payload(chat_id: int, text: str) -> dict:
     except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
         raise RelayError("invalid rich message envelope", permanent=True) from exc
 
-    return {
+    payload = {
         "chat_id": int(chat_id),
         "text": html,
         "parse_mode": "HTML",
         "link_preview_options": {"is_disabled": True},
         "reply_markup": {"inline_keyboard": inline_keyboard},
     }
+    # NYAN QUEST_TOPIC_ROUTING_V1: route ONLY Quest signup invitations.
+    # Wallet notifications, other sponsors and other groups stay unchanged.
+    if int(chat_id) == -1004381936410 and any(
+        button["url"] == "https://t.me/nyancash_bot?startapp=nyan_quest"
+        for button in buttons
+    ):
+        payload["message_thread_id"] = 2
+    return payload
 
 
 def send_one(bot_token: str, chat_id: int, text: str) -> int | None:
