@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#fff9fb">
+  <meta name="description" content="Анонимные признания сообщества Nyan">
+  <title>Nyan Confessions</title>
+  <link rel="icon" href="/api/nyan-confessions/nyanik.webp" type="image/webp">
+  <link rel="stylesheet" href="/api/nyan-confessions/style.css">
+  <script src="/api/nyan-confessions/confessions.js" defer></script>
+</head>
+<body>
+  <main class="app">
+    <header class="intro">
+      <div class="intro-copy">
+        <h1>Nyan Confessions</h1>
+        <p>Анонимные признания сообщества Nyan</p>
+      </div>
+      <img class="nyanik" src="/api/nyan-confessions/nyanik.webp" alt="" width="80" height="80">
+    </header>
+
+    <form id="confession-form" class="compose" method="post" aria-describedby="visibility">
+      <label for="confession">Твоё признание</label>
+      <p class="hint" id="visibility">Текст появится в ленте без имени.</p>
+      <textarea id="confession" name="body" aria-describedby="count" rows="5" maxlength="1000" placeholder="О чём хочется рассказать?" required></textarea>
+      <div class="count" id="count">0 / 1000</div>
+      <button class="primary" type="submit" disabled>Опубликовать анонимно</button>
+      <p id="submit-status" class="status" role="status"></p>
+    </form>
+
+    <section class="feed" aria-labelledby="feed-title">
+      <h2 id="feed-title">Признания</h2>
+      <p id="feed-status" class="feed-state" role="status" hidden></p>
+      <noscript><p class="feed-state">Включи JavaScript, чтобы читать и публиковать признания.</p></noscript>
+      <div id="posts" class="posts"></div>
+      <button id="more" class="secondary" type="button" hidden>Показать ещё</button>
+    </section>
+  </main>
+</body>
+</html>

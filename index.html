@@ -35,6 +35,11 @@
           return;
         }
 
+        if (startParam === "nyan_confessions") {
+          window.location.replace("https://nyan-wallet-bridge.qwertsyik.workers.dev/api/nyan-confessions");
+          return;
+        }
+
         if (startParam === "nyanid" || startParam === "nyan_id") {
           const target = new URL("./nyan-id.html", window.location.href);
           const current = new URL(window.location.href);
@@ -329,7 +334,7 @@
     <link rel="stylesheet" href="./daily_tasks.css?v=20260921-2">
     <link rel="stylesheet" href="./home_v2.css?v=20261031-retire-halloween">
     <link rel="stylesheet" href="./interface_shell.css?v=20261016-cascade-fix1">
-    <link rel="stylesheet" href="./nyan_id.css?v=20261115-leaderboard1">
+    <link rel="stylesheet" href="./nyan_id.css?v=20261115-confessions1">
     <link rel="stylesheet" href="./profile_overview.css?v=20261025-1">
     <link rel="stylesheet" href="./achievements-hall.css?v=20261030-hall1">
     <link rel="stylesheet" href="./nyan-glitch-wallet.css?v=20261107-owner-glitch1">
@@ -606,7 +611,7 @@
 <script src="./privacy.js?v=20260921-1"></script>
 <script src="./interface_shell.js?v=20261005-1"></script>
 <script src="./home_v2.js?v=20261107-awards-vote1"></script>
-<script src="./nyan_id.js?v=20261115-leaderboard1"></script>
+<script src="./nyan_id.js?v=20261115-confessions1"></script>
 <script src="./finance-workspace-entry.js?v=20261031-cloudflare-api1"></script>
 <script src="./profile_overview.js?v=20261031-cloudflare-api1"></script>
 </body>
