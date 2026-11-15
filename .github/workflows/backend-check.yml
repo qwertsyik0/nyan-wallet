@@ -75,6 +75,10 @@ jobs:
         run: python tools/test_elections_static_snapshot_20261018.py
       - name: Test Nyan ID PNG export and Telegram document upload
         run: python tools/test_nyan_id_png.py
+      - name: Check unified Nyan ID experience
+        run: |
+          python tools/test_nyan_experience.py
+          node --check nyan_id.js
       - name: Test finance internship role and approval workflow
         run: |
           python -m pip install -r requirements.txt
