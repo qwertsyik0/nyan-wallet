@@ -123,7 +123,26 @@ def quest_open(x_nyan_quest_chat: str | None = Header(default=None, alias='X-Nya
         session.add(item)
         session.flush()
         rid = item.id
-    return {'ok': True, 'round_id': rid}
+        announcement = {
+            'text': (
+                '🩸 <b>ТЕБЯ УЖЕ ЖДУТ ПО ТУ СТОРОНУ.</b>\n\n'
+                '<b>NYAN QUEST | ОТКРЫТА ЗАПИСЬ НА КВЕСТ</b>\n\n'
+                'здесь каждый выбор имеет последствия. '
+                'одни найдут выход. другие останутся частью истории.\n\n'
+                'нажми кнопку, чтобы записаться на следующий квест. '
+                'твоё имя узнает ведущий.\n\n'
+                '<b>ДВЕРЬ НЕ ОСТАНЕТСЯ ОТКРЫТОЙ НАВСЕГДА.</b>'
+            ),
+            'buttons': [{'text': '🩸 ЗАПИСАТЬСЯ НА КВЕСТ',
+                         'url': 'https://t.me/nyancash_bot?startapp=nyan_quest'}],
+        }
+        session.add(TelegramRelayMessage(
+            source_key=f'nyan-quest-invite:{rid}',
+            chat_id=chat_id,
+            body='NYAN_TG_RICH_V1:' + json.dumps(announcement, ensure_ascii=False),
+            state='pending', attempts=0, created_at=core.now_utc(),
+        ))
+    return {'ok': True, 'round_id': rid, 'invitation_queued': True}
 
 @router.post('/api/internal/nyan-quest/close')
 def quest_close(x_nyan_quest_chat: str | None = Header(default=None, alias='X-Nyan-Quest-Chat'),
