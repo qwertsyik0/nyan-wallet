@@ -33,11 +33,8 @@ def test_level_boundaries():
         (224, 2, 124, 125, 1),
         (225, 3, 0, 150, 150),
         (375, 4, 0, 175, 175),
-        (1000, 6, 250, 225, -25),
     ]
-    # The final large-value boundary is checked independently to avoid
-    # coupling the test to an assumed maximum level.
-    for xp, level, within, next_goal, remaining in cases[:-1]:
+    for xp, level, within, next_goal, remaining in cases:
         item = calculate(xp)
         assert item["level"] == level, (xp, item)
         assert item["current_level_xp"] == within, (xp, item)
