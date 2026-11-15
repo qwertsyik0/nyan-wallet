@@ -48,12 +48,15 @@ def command(*parts: str) -> str:
 
 
 def read_url(url: str, headers: dict | None = None) -> tuple[bytes, str]:
-    request = urllib.request.Request(url, headers=headers or {})
-    with urllib.request.urlopen(request, timeout=12) as response:
-        body = response.read(850_001)
-        if len(body) > 850_000:
-            raise RuntimeError("Ответ больше ожидаемого.")
-        return body, response.headers.get_content_type()
+    request = urllib.request.Request(url, headers={"User-Agent": "NyanWalletDeploy/1.0", **(headers or {})})
+    try:
+        with urllib.request.urlopen(request, timeout=12) as response:
+            body = response.read(850_001)
+            if len(body) > 850_000:
+                raise RuntimeError(f"Ответ больше ожидаемого: {url}")
+            return body, response.headers.get_content_type()
+    except urllib.error.HTTPError as error:
+        raise RuntimeError(f"HTTP {error.code} при запросе {url}") from None
 
 
 def add_registration(source: str) -> str:
