@@ -7,8 +7,8 @@
   <meta name="description" content="Анонимные признания сообщества Nyan">
   <title>Nyan Confessions</title>
   <link rel="icon" href="/api/nyan-confessions/nyanik.webp" type="image/webp">
-  <link rel="stylesheet" href="/api/nyan-confessions/style.css">
-  <script src="/api/nyan-confessions/confessions.js" defer></script>
+  <link rel="stylesheet" href="/api/nyan-confessions/style.css?v=2">
+  <script src="/api/nyan-confessions/confessions.js?v=2" defer></script>
 </head>
 <body>
   <main class="app">
@@ -37,5 +37,29 @@
       <button id="more" class="secondary" type="button" hidden>Показать ещё</button>
     </section>
   </main>
+  <template id="post-interactions">
+    <div class="post-actions">
+      <div class="post-reactions" role="group" aria-label="Реакции">
+        <button type="button" class="post-action" data-reaction="1" aria-pressed="false" aria-label="Лайк">
+          <span aria-hidden="true">👍</span> <span data-count>0</span>
+        </button>
+        <button type="button" class="post-action" data-reaction="-1" aria-pressed="false" aria-label="Дизлайк">
+          <span aria-hidden="true">👎</span> <span data-count>0</span>
+        </button>
+      </div>
+      <button type="button" class="post-action comments-toggle" aria-expanded="false">Комментировать</button>
+    </div>
+    <p class="status reaction-status" data-state="error" role="status"></p>
+    <div class="comments" hidden>
+      <form class="comment-form" method="post">
+        <textarea name="body" rows="2" maxlength="500" aria-label="Анонимный комментарий"
+          placeholder="Написать анонимный комментарий" required></textarea>
+        <button class="post-action comment-submit" type="submit">Отправить</button>
+      </form>
+      <p class="status comment-status" role="status"></p>
+      <div class="comment-list"></div>
+      <button class="post-action comments-more" type="button" hidden>Показать предыдущие</button>
+    </div>
+  </template>
 </body>
 </html>
