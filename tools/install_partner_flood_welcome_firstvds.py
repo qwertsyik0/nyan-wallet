@@ -137,7 +137,7 @@ def main() -> None:
             + ". Скачай nyan_welcome.jpg из чата и загрузи через SFTP."
         )
     new_image = UPLOADED_IMAGE.read_bytes()
-    if hashlib.sha256(new_image).hexdigest() != IMAGE_SHA256 or not new_image.startswith(b"\\xff\\xd8\\xff"):
+    if hashlib.sha256(new_image).hexdigest() != IMAGE_SHA256 or not new_image[:3] == bytes((255, 216, 255)):
         raise RuntimeError(
             "Баннер не совпадает с ранее созданным изображением. "
             "Загрузи оригинальный nyan_welcome.jpg без изменений."
