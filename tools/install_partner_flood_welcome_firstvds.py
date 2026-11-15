@@ -4,7 +4,7 @@
 Run as nyanteam on mjodgiver:
   python3 install_partner_flood_welcome_firstvds.py --check
   python3 install_partner_flood_welcome_firstvds.py --apply
-The installer checks bot.py and downloads a mascot PNG from existing Nyan assets,
+The installer checks bot.py and uses exactly the generated NYAN welcome poster uploaded via SFTP,
 backs up changed files, connects the new handler, and restarts the current bot.
 """
 
@@ -25,13 +25,13 @@ from pathlib import Path
 ROOT = Path("/home/nyanteam/new_bot")
 BOT = ROOT / "bot.py"
 MODULE = ROOT / "partner_flood_welcome.py"
-IMAGE = ROOT / "nyan_partner_welcome.png"
+IMAGE = ROOT / "nyan_partner_welcome.jpg"
+UPLOADED_IMAGE = Path("/home/nyanteam/nyan_welcome.jpg")
 RESTART_HELPER = Path("/home/nyanteam/nyan-wallet/tools/nyan_bot_autodeploy.py")
 PREFIX = "https://raw.githubusercontent.com/qwertsyik0/nyan-wallet/main/"
 MODULE_URL = PREFIX + "bot_addons/partner_flood_welcome.py"
-IMAGE_URL = PREFIX + "nyan-kitten-original.png"
-IMAGE_GIT_BLOB = "369a534b5f0d245a028cd6c551d3578a7cb7ab74"
-MODULE_GIT_BLOB = "c3579d630a8ebbfdb03ae91e1c5de5f5b58173bf"
+IMAGE_SHA256 = "7e68cab99ac73ffca0d4005b13a6ff529234994cc2692bd900662c0922bd8244"
+MODULE_GIT_BLOB = "ad3f28f56461acb3043a61585ff3e082038afedb"
 MARKER = "register_partner_flood_welcome"
 OPEN = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
@@ -121,7 +121,7 @@ def main() -> None:
         raise RuntimeError(
             "Не найден работающий бот или штатный помощник перезапуска на mjodgiver"
         )
-    if any(p.is_symlink() for p in (BOT, MODULE, IMAGE)):
+    if any(p.is_symlink() for p in (BOT, MODULE, IMAGE, UPLOADED_IMAGE)):
         raise RuntimeError("Найдена символическая ссылка вместо файла; установка отменена")
     python = ROOT / "venv/bin/python"
     if not python.is_file():
@@ -131,9 +131,17 @@ def main() -> None:
     original_module = MODULE.read_bytes() if MODULE.exists() else None
     original_image = IMAGE.read_bytes() if IMAGE.exists() else None
     new_module = download(MODULE_URL, MODULE_GIT_BLOB, 40_000)
-    new_image = download(IMAGE_URL, IMAGE_GIT_BLOB, 1_000_000)
-    if not new_image.startswith(b"\x89PNG\r\n\x1a\n"):
-        raise RuntimeError("Картинка повреждена")
+    if not UPLOADED_IMAGE.is_file():
+        raise RuntimeError(
+            "Исходный баннер не найден: " + str(UPLOADED_IMAGE)
+            + ". Скачай nyan_welcome.jpg из чата и загрузи через SFTP."
+        )
+    new_image = UPLOADED_IMAGE.read_bytes()
+    if hashlib.sha256(new_image).hexdigest() != IMAGE_SHA256 or not new_image.startswith(b"\\xff\\xd8\\xff"):
+        raise RuntimeError(
+            "Баннер не совпадает с ранее созданным изображением. "
+            "Загрузи оригинальный nyan_welcome.jpg без изменений."
+        )
     ast.parse(new_module.decode("utf-8"), filename="partner_flood_welcome.py")
     updated = patch_bot(original_bot.decode("utf-8")).encode("utf-8")
     check = subprocess.run(
@@ -193,7 +201,7 @@ def main() -> None:
             f"Ошибка установки: {exc}. Исходные файлы восстановлены. Бэкап: {backup}"
         ) from exc
     print("OK: приветствие установлено, бот перезапущен без второго процесса.")
-    print("Фотография Няника получена напрямую из репозитория.")
+    print("Установлен оригинальный баннер NYAN SHOP × ФЛУД из SFTP.")
     print("Следующее вступление во флуд получит приветствие с упоминанием и кнопкой.")
     print("Бэкап:", backup)
 
