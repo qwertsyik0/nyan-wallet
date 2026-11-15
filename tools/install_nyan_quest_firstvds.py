@@ -28,7 +28,7 @@ SERVICE = 'nyan-wallet'
 INIT = ROOT / 'server/__init__.py'
 MODULE = ROOT / 'server/nyan_quest_signup.py'
 MODULE_URL = 'https://raw.githubusercontent.com/qwertsyik0/nyan-wallet/main/server/nyan_quest_signup.py'
-MODULE_SHA256 = '653cb2138bddab329ec9b37448ae0f2a9eb9c694ce3bae059c01a1dc2bc46309'
+MODULE_GIT_BLOB = 'cd9c4bd070600ecf934e8739695568def8e4c4b2'
 IMPORT = 'from .nyan_quest_signup import register_nyan_quest_signup'
 CALL = '    register_nyan_quest_signup(backend_app.app)'
 ROUTES = ('/api/nyan-quest/status', '/api/nyan-quest/join', '/api/internal/nyan-quest/open', '/api/internal/nyan-quest/close')
@@ -58,7 +58,7 @@ def new_module() -> bytes:
     req = urllib.request.Request(MODULE_URL, headers={'User-Agent': 'NyanQuestFirstVDSInstaller/1.0'})
     with urllib.request.urlopen(req, timeout=25) as resp:
         body = resp.read(100001)
-    if hashlib.sha256(body).hexdigest() != MODULE_SHA256:
+    if hashlib.sha1(b'blob ' + str(len(body)).encode() + b'\0' + body).hexdigest() != MODULE_GIT_BLOB:
         raise RuntimeError('Код API в GitHub отличается от проверенной версии. Установка отменена.')
     if len(body) > 100000:
         raise RuntimeError('Модуль больше ожидаемого')
