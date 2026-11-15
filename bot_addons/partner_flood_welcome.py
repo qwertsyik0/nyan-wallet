@@ -12,7 +12,7 @@ from telegram.error import TelegramError
 from telegram.ext import Application, ContextTypes, MessageHandler, filters
 
 GROUP_ID = -1003689150794
-IMAGE = Path(__file__).resolve().with_name("nyan_partner_welcome.png")
+IMAGE = Path(__file__).resolve().with_name("nyan_partner_welcome.jpg")
 LOGGER = logging.getLogger("nyan_wallet.partner_flood_welcome")
 
 
