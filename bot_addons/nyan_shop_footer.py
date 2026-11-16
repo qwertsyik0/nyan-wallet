@@ -9,16 +9,7 @@ from __future__ import annotations
 from functools import wraps
 
 FOOTER = "♡ больше, чем магазин — @nyanshoping"
-TEXT_METHODS = frozenset({
-    "sendmessage", "editmessagetext", "copymessage", "copymessages",
-    "sendpaidmedia", "sendpoll",
-})
-CAPTION_METHODS = frozenset({
-    "sendphoto", "sendvideo", "sendaudio", "sendanimation",
-    "senddocument", "sendvoice", "sendvideonote", "editmessagecaption",
-})
-# The payload for copyMessage, copyMessages, sendPoll and sendPaidMedia
-# does not have a simple text/caption field; leave them unmodified.
+# Copy/forward/poll methods have no simple editable text; leave unchanged.
 TEXT_METHODS = frozenset({"sendmessage", "editmessagetext"})
 CAPTION_METHODS = frozenset({
     "sendphoto", "sendvideo", "sendaudio", "sendanimation",
