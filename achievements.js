@@ -70,6 +70,9 @@ function achIcon(name, extraClass = "") {
         legend: `<path d="M8 1v2M2.5 3.5 4 5M13.5 3.5 12 5M1 9h2M13 9h2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="5" cy="7" r="1.5"/><circle cx="11" cy="7" r="1.5"/><circle cx="3.5" cy="10" r="1.2"/><circle cx="12.5" cy="10" r="1.2"/><path d="M5 13c0-2 1.4-3.2 3-3.2s3 1.2 3 3.2c0 1-.9 1.5-1.7 1.1L8 13.5l-1.3.6C5.9 14.5 5 14 5 13Z"/>`,
         mystery: `<path d="M6.2 5.6C6.3 3.8 7.5 2.7 9.3 2.7c2 0 3.5 1.2 3.5 3 0 1.6-.9 2.4-2.1 3.2-.9.6-1.3 1.1-1.3 2H7.2c0-1.8.7-2.7 1.9-3.5.9-.6 1.4-1 1.4-1.7 0-.7-.5-1.2-1.3-1.2-.9 0-1.4.5-1.5 1.4L6.2 5.6Z"/><circle cx="8.3" cy="13.2" r="1.2"/>`,
     };
+    if (name === "coin") {
+        return '<img class="ach-svg nyan-lapcoin-icon" src="./assets/lapcoin/lapcoin.webp" alt="лапкоин" width="22" height="22">';
+    }
     return start + (icons[name] || icons.paw) + end;
 }
 
