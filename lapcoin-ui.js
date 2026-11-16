@@ -56,6 +56,24 @@
     textNode.replaceWith(container);
   }
 
+  function scanLabels(root) {
+    const current = root.nodeType === 1 ? [root] : [];
+    if (root.querySelectorAll) {
+      for (const child of root.querySelectorAll("[placeholder], [title], [aria-label]")) {
+        current.push(child);
+      }
+    }
+    for (const element of current) {
+      if (!element.getAttribute || element.isContentEditable) continue;
+      for (const attribute of ["placeholder", "title", "aria-label"]) {
+        const value = element.getAttribute(attribute);
+        if (value && value.includes(TOKEN)) {
+          element.setAttribute(attribute, value.split(TOKEN).join("лапкоинов"));
+        }
+      }
+    }
+  }
+
   function scan(root) {
     if (!root || root.nodeType === 8) return;
     if (root.nodeType === 3) {
@@ -64,6 +82,7 @@
     }
     if (root.nodeType !== 1 && root.nodeType !== 11 && root.nodeType !== 9) return;
     if (root.nodeType === 1 && OMIT.has(root.tagName)) return;
+    scanLabels(root);
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const matches = [];
     while (walker.nextNode()) {
@@ -91,6 +110,8 @@
     for (const change of changes) {
       if (change.type === "characterData") {
         enqueue(change.target);
+      } else if (change.type === "attributes") {
+        enqueue(change.target);
       } else {
         for (const node of change.addedNodes) enqueue(node);
       }
@@ -101,6 +122,7 @@
     scan(document.body);
     observer.observe(document.body, {
       subtree: true, characterData: true, childList: true,
+      attributes: true, attributeFilter: ["placeholder", "title", "aria-label"],
     });
   }
   if (document.readyState === "loading") {
