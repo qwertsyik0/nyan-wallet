@@ -235,6 +235,35 @@ def relay_restart() -> str:
     return f"Relay перезапущен через flock, PID={proc.pid}"
 
 
+def selftest(module_bytes: bytes) -> None:
+    """Check footer formatting and PTB interception before touching production."""
+    import asyncio
+    namespace = {"__name__": "nyan_shop_footer_selftest"}
+    code = compile(module_bytes.decode("utf-8"), "nyan_shop_footer.py", "exec")
+    exec(code, namespace)
+    add = namespace["append_footer"]
+    example = "зачислено 200 лапкоинов"
+    branded = example + "\\n\\n" + FOOTER
+    assert add(example, 4096) == branded
+    assert add(branded, 4096) == branded
+    assert add("x" * 4090, 4096) == "x" * 4090
+    class FakeBot:
+        async def _post(self, endpoint, data, **kwargs):
+            return data
+    assert namespace["_wrap_post"](FakeBot)
+    fake = FakeBot()
+    text_payload = asyncio.run(fake._post(
+        "sendMessage", {"text": example, "parse_mode": "HTML"}
+    ))
+    assert text_payload["text"] == branded
+    photo_payload = asyncio.run(fake._post(
+        "sendPhoto", {"caption": example, "photo": "file_id"}
+    ))
+    assert photo_payload["caption"] == branded
+    poll = asyncio.run(fake._post("sendPoll", {"question": "?", "options": []}))
+    assert "text" not in poll and "caption" not in poll
+
+
 def main():
     parser = argparse.ArgumentParser()
     selection = parser.add_mutually_exclusive_group(required=True)
@@ -263,6 +292,7 @@ def main():
     before_relay = RELAY.read_bytes()
     before_module = MODULE.read_bytes() if MODULE.exists() else None
     candidate_module = download_module()
+    selftest(candidate_module)
     candidate_bot = insert_into_bot(before_bot.decode("utf-8")).encode("utf-8")
     candidate_relay = insert_into_relay(before_relay.decode("utf-8")).encode("utf-8")
     changes = [
