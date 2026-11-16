@@ -97,7 +97,8 @@ def insert_into_bot(source: str) -> str:
     start = call.lineno - 1
     line = lines[start]
     indent = line[:len(line) - len(line.lstrip(" \t"))]
-    if not line.lstrip().startswith((call.func.value.id + ".run_polling",)) if isinstance(call.func.value, ast.Name) else True:
+    if (not isinstance(call.func.value, ast.Name)
+            or not line.lstrip().startswith(call.func.value.id + ".run_polling")):
         raise RuntimeError("Нестандартный запуск бота: автоматическое изменение остановлено")
     end = "\r\n" if line.endswith("\r\n") else "\n"
     lines[start:start] = [
