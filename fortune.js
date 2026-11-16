@@ -56,11 +56,12 @@
         x: cx, y: cy, "text-anchor": "middle", "dominant-baseline": "central",
         fill: "#795f72", "font-size": "29", "font-family": "Arial, sans-serif", "font-weight": "650",
       }, String(amount));
-      // 🐾 is the exact currency emoji used by Nyan Wallet, not a drawn paw icon.
-      node("text", {
-        x: cx, y: cy + 29, "text-anchor": "middle", "dominant-baseline": "central",
-        "font-size": "23", "font-family": "Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif",
-      }, "🐾");
+      // The official Lapcoin image replaces the legacy emoji in the SVG wheel.
+      node("image", {
+        x: cx - 16, y: cy + 12, width: 32, height: 32,
+        href: "./assets/lapcoin/lapcoin.webp",
+        preserveAspectRatio: "xMidYMid meet",
+      });
     });
     node("circle", { cx: center, cy: center, r: radius, fill: "none", stroke: "#fff", "stroke-width": "6" });
   }
