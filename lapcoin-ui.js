@@ -40,7 +40,9 @@
     const el = textNode.parentElement;
     if (!el) return false;
     for (let parent = el; parent; parent = parent.parentElement) {
-      if (OMIT.has(parent.tagName) || parent.isContentEditable) return false;
+      if (OMIT.has(parent.tagName?.toUpperCase()) ||
+          parent.namespaceURI === "http://www.w3.org/2000/svg" ||
+          parent.isContentEditable) return false;
     }
     return true;
   }
@@ -81,7 +83,10 @@
       return;
     }
     if (root.nodeType !== 1 && root.nodeType !== 11 && root.nodeType !== 9) return;
-    if (root.nodeType === 1 && OMIT.has(root.tagName)) return;
+    if (root.nodeType === 1 && (
+      OMIT.has(root.tagName?.toUpperCase()) ||
+      root.namespaceURI === "http://www.w3.org/2000/svg"
+    )) return;
     scanLabels(root);
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const matches = [];
