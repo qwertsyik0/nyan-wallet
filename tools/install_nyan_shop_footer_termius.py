@@ -243,7 +243,7 @@ def selftest(module_bytes: bytes) -> None:
     exec(code, namespace)
     add = namespace["append_footer"]
     example = "зачислено 200 лапкоинов"
-    branded = example + "\\n\\n" + FOOTER
+    branded = example + "\n\n" + FOOTER
     assert add(example, 4096) == branded
     assert add(branded, 4096) == branded
     assert add("x" * 4090, 4096) == "x" * 4090
