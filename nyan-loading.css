@@ -237,3 +237,42 @@
   #loading-view .nyan-boot-track span { animation: none !important; }
   #loading-view .nyan-boot-track span { width: 65%; }
 }
+
+/* Original 1080x1920 MP4 boot animation; aspect is preserved without cropping
+   or re-encoding. The existing boot remains a fallback until playback starts. */
+#loading-view .nyan-boot-video {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+  object-fit: contain;
+  object-position: center center;
+}
+#loading-view.nyan-boot.has-video {
+  background: #fce6ef;
+}
+#loading-view.nyan-boot.has-video .nyan-boot-video {
+  opacity: 1;
+}
+#loading-view.nyan-boot.has-video::before,
+#loading-view.nyan-boot.has-video .nyan-boot-orbit,
+#loading-view.nyan-boot.has-video .nyan-boot-title,
+#loading-view.nyan-boot.has-video .nyan-boot-coin,
+#loading-view.nyan-boot.has-video .nyan-boot-loading,
+#loading-view.nyan-boot.has-video .nyan-boot-track,
+#loading-view.nyan-boot.has-video .nyan-boot-status {
+  display: none;
+}
+#loading-view.nyan-boot.has-video.is-waiting .nyan-boot-status {
+  z-index: 2;
+  display: flex;
+  box-sizing: border-box;
+  padding: 14px 12px;
+  border-radius: 16px;
+  background: rgba(255, 248, 251, .94);
+  box-shadow: 0 8px 22px rgba(85, 29, 52, .09);
+}

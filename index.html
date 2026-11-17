@@ -342,13 +342,16 @@
     <link rel="stylesheet" href="./profile_overview.css?v=20261025-1">
     <link rel="stylesheet" href="./achievements-hall.css?v=20261030-hall1">
     <link rel="stylesheet" href="./nyan-glitch-wallet.css?v=20261107-owner-glitch1">
-    <link rel="stylesheet" href="./nyan-loading.css?v=20261117-1">
+    <link rel="stylesheet" href="./nyan-loading.css?v=20261117-video1">
   <script defer src="./lapcoin-ui.js?v=20261116-newcoin1"></script>
 </head>
 <body>
 
 <div class="app">
     <main id="loading-view" class="loading-view nyan-boot" aria-live="polite">
+        <video class="nyan-boot-video" autoplay muted playsinline loop preload="auto" aria-hidden="true">
+            <source src="./assets/boot/nyan-shop-loading.mp4?v=20261117-original1" type="video/mp4">
+        </video>
         <div class="nyan-boot-orbit nyan-boot-orbit-top" aria-hidden="true"></div>
         <div class="nyan-boot-orbit nyan-boot-orbit-bottom" aria-hidden="true"></div>
         <div class="nyan-boot-title" aria-hidden="true">NYAN WALLET</div>
@@ -601,6 +604,35 @@
         <div class="earn-note">Лапкоины нельзя купить за реальные деньги или обменять обратно на деньги.</div>
     </main></div>
 
+<script>
+(() => {
+  const screen = document.getElementById("loading-view");
+  const video = screen?.querySelector(".nyan-boot-video");
+  if (!video) return;
+
+  const showOriginalVideo = () => screen.classList.add("has-video");
+  video.addEventListener("playing", showOriginalVideo);
+  video.addEventListener("error", () => screen.classList.remove("has-video"));
+
+  function syncPlayback() {
+    if (screen.classList.contains("hidden")) {
+      video.pause();
+      return;
+    }
+    const attempt = video.play();
+    if (attempt && typeof attempt.catch === "function") attempt.catch(() => {});
+  }
+
+  if (video.readyState >= 2 && !video.paused) showOriginalVideo();
+  new MutationObserver(syncPlayback).observe(screen, {
+    attributes: true, attributeFilter: ["class"]
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) syncPlayback();
+  });
+  syncPlayback();
+})();
+</script>
 <script src="./network.js?v=20261031-cloudflare-api1"></script>
 <script src="./ban_notice.js?v=20261031-cloudflare-api1"></script>
 <script src="./wallet_launch_recovery_20261019.js?v=20261025-no-abort1"></script>
