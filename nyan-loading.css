@@ -7,12 +7,18 @@
   isolation: isolate;
   display: block;
   overflow: hidden;
-  width: 100%;
+  width: 100vw;
+  width: 100dvw;
+  max-width: none;
+  min-height: 100vh;
+  min-height: 100dvh;
   height: 100vh;
   height: 100dvh;
   padding: 0;
   margin: 0;
-  background: #fce6ef;
+  border: 0;
+  border-radius: 0;
+  background: #f9cee3;
 }
 #loading-view.nyan-boot.hidden {
   display: none !important;
@@ -23,7 +29,7 @@
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   object-position: center center;
   pointer-events: none;
 }
