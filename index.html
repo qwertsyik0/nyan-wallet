@@ -342,19 +342,27 @@
     <link rel="stylesheet" href="./profile_overview.css?v=20261025-1">
     <link rel="stylesheet" href="./achievements-hall.css?v=20261030-hall1">
     <link rel="stylesheet" href="./nyan-glitch-wallet.css?v=20261107-owner-glitch1">
+    <link rel="stylesheet" href="./nyan-loading.css?v=20261117-1">
   <script defer src="./lapcoin-ui.js?v=20261116-newcoin1"></script>
 </head>
 <body>
 
 <div class="app">
-    <main id="loading-view" class="loading-view" aria-live="polite">
-        <div class="loading-mark">🐾</div>
-        <div class="loading-title">Nyan Wallet</div>
-        <div id="loading-status" class="loading-text" role="status">подключаемся к кошельку</div>
-        <div class="loading-spinner" aria-hidden="true"></div>
-        <div id="loading-hint" class="loading-hint">запрашиваем данные вашего кошелька</div>
-        <button id="loading-retry" class="loading-retry" type="button" hidden>Проверить сейчас</button>
-        <div class="loading-note">баланс и история сохраняются, даже если соединение прервалось</div>
+    <main id="loading-view" class="loading-view nyan-boot" aria-live="polite">
+        <div class="nyan-boot-orbit nyan-boot-orbit-top" aria-hidden="true"></div>
+        <div class="nyan-boot-orbit nyan-boot-orbit-bottom" aria-hidden="true"></div>
+        <div class="nyan-boot-title" aria-hidden="true">NYAN WALLET</div>
+        <div class="nyan-boot-coin" aria-hidden="true">
+            <img src="./assets/lapcoin/lapcoin.webp" width="238" height="238" alt="" fetchpriority="high" decoding="async">
+        </div>
+        <div class="nyan-boot-loading" aria-hidden="true">загрузка...</div>
+        <div class="nyan-boot-track" aria-hidden="true"><span></span></div>
+        <div class="nyan-boot-status">
+            <div id="loading-status" class="loading-text" role="status">подключаемся к кошельку</div>
+            <div id="loading-hint" class="loading-hint">запрашиваем данные вашего кошелька</div>
+            <button id="loading-retry" class="loading-retry" type="button" hidden>Проверить сейчас</button>
+            <div class="loading-note">баланс и история сохраняются, даже если соединение прервалось</div>
+        </div>
     </main>
 
     <main id="wallet-view" class="view hidden">
