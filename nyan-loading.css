@@ -1,278 +1,69 @@
-/* NYAN WALLET • cinematic but lightweight live loading screen.
-   The animation loops only while #loading-view is visible; app.js controls
-   actual startup/retry states. No artificial 3-second waiting is introduced. */
+/* Nyan Wallet boot: ONLY the original uploaded MP4 is displayed.
+   Startup, retry, and recovery remain controlled by app.js. */
 #loading-view.nyan-boot {
   position: fixed;
   inset: 0;
   z-index: 10000;
+  isolation: isolate;
   display: block;
   overflow: hidden;
-  min-height: 100dvh;
   width: 100%;
-  box-sizing: border-box;
+  height: 100vh;
+  height: 100dvh;
   padding: 0;
   margin: 0;
-  isolation: isolate;
-  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
-  color: #91234f;
-  background:
-    radial-gradient(ellipse 85% 53% at 0% 0%, #f8d0e2 0%, transparent 72%),
-    radial-gradient(ellipse 75% 50% at 100% 100%, #f7cede 0%, transparent 76%),
-    radial-gradient(ellipse 85% 60% at 0% 100%, #fbe0ea 0%, transparent 80%),
-    #fff8fb;
+  background: #fce6ef;
 }
-#loading-view.nyan-boot.hidden { display: none !important; }
-#loading-view.nyan-boot::before {
-  content: "";
+#loading-view.nyan-boot.hidden {
+  display: none !important;
+}
+#loading-view.nyan-boot .nyan-boot-video {
   position: absolute;
-  inset: 20% 7% 16%;
-  background: radial-gradient(ellipse at center, rgba(255,255,255,.83), rgba(255,255,255,.0) 74%);
-  pointer-events: none;
-}
-#loading-view .nyan-boot-orbit {
-  position: absolute;
-  width: 100%;
-  aspect-ratio: 1.6;
-  border-top: 1px solid rgba(198,89,136,.48);
-  border-radius: 50%;
-  pointer-events: none;
-}
-#loading-view .nyan-boot-orbit::before,
-#loading-view .nyan-boot-orbit::after {
-  content: "";
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #de73a0;
-}
-#loading-view .nyan-boot-orbit::before { top: 2%; left: 21%; }
-#loading-view .nyan-boot-orbit::after  { top: 2%; right: 21%; }
-#loading-view .nyan-boot-orbit-top {
-  top: 10%;
-  left: -24%;
-  transform: rotate(-11deg);
-  animation: nyan-boot-orbit-top 6.4s ease-in-out infinite;
-}
-#loading-view .nyan-boot-orbit-bottom {
-  width: 103%;
-  bottom: 7%;
-  right: -33%;
-  transform: rotate(166deg);
-  animation: nyan-boot-orbit-bottom 6.4s ease-in-out infinite;
-}
-#loading-view .nyan-boot-title {
-  position: absolute;
-  z-index: 1;
-  top: 28%;
-  left: 0;
-  width: 100%;
-  padding: 0 8px;
-  box-sizing: border-box;
-  font-family: Inter, system-ui, sans-serif;
-  font-size: clamp(29px, 7.5vw, 49px);
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: -.06em;
-  color: #8f1f4f;
-  text-align: center;
-  text-shadow: 0 2px 18px rgba(150,40,90,.05);
-}
-#loading-view .nyan-boot-coin {
-  position: absolute;
-  top: 42%;
-  left: 50%;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  width: min(50vw, 238px);
-  height: min(50vw, 238px);
-  transform: translate(-50%, 0);
-  animation: nyan-boot-bob 3.2s ease-in-out infinite;
-  perspective: 600px;
-}
-#loading-view .nyan-boot-coin::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  width: 77%;
-  height: 17%;
-  border-radius: 50%;
-  left: 11.5%;
-  bottom: -13%;
-  background: rgba(136,35,78,.24);
-  filter: blur(15px);
-  animation: nyan-boot-shadow 3.2s ease-in-out infinite;
-}
-#loading-view .nyan-boot-coin img {
+  inset: 0;
+  display: block;
   width: 100%;
   height: 100%;
-  display: block;
   object-fit: contain;
-  filter: drop-shadow(0 8px 10px rgba(143,33,79,.11));
-  transform-origin: center;
-  animation: nyan-boot-tilt 3.2s ease-in-out infinite;
+  object-position: center center;
+  pointer-events: none;
 }
-#loading-view .nyan-boot-loading {
-  position: absolute;
-  top: 74%;
-  width: 100%;
-  z-index: 1;
-  box-sizing: border-box;
-  padding: 0 10px;
-  text-align: center;
-  font-size: clamp(22px, 4.8vw, 29px);
-  font-style: italic;
-  font-weight: 500;
-  line-height: 1.4;
-  color: #a12b5c;
-  animation: nyan-boot-breathe 3.2s ease-in-out infinite;
-}
-#loading-view .nyan-boot-track {
-  position: absolute;
-  top: 81%;
-  left: 50%;
-  width: min(34vw, 155px);
-  height: 2px;
-  border-radius: 10px;
-  background: rgba(170,65,106,.24);
-  transform: translateX(-50%);
-}
-#loading-view .nyan-boot-track span {
-  position: absolute;
-  inset: -1px auto -1px 0;
-  width: 0;
-  border-radius: inherit;
-  background: #a12b5c;
-  animation: nyan-boot-progress 3.2s ease-in-out infinite;
-}
-#loading-view .nyan-boot-track span::after {
-  content: "";
-  position: absolute;
-  right: -4px;
-  top: -3px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #a12b5c;
-}
-#loading-view .nyan-boot-status {
+
+/* A connection/retry notice appears ONLY if startup has a problem.
+   This is not a second loading animation. */
+#loading-view.nyan-boot .nyan-boot-status {
   position: absolute;
   z-index: 2;
-  left: 50%;
   bottom: max(14px, env(safe-area-inset-bottom));
+  left: 50%;
+  display: none;
+  box-sizing: border-box;
   width: min(85vw, 360px);
+  padding: 14px 12px;
   transform: translateX(-50%);
-  display: flex;
   flex-direction: column;
   align-items: center;
+  border-radius: 16px;
+  background: rgba(255, 248, 251, .94);
+  box-shadow: 0 8px 22px rgba(85, 29, 52, .09);
   text-align: center;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
-#loading-view .nyan-boot-status .loading-text {
+#loading-view.nyan-boot.is-waiting .nyan-boot-status {
+  display: flex;
+}
+#loading-view.nyan-boot .nyan-boot-status .loading-text {
   margin: 0;
   font-size: 12px;
   line-height: 1.45;
   color: #9e6580;
 }
-#loading-view .nyan-boot-status .loading-hint {
+#loading-view.nyan-boot .nyan-boot-status .loading-hint {
   margin: 5px 0 0;
-  min-height: 0;
   font-size: 11px;
   line-height: 1.45;
   color: #ae7c92;
 }
-#loading-view .nyan-boot-status .loading-note {
-  display: none;
-  margin: 7px 0 0;
-  font-size: 10px;
-  line-height: 1.4;
-}
-#loading-view.is-waiting .nyan-boot-status .loading-note { display: block; }
-#loading-view .nyan-boot-status .loading-retry {
+#loading-view.nyan-boot .nyan-boot-status .loading-retry {
   margin: 10px 0 0;
   min-width: 170px;
-}
-#loading-view .loading-spinner { display: none; }
-@keyframes nyan-boot-bob {
-  0%, 100% { transform: translate(-50%,0); }
-  50% { transform: translate(-50%,-10px); }
-}
-@keyframes nyan-boot-tilt {
-  0%, 100% { transform: rotate(-3deg) scale(.965); }
-  50% { transform: rotate(3deg) scale(1); }
-}
-@keyframes nyan-boot-shadow {
-  0%, 100% { opacity: .48; transform: scale(.94); }
-  50% { opacity: .24; transform: scale(1.04); }
-}
-@keyframes nyan-boot-breathe {
-  0%, 100% { opacity: .76; }
-  50% { opacity: 1; }
-}
-@keyframes nyan-boot-progress {
-  0% { width: 0; }
-  50% { width: 100%; }
-  100% { width: 0; }
-}
-@keyframes nyan-boot-orbit-top {
-  0%, 100% { transform: rotate(-11deg) translateX(0); }
-  50% { transform: rotate(-8deg) translateX(7px); }
-}
-@keyframes nyan-boot-orbit-bottom {
-  0%, 100% { transform: rotate(166deg) translateX(0); }
-  50% { transform: rotate(162deg) translateX(-7px); }
-}
-@media (max-height: 650px) {
-  #loading-view .nyan-boot-title { top: 21%; }
-  #loading-view .nyan-boot-coin { top: 34%; width: min(36vh, 42vw); height: min(36vh, 42vw); }
-  #loading-view .nyan-boot-loading { top: 67%; }
-  #loading-view .nyan-boot-track { top: 74%; }
-}
-@media (prefers-reduced-motion: reduce) {
-  #loading-view .nyan-boot-orbit,
-  #loading-view .nyan-boot-coin,
-  #loading-view .nyan-boot-coin::before,
-  #loading-view .nyan-boot-coin img,
-  #loading-view .nyan-boot-loading,
-  #loading-view .nyan-boot-track span { animation: none !important; }
-  #loading-view .nyan-boot-track span { width: 65%; }
-}
-
-/* Original 1080x1920 MP4 boot animation; aspect is preserved without cropping
-   or re-encoding. The existing boot remains a fallback until playback starts. */
-#loading-view .nyan-boot-video {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  display: block;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  pointer-events: none;
-  object-fit: contain;
-  object-position: center center;
-}
-#loading-view.nyan-boot.has-video {
-  background: #fce6ef;
-}
-#loading-view.nyan-boot.has-video .nyan-boot-video {
-  opacity: 1;
-}
-#loading-view.nyan-boot.has-video::before,
-#loading-view.nyan-boot.has-video .nyan-boot-orbit,
-#loading-view.nyan-boot.has-video .nyan-boot-title,
-#loading-view.nyan-boot.has-video .nyan-boot-coin,
-#loading-view.nyan-boot.has-video .nyan-boot-loading,
-#loading-view.nyan-boot.has-video .nyan-boot-track,
-#loading-view.nyan-boot.has-video .nyan-boot-status {
-  display: none;
-}
-#loading-view.nyan-boot.has-video.is-waiting .nyan-boot-status {
-  z-index: 2;
-  display: flex;
-  box-sizing: border-box;
-  padding: 14px 12px;
-  border-radius: 16px;
-  background: rgba(255, 248, 251, .94);
-  box-shadow: 0 8px 22px rgba(85, 29, 52, .09);
 }

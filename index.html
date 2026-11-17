@@ -342,7 +342,7 @@
     <link rel="stylesheet" href="./profile_overview.css?v=20261025-1">
     <link rel="stylesheet" href="./achievements-hall.css?v=20261030-hall1">
     <link rel="stylesheet" href="./nyan-glitch-wallet.css?v=20261107-owner-glitch1">
-    <link rel="stylesheet" href="./nyan-loading.css?v=20261117-video1">
+    <link rel="stylesheet" href="./nyan-loading.css?v=20261117-video-only2">
   <script defer src="./lapcoin-ui.js?v=20261116-newcoin1"></script>
 </head>
 <body>
@@ -352,19 +352,10 @@
         <video class="nyan-boot-video" autoplay muted playsinline loop preload="auto" aria-hidden="true">
             <source src="./assets/boot/nyan-shop-loading.mp4?v=20261117-original1" type="video/mp4">
         </video>
-        <div class="nyan-boot-orbit nyan-boot-orbit-top" aria-hidden="true"></div>
-        <div class="nyan-boot-orbit nyan-boot-orbit-bottom" aria-hidden="true"></div>
-        <div class="nyan-boot-title" aria-hidden="true">NYAN WALLET</div>
-        <div class="nyan-boot-coin" aria-hidden="true">
-            <img src="./assets/lapcoin/lapcoin.webp" width="238" height="238" alt="" fetchpriority="high" decoding="async">
-        </div>
-        <div class="nyan-boot-loading" aria-hidden="true">загрузка...</div>
-        <div class="nyan-boot-track" aria-hidden="true"><span></span></div>
         <div class="nyan-boot-status">
             <div id="loading-status" class="loading-text" role="status">подключаемся к кошельку</div>
             <div id="loading-hint" class="loading-hint">запрашиваем данные вашего кошелька</div>
             <button id="loading-retry" class="loading-retry" type="button" hidden>Проверить сейчас</button>
-            <div class="loading-note">баланс и история сохраняются, даже если соединение прервалось</div>
         </div>
     </main>
 
@@ -610,12 +601,8 @@
   const video = screen?.querySelector(".nyan-boot-video");
   if (!video) return;
 
-  const showOriginalVideo = () => screen.classList.add("has-video");
-  video.addEventListener("playing", showOriginalVideo);
-  video.addEventListener("error", () => screen.classList.remove("has-video"));
-
   function syncPlayback() {
-    if (screen.classList.contains("hidden")) {
+    if (screen.classList.contains("hidden") || document.hidden) {
       video.pause();
       return;
     }
@@ -623,13 +610,10 @@
     if (attempt && typeof attempt.catch === "function") attempt.catch(() => {});
   }
 
-  if (video.readyState >= 2 && !video.paused) showOriginalVideo();
   new MutationObserver(syncPlayback).observe(screen, {
     attributes: true, attributeFilter: ["class"]
   });
-  document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) syncPlayback();
-  });
+  document.addEventListener("visibilitychange", syncPlayback);
   syncPlayback();
 })();
 </script>
