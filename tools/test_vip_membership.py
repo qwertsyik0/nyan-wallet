@@ -99,6 +99,15 @@ with core.SessionLocal() as session:
         a = vip.activate_vip(session, 1, 100, t0)
         b = vip.activate_vip(session, 1, 100, t0)
         assert a.request_id == b.request_id == 1
+        session.add(vip.VipPurchaseToken(
+            telegram_id=100,
+            token="1234567890abcdef",
+            request_id=1,
+            created_at=t0,
+        ))
+
+    with session.begin():
+        assert session.get(vip.VipPurchaseToken, (100, "1234567890abcdef")).request_id == 1
 
     with session.begin():
         assert vip.status_for_user(session, 100, t0)["active"]
@@ -154,6 +163,9 @@ adv_source = (root / "server/advanced_features.py").read_text()
 identity_source = (root / "server/nyan_id.py").read_text()
 assert "register_vip(backend_app.app)" in init
 assert "activate_vip(session, item.id" in ext_source
+assert "X-VIP-Purchase-Key" in ext_source
+assert "VipPurchaseToken" in ext_source
+assert "X-VIP-Purchase-Key" in (root / "vip.js").read_text()
 assert "activate_vip(session, item.id" in adv_source
 assert '"vip": status_for_user(session, user.telegram_id)' in identity_source
 assert 'vip.js?v=' in (root / "index.html").read_text()
