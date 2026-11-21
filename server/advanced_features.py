@@ -543,7 +543,8 @@ def catalog_item(session: Session, reward: Reward) -> dict:
     remaining = None if limit is None else max(0, limit - int(used))
     until = norm_dt(meta.available_until) if meta else None
     available = reward.is_active and (not until or until > now()) and (remaining is None or remaining > 0)
-    return {"id": reward.id, "title": reward.title, "description": reward.description, "cost": reward.cost, "is_active": reward.is_active, "sort_order": reward.sort_order, "image_url": meta.image_url if meta else None, "stock_limit": limit, "stock_used": int(used), "stock_remaining": remaining, "available_until": until.isoformat() if until else None, "available": available}
+    from .vip import is_vip_reward
+    return {"id": reward.id, "title": reward.title, "description": reward.description, "cost": reward.cost, "is_active": reward.is_active, "sort_order": reward.sort_order, "image_url": meta.image_url if meta else None, "stock_limit": limit, "stock_used": int(used), "stock_remaining": remaining, "available_until": until.isoformat() if until else None, "available": available, "is_vip_subscription": is_vip_reward(reward.title)}
 
 
 @router.get("/api/catalog")
@@ -591,9 +592,11 @@ async def profile(x_telegram_init_data: str | None = Header(default=None, alias=
         ) or 0
         used = session.scalar(select(Referral.id).where(Referral.invited_id == tg["id"])) is not None
         session.commit()
+        from .vip import status_for_user as vip_profile_status
         return {
             "ok": True,
             "level": level_data(int(earned), cfg),
+            "vip": vip_profile_status(session, tg["id"]),
             "referral": {
                 "code": code.code,
                 "invited_count": int(invited),
@@ -817,12 +820,17 @@ async def owner_request_status(request_id: int, payload: RequestStatusPayload, b
             if item.status == "fulfilled" and status != "fulfilled":
                 raise HTTPException(status_code=409, detail="Выданную заявку нельзя изменить")
             previous = item.status
+            from .vip import is_vip_reward, activate_vip
+            if previous == "cancelled" and status == "fulfilled" and is_vip_reward(item.reward_title):
+                raise HTTPException(status_code=409, detail="Отменённую VIP покупку нельзя активировать без оплаты")
             if previous != "cancelled" and status == "cancelled":
                 user = session.scalar(select(core.User).where(core.User.telegram_id == item.telegram_id).with_for_update())
                 user.balance += item.cost
                 session.add(core.Transaction(telegram_id=item.telegram_id, amount=item.cost, operation_type="reward_refund", description=f"Отмена заявки #{item.id}: {item.reward_title}", created_at=timestamp))
             item.status = status
             item.processed_at = timestamp if status in {"fulfilled", "cancelled"} else None
+            if status == "fulfilled" and previous != "fulfilled" and is_vip_reward(item.reward_title):
+                activate_vip(session, item.id, item.telegram_id, timestamp, enforce_cap=False)
             meta = session.get(RequestMeta, request_id)
             if not meta:
                 meta = RequestMeta(request_id=request_id, owner_comment=None, updated_at=timestamp)
