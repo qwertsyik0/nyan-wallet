@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
@@ -193,6 +194,7 @@ async def create_spend_request(
     reward_id: int,
     background_tasks: BackgroundTasks,
     x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
+    x_vip_purchase_key: str | None = Header(default=None, alias="X-VIP-Purchase-Key"),
 ):
     tg_user = core.verify_init_data(x_telegram_init_data or "")
     timestamp = now_utc()
@@ -230,16 +232,37 @@ async def create_spend_request(
             if core.is_owner(user.telegram_id):
                 raise HTTPException(status_code=400, detail="Владельцу не нужно списывать бесконечный баланс")
 
+            from .vip import is_vip_reward, check_renewal_capacity, activate_vip, VipPurchaseToken
+            is_vip = is_vip_reward(reward.title)
+            vip_key = (x_vip_purchase_key or "").strip() if is_vip else ""
+            if vip_key:
+                if not re.fullmatch(r"[A-Za-z0-9_-]{16,80}", vip_key):
+                    raise HTTPException(status_code=400, detail="Некорректный ключ VIP покупки")
+                previous_purchase = session.get(VipPurchaseToken, (user.telegram_id, vip_key))
+                if previous_purchase is not None:
+                    previous_request = session.get(SpendRequest, previous_purchase.request_id)
+                    if previous_request is None or previous_request.reward_id != reward.id:
+                        raise HTTPException(status_code=409, detail="Ключ уже использован для другой покупки")
+                    return {
+                        "ok": True,
+                        "request": {
+                            "id": previous_request.id,
+                            "reward_title": previous_request.reward_title,
+                            "cost": previous_request.cost,
+                            "status": previous_request.status,
+                            "created_at": previous_request.created_at.isoformat(),
+                        },
+                        "balance": user.balance,
+                        "message": "VIP уже активирован. Повторное списание предотвращено.",
+                    }
+            if is_vip:
+                check_renewal_capacity(session, user.telegram_id, timestamp)
+
             if user.balance < reward.cost:
                 raise HTTPException(
                     status_code=409,
                     detail=f"Недостаточно лапкоинов. Нужно {reward.cost} 🐾, у вас {user.balance} 🐾",
                 )
-
-            from .vip import is_vip_reward, check_renewal_capacity, activate_vip
-            is_vip = is_vip_reward(reward.title)
-            if is_vip:
-                check_renewal_capacity(session, user.telegram_id, timestamp)
 
             user.balance -= reward.cost
             item = SpendRequest(
@@ -255,6 +278,13 @@ async def create_spend_request(
             session.flush()
             if is_vip:
                 activate_vip(session, item.id, user.telegram_id, timestamp)
+                if vip_key:
+                    session.add(VipPurchaseToken(
+                        telegram_id=user.telegram_id,
+                        token=vip_key,
+                        request_id=item.id,
+                        created_at=timestamp,
+                    ))
                 audit(session, "vip_subscription_activated", user.telegram_id, f"Заявка #{item.id}: {reward.cost} 🐾")
 
             session.add(
