@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#fff9fb">
+  <title>Последнее сообщение · Nyan Wallet</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./last-message.css?v=20261121-public1">
+  <script defer src="./last-message.js?v=20261121-public1"></script>
+</head>
+<body>
+  <main class="lm-shell">
+    <header class="lm-top">
+      <a class="lm-back" href="./index.html" aria-label="Вернуться в кошелёк">← кошелёк</a>
+      <span class="lm-brand">NYAN WALLET</span>
+    </header>
+
+    <p class="lm-kicker">секретное событие</p>
+    <h1>Последнее сообщение</h1>
+    <p class="lm-subtitle">отправитель неизвестен</p>
+
+    <div id="lm-visual" class="lm-stage" role="img" aria-label="Запечатанный розовый конверт с печатью">
+      <span class="lm-spark"></span><span class="lm-spark"></span>
+      <span class="lm-spark"></span><span class="lm-spark"></span>
+      <div class="lm-orbit a"></div><div class="lm-orbit b"></div>
+      <div class="lm-envelope" aria-hidden="true">
+        <div class="lm-envelope-back"></div>
+        <div class="lm-inner-glow"></div>
+        <div class="lm-letter"></div>
+        <div class="lm-envelope-front"></div>
+        <div class="lm-envelope-flap"></div>
+        <div class="lm-ribbon"></div>
+        <div class="lm-seal"><span>?</span><i class="lm-seal-crack"></i></div>
+      </div>
+    </div>
+
+    <div id="lm-loading" class="lm-loading" role="status">ищем письмо…</div>
+
+    <div id="lm-content" hidden>
+      <section class="lm-panel" aria-label="Общий прогресс">
+        <div class="lm-panel-head">
+          <h2 class="lm-label">Расшифровка письма</h2>
+          <strong class="lm-counter" id="lm-counter">0 / 60</strong>
+        </div>
+        <div class="lm-progress" role="progressbar" aria-label="Сбор фрагментов">
+          <span id="lm-progress"></span>
+        </div>
+        <p class="lm-meta" id="lm-description">каждый найденный фрагмент приближает раскрытие тайны</p>
+        <p class="lm-status" id="lm-status"></p>
+        <div class="lm-discovery">
+          <div class="lm-mini-icon" aria-hidden="true">✉</div>
+          <div>
+            <b id="lm-my-count">ваши фрагменты: 0 / 2</b>
+            <small id="lm-members">участники события: 0</small>
+          </div>
+        </div>
+      </section>
+
+      <section id="lm-challenges-section" aria-labelledby="lm-challenges-title">
+        <h2 class="lm-section-title" id="lm-challenges-title">Восстановить послание</h2>
+        <p class="lm-section-desc">разгадывай шифры, находи фрагменты и собирай письмо вместе с остальными участниками. у каждого есть два фрагмента</p>
+        <div class="lm-puzzles" id="lm-puzzles"></div>
+      </section>
+
+      <section class="lm-letter-panel" id="lm-letter-panel" hidden aria-label="Раскрытое письмо">
+        <p class="lm-kicker" style="margin-top:0">сообщение расшифровано</p>
+        <h2 class="lm-section-title" style="margin-top:7px">Печать сломана</h2>
+        <p id="lm-letter-text" class="lm-script"></p>
+        <div id="lm-witness" class="lm-witness" hidden>✦ Свидетель последнего сообщения</div>
+        <div style="margin-top:15px">
+          <button type="button" id="lm-replay" class="lm-btn">посмотреть открытие ещё раз</button>
+        </div>
+      </section>
+
+      <section id="lm-owner" class="lm-admin" hidden aria-label="Управление событием">
+        <h2>Управление событием</h2>
+        <p class="lm-meta" id="lm-owner-summary">только владелец Nyan Wallet</p>
+        <div class="lm-admin-actions">
+          <button type="button" class="lm-btn" id="lm-pause">приостановить</button>
+          <button type="button" class="lm-btn" id="lm-resume">продолжить</button>
+          <button type="button" class="lm-btn primary" id="lm-reveal">открыть письмо</button>
+          <button type="button" class="lm-btn" id="lm-owner-refresh">обновить</button>
+        </div>
+      </section>
+    </div>
+
+    <p class="lm-footer">Nyan Wallet · события экосистемы Нян</p>
+    <div id="lm-toast" class="lm-alert" role="status" hidden></div>
+  </main>
+</body>
+</html>
