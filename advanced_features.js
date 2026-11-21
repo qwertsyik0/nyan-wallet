@@ -276,9 +276,13 @@ async function loadAdvancedCatalog() {
 async function buyAdvReward(reward) {
     if (!(await advConfirm(reward.is_vip_subscription ? `Активировать VIP на 30 дней за ${reward.cost} 🐾? Остаток срока сохраняется при продлении.` : `Списать ${reward.cost} 🐾 и создать заявку на «${reward.title}»?`))) return;
     try {
-        const r = await fetch(`${API_ADV}/api/rewards/${reward.id}/request`, { method: "POST", headers: advHeaders(true) });
+        const headers = advHeaders(true);
+        const vipKey = reward.is_vip_subscription ? window.NyanVipPurchaseKey?.get(reward.id) : null;
+        if (vipKey) headers["X-VIP-Purchase-Key"] = vipKey;
+        const r = await fetch(`${API_ADV}/api/rewards/${reward.id}/request`, { method: "POST", headers });
         const d = await advJson(r);
         if (!r.ok) throw new Error(d.detail || "Не удалось создать заявку");
+        if (vipKey && d.request?.status === "fulfilled") window.NyanVipPurchaseKey?.clear(reward.id);
         const balance = document.getElementById("balance");
         if (balance && balance.textContent !== "∞") balance.textContent = String(d.balance);
         tgAdv?.HapticFeedback?.notificationOccurred?.("success");
