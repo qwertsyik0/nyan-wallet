@@ -44,6 +44,7 @@ from .nyan_confessions import register_nyan_confessions
 from .suggestions import register_suggestions
 from .interactive_ideas import register_interactive_ideas
 from .interactive_builder import register_interactive_builder
+from .last_message import register_last_message
 from .profile_overview import register_profile_overview
 from .finance_analytics import register_finance_analytics
 from .lottery import register_lottery
@@ -119,6 +120,7 @@ else:
     register_suggestions(backend_app.app)
     register_interactive_ideas(backend_app.app)
     register_interactive_builder(backend_app.app)
+    register_last_message(backend_app.app)
     register_profile_overview(backend_app.app)
     register_finance_analytics(backend_app.app)
     register_lottery(backend_app.app)
