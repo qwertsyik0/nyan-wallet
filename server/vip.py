@@ -11,7 +11,7 @@ import re
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Header, HTTPException
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, UniqueConstraint, select
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, UniqueConstraint, select
 from sqlalchemy.orm import Mapped, mapped_column
 
 from . import backend_app as core
@@ -41,6 +41,22 @@ class VipSubscription(core.Base):
     )
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class VipPurchaseToken(core.Base):
+    """Idempotency receipt for one authenticated VIP purchase request."""
+    __tablename__ = "vip_purchase_tokens"
+
+    telegram_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    token: Mapped[str] = mapped_column(String(80), primary_key=True)
+    request_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("spend_requests.id", ondelete="RESTRICT"),
+        nullable=False, unique=True,
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
