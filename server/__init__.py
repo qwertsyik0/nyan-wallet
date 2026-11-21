@@ -17,6 +17,7 @@ from .limited_promos import register_limited_promos
 from .instant_notifications import register_instant_notifications
 from .telegram_relay import register_telegram_relay
 from .advanced_features import register_advanced_features
+from .vip import register_vip
 from .referral_fix import register_referral_fix
 from .release_hardening import register_release_hardening
 from .achievements import register_achievements
@@ -87,6 +88,7 @@ else:
     register_promo_notify(backend_app.app)
     register_instant_notifications()
     register_advanced_features(backend_app.app)
+    register_vip(backend_app.app)
     register_telegram_relay(backend_app.app)
     apply_request_35_animated_profile_background()
     ensure_apology_promo_20261009()

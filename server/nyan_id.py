@@ -23,6 +23,7 @@ from sqlalchemy import func, select
 
 from . import backend_app as core
 from .advanced_features import level_data, settings
+from .vip import status_for_user
 from .nyan_experience import experience_for_user
 from .achievements import (
     ACHIEVEMENT_BY_KEY,
@@ -105,6 +106,7 @@ async def nyan_id(
             "username": username,
             "member_since": user.created_at.isoformat(),
             "rank": "Владелец" if core.is_owner(user.telegram_id) else level["name"],
+            "vip": status_for_user(session, user.telegram_id),
             "experience": experience_for_user(session, user.telegram_id),
             "owner": bool(core.is_owner(user.telegram_id)),
             "achievement_count": len(unlocked),

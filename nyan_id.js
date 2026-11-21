@@ -168,8 +168,10 @@
     text("nyid-since", shortDate(data.member_since));
     text("nyid-count", Number(data.achievement_count) || 0);
     text("nyid-avatar", nameInitials(data.display_name));
-    text("nyid-edition", data.owner ? "ОСНОВАТЕЛЬ" : "КАРТА УЧАСТНИКА");
-    text("nyid-badge", data.badge?.title || "пока нет выбранного значка");
+    const vipActive = Boolean(data.vip?.active);
+    el("nyid-card")?.classList.toggle("nyid-vip-active", vipActive);
+    text("nyid-edition", data.owner ? "ОСНОВАТЕЛЬ" : vipActive ? "✦ NYAN VIP" : "КАРТА УЧАСТНИКА");
+    text("nyid-badge", vipActive ? "✦ VIP · " + (data.badge?.title || "участник Nyan") : (data.badge?.title || "пока нет выбранного значка"));
 
     const container = el("nyid-achievements");
     if (container) {
@@ -433,6 +435,7 @@
     const ctx = c.getContext("2d");
     if (!ctx) throw new Error("Экспорт изображения недоступен.");
     const night = theme === "night";
+    const vipActive = Boolean(identity.vip?.active);
     const ink = night ? "#fff4f8" : "#6e274a";
     const muted = night ? "#e6b3cb" : "#aa6d88";
     const bg = ctx.createLinearGradient(0, 0, 1200, 780);
@@ -451,7 +454,9 @@
     ctx.lineWidth = 62; ctx.strokeStyle = night ? "rgba(255,225,241,.07)" : "rgba(179,55,111,.055)"; ctx.stroke();
 
     drawRoundRect(ctx, 33, 33, 1134, 714, 40);
-    ctx.lineWidth = 2; ctx.strokeStyle = night ? "rgba(255,240,247,.32)" : "#eac7d8"; ctx.stroke();
+    ctx.lineWidth = vipActive ? 8 : 2;
+    ctx.strokeStyle = vipActive ? (night ? "#f4b6d2" : "#bd4d83") : (night ? "rgba(255,240,247,.32)" : "#eac7d8");
+    ctx.stroke();
 
     drawRoundRect(ctx, 91, 88, 57, 57, 18);
     ctx.fillStyle = night ? "rgba(255,255,255,.1)" : "#ffe8f1"; ctx.fill();
@@ -468,7 +473,7 @@
     drawRoundRect(ctx, 892, 91, 229, 48, 24);
     ctx.lineWidth = 1.5; ctx.strokeStyle = night ? "rgba(255,255,255,.3)" : "#dfafc6"; ctx.stroke();
     ctx.fillStyle = ink; ctx.font = "800 18px system-ui, Arial, sans-serif"; ctx.textAlign = "center";
-    ctx.fillText(identity.owner ? "ОСНОВАТЕЛЬ" : "КАРТА УЧАСТНИКА", 1006, 122);
+    ctx.fillText(identity.owner ? "ОСНОВАТЕЛЬ" : vipActive ? "✦ NYAN VIP" : "КАРТА УЧАСТНИКА", 1006, 122);
     ctx.textAlign = "left";
 
     ctx.fillStyle = muted; ctx.font = "800 21px system-ui, Arial, sans-serif";
@@ -518,7 +523,7 @@
     ctx.fillStyle = muted; ctx.font = "700 22px system-ui, Arial, sans-serif";
     ctx.fillText("NYAN ID  •  2026", 91, 676);
     ctx.fillStyle = ink; ctx.textAlign = "right"; ctx.font = "800 22px system-ui, Arial, sans-serif";
-    ctx.fillText(fitText(ctx, identity.badge?.title || "участник Nyan", 530, 22, 18, 800), 1109, 676);
+    ctx.fillText(fitText(ctx, vipActive ? "✦ VIP · " + (identity.badge?.title || "участник Nyan") : (identity.badge?.title || "участник Nyan"), 530, 22, 18, 800), 1109, 676);
     ctx.textAlign = "left";
     return c;
   }

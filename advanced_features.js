@@ -262,7 +262,7 @@ async function loadAdvancedCatalog() {
         for (const reward of d.rewards || []) {
             const card = document.createElement("article");
             card.className = "feature-card adv-reward";
-            card.innerHTML = `${reward.image_url ? `<img class="adv-reward-img" src="${advEsc(reward.image_url)}" alt="">` : ""}<div class="feature-card-head"><div><h3>${advEsc(reward.title)}</h3><p>${advEsc(reward.description || "")}</p>${reward.stock_remaining != null ? `<div class="adv-stock">Осталось: ${reward.stock_remaining}</div>` : ""}${reward.available_until ? `<div class="adv-stock">Доступно до ${advDate(reward.available_until)}</div>` : ""}</div><div class="feature-price">${reward.cost} 🐾</div></div><button type="button">Получить за ${reward.cost} 🐾</button>`;
+            card.innerHTML = `${reward.image_url ? `<img class="adv-reward-img" src="${advEsc(reward.image_url)}" alt="">` : ""}<div class="feature-card-head"><div><h3>${advEsc(reward.title)}</h3><p>${advEsc(reward.description || "")}</p>${reward.stock_remaining != null ? `<div class="adv-stock">Осталось: ${reward.stock_remaining}</div>` : ""}${reward.available_until ? `<div class="adv-stock">Доступно до ${advDate(reward.available_until)}</div>` : ""}</div><div class="feature-price">${reward.cost} 🐾</div></div><button type="button">${reward.is_vip_subscription ? "Активировать VIP за" : "Получить за"} ${reward.cost} 🐾</button>`;
             card.querySelector("button")?.addEventListener("click", () => buyAdvReward(reward));
             list.appendChild(card);
         }
@@ -274,15 +274,20 @@ async function loadAdvancedCatalog() {
 }
 
 async function buyAdvReward(reward) {
-    if (!(await advConfirm(`Списать ${reward.cost} 🐾 и создать заявку на «${reward.title}»?`))) return;
+    if (!(await advConfirm(reward.is_vip_subscription ? `Активировать VIP на 30 дней за ${reward.cost} 🐾? Остаток срока сохраняется при продлении.` : `Списать ${reward.cost} 🐾 и создать заявку на «${reward.title}»?`))) return;
     try {
-        const r = await fetch(`${API_ADV}/api/rewards/${reward.id}/request`, { method: "POST", headers: advHeaders(true) });
+        const headers = advHeaders(true);
+        const vipKey = reward.is_vip_subscription ? window.NyanVipPurchaseKey?.get(reward.id) : null;
+        if (vipKey) headers["X-VIP-Purchase-Key"] = vipKey;
+        const r = await fetch(`${API_ADV}/api/rewards/${reward.id}/request`, { method: "POST", headers });
         const d = await advJson(r);
         if (!r.ok) throw new Error(d.detail || "Не удалось создать заявку");
+        if (vipKey && d.request?.status === "fulfilled") window.NyanVipPurchaseKey?.clear(reward.id);
         const balance = document.getElementById("balance");
         if (balance && balance.textContent !== "∞") balance.textContent = String(d.balance);
         tgAdv?.HapticFeedback?.notificationOccurred?.("success");
         await Promise.all([loadAdvancedCatalog(), loadAdvNotifications(false)]);
+        if (reward.is_vip_subscription) window.dispatchEvent(new Event("nyan:vip-updated"));
     } catch (e) { alert(e.message); }
 }
 

@@ -6,12 +6,18 @@ on:
     paths:
       - "server/nyan_experience.py"
       - "server/nyan_id.py"
+      - "server/vip.py"
+      - "server/extended_features.py"
+      - "server/advanced_features.py"
       - "server/__init__.py"
       - "nyan_id.js"
+      - "vip.js"
+      - "vip.css"
       - "nyan_id.css"
       - "nyan-id.html"
       - "index.html"
       - "tools/test_nyan_experience.py"
+      - "tools/test_vip_membership.py"
       - "tools/test_nyan_id_leaderboard.py"
       - "tools/install_nyan_id_xp_firstvds.py"
       - ".github/workflows/backend-check.yml"
@@ -605,14 +611,18 @@ jobs:
         with:
           python-version: "3.13"
       - name: Compile changed backend modules
-        run: python -m py_compile server/nyan_experience.py server/nyan_id.py server/__init__.py
+        run: python -m py_compile server/nyan_experience.py server/nyan_id.py server/vip.py server/extended_features.py server/advanced_features.py server/__init__.py
       - name: Install leaderboard test dependencies
         run: python -m pip install -r requirements.txt
       - name: Regression checks
         run: |
           python tools/test_nyan_experience.py
+          python tools/test_vip_membership.py
           python tools/test_nyan_id_png.py
           python tools/test_install_nyan_id_xp_firstvds.py
           python tools/test_nyan_id_leaderboard.py
       - name: Client JavaScript syntax
-        run: node --check nyan_id.js
+        run: |
+          node --check nyan_id.js
+          node --check vip.js
+          node --check advanced_features.js
