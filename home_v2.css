@@ -493,3 +493,8 @@ html,body{
 .nyan-last-message-main strong{font-size:12px;color:#6e2147;letter-spacing:-.01em}
 .nyan-last-message-main span{font-size:10px;line-height:1.4;color:#a66a84}
 .nyan-last-message-open{width:auto;flex:none;margin:0;padding:10px 11px;border:0;border-radius:12px;background:#922954;color:#fff;font-weight:800;font-size:10px}
+
+/* Render the generated transparent Last Message envelope in both home entry points. */
+.nyan-last-message-symbol{width:48px;height:44px;background:transparent;box-shadow:none;border-radius:0;overflow:visible}
+.nyan-last-message-symbol img{display:block;width:48px;height:auto;max-height:44px;object-fit:contain;filter:drop-shadow(0 3px 4px rgba(146,41,84,.18))}
+.nyan-home-more-icon .nyan-last-message-more-icon{display:block;width:26px;height:auto;max-height:26px;object-fit:contain}
