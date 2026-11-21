@@ -36,6 +36,7 @@ on:
       - "*.js"
       - "tools/install_giveaway_bot.py"
       - "tools/nyan_bot_autodeploy.py"
+      - "tools/install_nyan_vip_termius.py"
       - "tools/test_finance_workspace.py"
       - "bot_addons/giveaway_bot.py.gz.b64"
       - "bot_addons/maintenance_bot.py"
@@ -77,7 +78,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Compile backend and installer
-        run: python -m py_compile server/*.py tools/install_giveaway_bot.py tools/install_maintenance_bot.py tools/install_broadcast_bot.py tools/install_channel_publish_bot.py tools/install_ban_bot.py bot_addons/broadcast_bot.py bot_addons/channel_publish_bot.py bot_addons/channel_publish_bot_v2.py bot_addons/ban_bot.py tools/nyan_bot_autodeploy.py tools/deploy_elections_voting_firstvds.py
+        run: python -m py_compile server/*.py tools/install_nyan_vip_termius.py tools/install_giveaway_bot.py tools/install_maintenance_bot.py tools/install_broadcast_bot.py tools/install_channel_publish_bot.py tools/install_ban_bot.py bot_addons/broadcast_bot.py bot_addons/channel_publish_bot.py bot_addons/channel_publish_bot_v2.py bot_addons/ban_bot.py tools/nyan_bot_autodeploy.py tools/deploy_elections_voting_firstvds.py
       - name: Test Wallet Mini App first-launch recovery
         run: |
           node --check wallet_launch_recovery_20261019.js
