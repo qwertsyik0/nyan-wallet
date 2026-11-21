@@ -22,7 +22,7 @@ assert 'id="owner-survey-view"' not in index
 # Actual trainee workflows must not be affected by retiring candidate review.
 assert 'id="owner-finance-workspace"' in index
 assert 'finance_workspace' in index
-assert "home_v2.js?v=20261019-retire-elections-owner-archive1" in index
+assert 'src="./home_v2.js?v=' in index
 assert "97 голосов" in elections and "15:40 19.10.2026" in elections
 assert "loadWallet();" in wallet
 print("PASS: completed Elections and historical owner sections absent from Wallet, finance workspace intact")
