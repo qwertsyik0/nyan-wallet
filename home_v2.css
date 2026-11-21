@@ -485,3 +485,11 @@ html,body{
   color:#8f2955;
   text-align:right;
 }
+
+/* Last Message event entry, isolated from wallet layout and account actions. */
+.nyan-last-message-entry{display:flex;align-items:center;gap:13px;background:linear-gradient(115deg,#fff7fa 0%,#fff 65%,#fff0f6);border:1px solid #efd8e2;border-radius:22px;padding:13px 14px;box-shadow:0 10px 25px rgba(114,34,70,.065)}
+.nyan-last-message-symbol{flex:none;width:44px;height:44px;display:grid;place-items:center;border-radius:15px;background:linear-gradient(145deg,#ffd6e7,#f6a8c6);color:#922954;font-size:22px;box-shadow:inset 0 1px 3px rgba(255,255,255,.7)}
+.nyan-last-message-main{display:grid;gap:4px;flex:1;min-width:0}
+.nyan-last-message-main strong{font-size:12px;color:#6e2147;letter-spacing:-.01em}
+.nyan-last-message-main span{font-size:10px;line-height:1.4;color:#a66a84}
+.nyan-last-message-open{width:auto;flex:none;margin:0;padding:10px 11px;border:0;border-radius:12px;background:#922954;color:#fff;font-weight:800;font-size:10px}
