@@ -236,18 +236,26 @@ async def create_spend_request(
                     detail=f"Недостаточно лапкоинов. Нужно {reward.cost} 🐾, у вас {user.balance} 🐾",
                 )
 
+            from .vip import is_vip_reward, check_renewal_capacity, activate_vip
+            is_vip = is_vip_reward(reward.title)
+            if is_vip:
+                check_renewal_capacity(session, user.telegram_id, timestamp)
+
             user.balance -= reward.cost
             item = SpendRequest(
                 telegram_id=user.telegram_id,
                 reward_id=reward.id,
                 reward_title=reward.title,
                 cost=reward.cost,
-                status="pending",
+                status="fulfilled" if is_vip else "pending",
                 created_at=timestamp,
-                processed_at=None,
+                processed_at=timestamp if is_vip else None,
             )
             session.add(item)
             session.flush()
+            if is_vip:
+                activate_vip(session, item.id, user.telegram_id, timestamp)
+                audit(session, "vip_subscription_activated", user.telegram_id, f"Заявка #{item.id}: {reward.cost} 🐾")
 
             session.add(
                 core.Transaction(
@@ -270,12 +278,17 @@ async def create_spend_request(
                 f"Стоимость: {reward.cost} 🐾"
             )
             user_text = (
-                f"Заявка #{request_id} создана.\n"
-                f"Награда: {reward.title}\n"
-                "Мы выдадим приз в ближайшее время."
+                f"VIP активирован! Заявка #{request_id}. 30 дней привилегий Nyan Wallet.\n"
+                "Еженедельно +25 🐾, до 100 🐾 за период."
+                if is_vip else (
+                    f"Заявка #{request_id} создана.\n"
+                    f"Награда: {reward.title}\n"
+                    "Мы выдадим приз в ближайшее время."
+                )
             )
 
-    background_tasks.add_task(send_telegram_message, core.OWNER_TELEGRAM_ID, owner_text)
+    if not is_vip:
+        background_tasks.add_task(send_telegram_message, core.OWNER_TELEGRAM_ID, owner_text)
     background_tasks.add_task(send_telegram_message, tg_user["id"], user_text)
 
     return {
@@ -284,11 +297,11 @@ async def create_spend_request(
             "id": request_id,
             "reward_title": reward.title,
             "cost": reward.cost,
-            "status": "pending",
+            "status": "fulfilled" if is_vip else "pending",
             "created_at": timestamp.isoformat(),
         },
         "balance": new_balance,
-        "message": "Заявка создана. Мы выдадим приз вам в ближайшее время.",
+        "message": "VIP активирован на 30 дней." if is_vip else "Заявка создана. Мы выдадим приз вам в ближайшее время.",
     }
 
 
@@ -339,6 +352,9 @@ async def complete_spend_request(
 
             item.status = "fulfilled"
             item.processed_at = timestamp
+            from .vip import is_vip_reward, activate_vip
+            if is_vip_reward(item.reward_title):
+                activate_vip(session, item.id, item.telegram_id, timestamp, enforce_cap=False)
             audit(
                 session,
                 "reward_fulfilled",
