@@ -3,6 +3,24 @@
   const API = "https://nyan-wallet-bridge.qwertsyik.workers.dev";
   const TG = window.Telegram?.WebApp;
   const byId = id => document.getElementById(id);
+  const keyPrefix = "nyan-vip-purchase-key:";
+  window.NyanVipPurchaseKey = {
+    get(id) {
+      const storeKey = keyPrefix + String(id);
+      try {
+        const existing = localStorage.getItem(storeKey);
+        if (existing) return existing;
+      } catch (_) {}
+      const token = typeof crypto?.randomUUID === "function"
+        ? crypto.randomUUID()
+        : "vip_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2).padEnd(16, "0");
+      try { localStorage.setItem(storeKey, token); } catch (_) {}
+      return token;
+    },
+    clear(id) {
+      try { localStorage.removeItem(keyPrefix + String(id)); } catch (_) {}
+    },
+  };
   let current = null;
   let buying = false;
   let overlay = null;
@@ -146,8 +164,10 @@
     buying = true;
     render(current);
     try {
+      const key = window.NyanVipPurchaseKey.get(current.reward_id);
       const data = await api("/api/rewards/" + current.reward_id + "/request", {
         method: "POST",
+        headers: { "X-VIP-Purchase-Key": key },
       });
       if (data.request?.status !== "fulfilled") {
         throw new Error("Покупка создана, но VIP ещё не активирован. Проверь статус заявки.");
@@ -156,6 +176,7 @@
       if (balance && balance.textContent !== "∞") {
         balance.textContent = Number(data.balance).toLocaleString("ru-RU");
       }
+      window.NyanVipPurchaseKey.clear(current.reward_id);
       TG?.HapticFeedback?.notificationOccurred?.("success");
       await refresh();
       say("VIP активирован. Привилегии уже доступны!");
