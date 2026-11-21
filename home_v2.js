@@ -74,7 +74,7 @@
       home.className = "nyan-home-v2";
       home.innerHTML = `
         <section class="nyan-home-panel nyan-last-message-entry">
-          <div class="nyan-last-message-symbol" aria-hidden="true"><img src="./assets/last-message/tab-icon.png?v=20261121-icon1" alt="" width="46" height="33" decoding="async"></div>
+          <div class="nyan-last-message-symbol" aria-hidden="true"><img src="./assets/last-message/tab-icon.png?v=20261121-icon2" alt="" width="46" height="33" decoding="async"></div>
           <div class="nyan-last-message-main"><strong>Последнее сообщение</strong><span>письмо без отправителя. собираем фрагменты вместе</span></div>
           <button type="button" class="nyan-last-message-open" data-home-target="nyan-last-message-link">Открыть</button>
         </section>
@@ -107,7 +107,7 @@
           </div>
           <div class="nyan-home-more">
             ${MORE_ACTIONS.map(([key, icon, label, target]) => `
-              <button type="button" class="nyan-home-more-button" data-home-target="${escapeHtml(target)}" data-home-secondary="${escapeHtml(key)}"><span class="nyan-home-more-icon" aria-hidden="true">${key === "last-message" ? '<img class="nyan-last-message-more-icon" src="./assets/last-message/tab-icon.png?v=20261121-icon1" alt="" width="26" height="19" decoding="async">' : escapeHtml(icon)}</span><span class="nyan-home-more-label">${escapeHtml(label)}</span></button>
+              <button type="button" class="nyan-home-more-button" data-home-target="${escapeHtml(target)}" data-home-secondary="${escapeHtml(key)}"><span class="nyan-home-more-icon" aria-hidden="true">${key === "last-message" ? '<img class="nyan-last-message-more-icon" src="./assets/last-message/tab-icon.png?v=20261121-icon2" alt="" width="26" height="19" decoding="async">' : escapeHtml(icon)}</span><span class="nyan-home-more-label">${escapeHtml(label)}</span></button>
             `).join("")}
             <button id="nyan-home-owner" class="nyan-home-more-button" type="button" data-home-target="owner-button" hidden>
               <span class="nyan-home-more-icon" aria-hidden="true">⚙</span><span class="nyan-home-more-label">Управление</span>
