@@ -120,3 +120,9 @@
 .nyid-leaderboard-place{font-variant-numeric:tabular-nums;color:#9a6480}
 .nyid-leaderboard-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nyid-leaderboard-score{font-weight:850;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* Paid VIP is independent from the lifetime-earned rank. */
+.nyid-card.nyid-vip-active{border:2px solid #bd4d83;box-shadow:0 0 0 3px #f9d8e8,0 18px 48px rgba(145,42,88,.22)}
+.nyid-card.nyid-vip-active .nyid-edition{background:#a93d73;color:#fff7fb;border-color:#a93d73}
+.nyid-card.nyid-vip-active .nyid-card-foot b{color:#aa356e}
+.nyid-card.nyid-vip-active[data-theme="night"] .nyid-card-foot b{color:#ffe3f1}
