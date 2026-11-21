@@ -168,8 +168,10 @@
     text("nyid-since", shortDate(data.member_since));
     text("nyid-count", Number(data.achievement_count) || 0);
     text("nyid-avatar", nameInitials(data.display_name));
-    text("nyid-edition", data.owner ? "ОСНОВАТЕЛЬ" : "КАРТА УЧАСТНИКА");
-    text("nyid-badge", data.badge?.title || "пока нет выбранного значка");
+    const vipActive = Boolean(data.vip?.active);
+    el("nyid-card")?.classList.toggle("nyid-vip-active", vipActive);
+    text("nyid-edition", data.owner ? "ОСНОВАТЕЛЬ" : vipActive ? "✦ NYAN VIP" : "КАРТА УЧАСТНИКА");
+    text("nyid-badge", vipActive ? "✦ VIP · " + (data.badge?.title || "участник Nyan") : (data.badge?.title || "пока нет выбранного значка"));
 
     const container = el("nyid-achievements");
     if (container) {
