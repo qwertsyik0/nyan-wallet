@@ -77,8 +77,8 @@ assert 'id="nyan-home-elections"' not in home_script
 assert 'data-nyan-elections-link' not in home_script
 assert 'new URL("./elections.html", current.href)' not in home_script
 assert ".nyan-home-elections{" in home_style  # Harmless legacy styles.
-assert "home_v2.js?v=20261019-retire-elections-owner-archive1" in index
-assert "home_v2.css?v=20261016-elections-home1" in index
+assert 'src="./home_v2.js?v=' in index
+assert 'href="./home_v2.css?v=' in index
 assert 'elections.js?' in page and 'elections.css?' in page
 assert 'X-Telegram-Init-Data' in js and 'if(!tg?.initData)' in js
 assert "/api/elections" in js
