@@ -17,6 +17,7 @@
     ["purchases", "▤", "Покупки", "nyg-my-purchases-button"],
     ["appeals", "✉", "Обращения", "appeals-button"],
     ["studio", "✳", "Интерактивы", "nyan-studio-link"],
+    ["last-message", "✉", "Последнее сообщение", "nyan-last-message-link"],
   ];
 
   let scheduled = false;
@@ -72,6 +73,11 @@
       home.id = "nyan-home-v2";
       home.className = "nyan-home-v2";
       home.innerHTML = `
+        <section class="nyan-home-panel nyan-last-message-entry">
+          <div class="nyan-last-message-symbol" aria-hidden="true">✉</div>
+          <div class="nyan-last-message-main"><strong>Последнее сообщение</strong><span>письмо без отправителя. собираем фрагменты вместе</span></div>
+          <button type="button" class="nyan-last-message-open" data-home-target="nyan-last-message-link">Открыть</button>
+        </section>
         <section class="nyan-home-panel">
           <div class="nyan-home-panel-head">
             <div class="nyan-home-panel-title">Сегодня</div>
@@ -114,6 +120,10 @@
         const button = event.target.closest("[data-home-target]");
         if (!button) return;
         const target = button.dataset.homeTarget;
+        if (target === "nyan-last-message-link") {
+          window.location.assign("./last-message.html");
+          return;
+        }
         if (target === "nyan-studio-link") {
           window.location.assign("./interactive-builder.html");
           return;
@@ -201,7 +211,7 @@
       if (!homeButton) continue;
       // Never offer a dead action before its original handler exists.
       const hide = !proxy || proxy.hidden || proxy.disabled;
-      const unavailable = ["nyan-studio-link", "nyan-lottery-link", "nyan-fortune-link", "nyan-awards-link"].includes(target) ? false : hide;
+      const unavailable = ["nyan-studio-link", "nyan-lottery-link", "nyan-fortune-link", "nyan-awards-link", "nyan-last-message-link"].includes(target) ? false : hide;
       if (homeButton.hidden !== Boolean(unavailable)) homeButton.hidden = Boolean(unavailable);
     }
 
