@@ -11,8 +11,8 @@
         const existing = localStorage.getItem(storeKey);
         if (existing) return existing;
       } catch (_) {}
-      const token = typeof crypto?.randomUUID === "function"
-        ? crypto.randomUUID()
+      const token = typeof window.crypto?.randomUUID === "function"
+        ? window.crypto.randomUUID()
         : "vip_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2).padEnd(16, "0");
       try { localStorage.setItem(storeKey, token); } catch (_) {}
       return token;
