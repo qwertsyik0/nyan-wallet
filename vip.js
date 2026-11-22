@@ -165,9 +165,8 @@
     render(current);
     try {
       const key = window.NyanVipPurchaseKey.get(current.reward_id);
-      const data = await api("/api/rewards/" + current.reward_id + "/request", {
+      const data = await api("/api/rewards/" + current.reward_id + "/request?vip_purchase_key=" + encodeURIComponent(key), {
         method: "POST",
-        headers: { "X-VIP-Purchase-Key": key },
       });
       if (data.request?.status !== "fulfilled") {
         throw new Error("Покупка создана, но VIP ещё не активирован. Проверь статус заявки.");
