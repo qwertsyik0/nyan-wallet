@@ -6,7 +6,7 @@
   const tg = window.Telegram?.WebApp;
   const API = 'https://nyan-wallet-bridge.qwertsyik.workers.dev';
   const ASSETS = './assets/vip/';
-  const SKIN_KEY = 'nyan-vip-exclusive-wallpaper-v2';
+  const SKIN_KEY = 'nyan-vip-exclusive-wallpaper-v2:' + String(tg?.initDataUnsafe?.user?.id || 'unknown');
   let lastState = null;
   let loading = false;
   let refreshQueued = false;
