@@ -195,6 +195,7 @@ async def create_spend_request(
     background_tasks: BackgroundTasks,
     x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
     x_vip_purchase_key: str | None = Header(default=None, alias="X-VIP-Purchase-Key"),
+    vip_purchase_key: str | None = None,
 ):
     tg_user = core.verify_init_data(x_telegram_init_data or "")
     timestamp = now_utc()
@@ -234,7 +235,7 @@ async def create_spend_request(
 
             from .vip import is_vip_reward, check_renewal_capacity, activate_vip, VipPurchaseToken
             is_vip = is_vip_reward(reward.title)
-            vip_key = (x_vip_purchase_key or "").strip() if is_vip else ""
+            vip_key = (vip_purchase_key or x_vip_purchase_key or "").strip() if is_vip else ""
             if vip_key:
                 if not re.fullmatch(r"[A-Za-z0-9_-]{16,80}", vip_key):
                     raise HTTPException(status_code=400, detail="Некорректный ключ VIP покупки")
