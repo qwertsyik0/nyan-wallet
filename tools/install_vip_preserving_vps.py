@@ -179,12 +179,82 @@ def _merge_init_semantically(local: bytes) -> bytes:
     return source.encode("utf-8")
 
 
+def _merge_nyan_id_css_semantically(local: bytes, remote: bytes) -> bytes:
+    """Only append the paid-VIP styles; never alter local Nyan ID CSS."""
+    source = local.decode("utf-8")
+    latest = remote.decode("utf-8")
+    marker = "/* Paid VIP is independent from the lifetime-earned rank. */"
+    if latest.count(marker) != 1:
+        raise RuntimeError("nyan_id.css: expected VIP CSS block missing")
+    vip_rules = marker + latest.split(marker, 1)[1]
+    if marker in source:
+        if source.count(marker) == 1 and vip_rules.strip() in source:
+            return local
+        raise RuntimeError("nyan_id.css: existing VIP styles differ; refusing overwrite")
+    if ".nyid-card.nyid-vip-active" in source:
+        raise RuntimeError("nyan_id.css: an existing VIP rule requires manual review")
+    return (source.rstrip("\n") + "\n\n" + vip_rules.rstrip("\n") + "\n").encode("utf-8")
+
+
+def _merge_index_semantically(local: bytes) -> bytes:
+    """Add only the VIP asset tags, preserving all other HTML and local routes."""
+    import re
+    source = local.decode("utf-8")
+
+    anchors = (
+        ("css", "href", "nyan_id.css", "vip.css", "20261122-vip2"),
+        ("js", "src", "nyan_id.js", "vip.js", "20261122-vip2"),
+    )
+    for kind, attribute, anchor_file, vip_file, revision in anchors:
+        regex = re.compile(
+            rf"""<{ 'link' if kind == 'css' else 'script' }\b[^>]*"""
+            rf"""\b{attribute}\s*=\s*(?P<quote>["'])"""
+            rf"""(?P<url>(?:\./)?{re.escape(anchor_file)}(?:\?[^"']*)?)"""
+            rf"""(?P=quote)[^>]*>"""
+            + (r"\s*</script>" if kind == "js" else ""),
+            re.I,
+        )
+        found = list(regex.finditer(source))
+        if len(found) != 1:
+            raise RuntimeError(
+                f"index.html: expected exactly one {anchor_file} tag, found {len(found)}"
+            )
+        existing_vip = re.findall(
+            rf"""(?:\./)?{re.escape(vip_file)}(?:\?[^"' >]*)?""", source
+        )
+        if len(existing_vip) > 1:
+            raise RuntimeError(f"index.html: duplicated {vip_file} asset")
+        match = found[0]
+        # Keep the existing tag, its attributes and its relative position.
+        tag = match.group(0)
+        updated_tag = tag.replace(
+            match.group("url"), f"./{anchor_file}?v={revision}", 1
+        )
+        if not existing_vip:
+            addition = (
+                f'\n    <link rel="stylesheet" href="./vip.css?v={revision}">'
+                if kind == "css" else
+                f'\n<script src="./vip.js?v={revision}"></script>'
+            )
+            updated_tag += addition
+        source = source[:match.start()] + updated_tag + source[match.end():]
+
+    if source.count("vip.css?v=") != 1 or source.count("vip.js?v=") != 1:
+        raise RuntimeError("index.html: VIP tags must appear exactly once")
+    return source.encode("utf-8")
+
+
 def merge_one(path: str, local: bytes) -> bytes:
     base_raw = show(BASE, path)
     vip_raw = show(SOURCE, path)
 
     if path == "server/__init__.py":
         return _merge_init_semantically(local)
+
+    if path == "nyan_id.css":
+        return _merge_nyan_id_css_semantically(local, vip_raw)
+    if path == "index.html":
+        return _merge_index_semantically(local)
 
     with tempfile.TemporaryDirectory(prefix="nyan-vip-merge-") as temp:
         folder = Path(temp)
