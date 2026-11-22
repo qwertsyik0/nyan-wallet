@@ -19,6 +19,7 @@ on:
       - "tools/test_nyan_experience.py"
       - "tools/test_vip_membership.py"
       - "tools/install_vip_preserving_vps.py"
+      - "tools/test_vip_installer_merge.py"
       - "tools/test_nyan_id_leaderboard.py"
       - "tools/install_nyan_id_xp_firstvds.py"
       - ".github/workflows/backend-check.yml"
@@ -35,6 +36,7 @@ on:
       - "elections-vote.html"
       - "tools/test_wallet_launch_recovery_20261019.cjs"
       - "tools/install_vip_preserving_vps.py"
+      - "tools/test_vip_installer_merge.py"
       - "*.js"
       - "tools/install_giveaway_bot.py"
       - "tools/nyan_bot_autodeploy.py"
@@ -81,6 +83,8 @@ jobs:
           python-version: "3.13"
       - name: Compile backend and installer
         run: python -m py_compile server/*.py tools/install_nyan_vip_termius.py tools/install_vip_preserving_vps.py tools/install_giveaway_bot.py tools/install_maintenance_bot.py tools/install_broadcast_bot.py tools/install_channel_publish_bot.py tools/install_ban_bot.py bot_addons/broadcast_bot.py bot_addons/channel_publish_bot.py bot_addons/channel_publish_bot_v2.py bot_addons/ban_bot.py tools/nyan_bot_autodeploy.py tools/deploy_elections_voting_firstvds.py
+      - name: Check VIP installer conflict safety
+        run: python tools/test_vip_installer_merge.py
       - name: Test Wallet Mini App first-launch recovery
         run: |
           node --check wallet_launch_recovery_20261019.js
