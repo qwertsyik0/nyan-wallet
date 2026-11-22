@@ -162,7 +162,7 @@ app.add_middleware(
     allow_origins=["https://qwertsyik0.github.io"],
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "X-Telegram-Init-Data"],
+    allow_headers=["Content-Type", "X-Telegram-Init-Data", "X-VIP-Purchase-Key"],
 )
 
 PROMO_PATTERN = re.compile(r"^[A-Z0-9_-]{2,32}$")
