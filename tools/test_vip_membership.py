@@ -82,6 +82,7 @@ Base.metadata.create_all(core.engine)
 
 assert vip.is_vip_reward("Статус «VIP» на 30 дней")
 assert vip.is_vip_reward("статус VIP на 30 дней")
+assert vip.is_vip_reward("VIP на 30 дней")
 assert not vip.is_vip_reward("VIP")
 assert not vip.is_vip_reward("Ранг VIP")
 assert not vip.is_vip_reward("Статус VIP на 365 дней")
