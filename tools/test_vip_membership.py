@@ -166,7 +166,8 @@ assert "register_vip(backend_app.app)" in init
 assert "activate_vip(session, item.id" in ext_source
 assert "X-VIP-Purchase-Key" in ext_source
 assert "VipPurchaseToken" in ext_source
-assert "X-VIP-Purchase-Key" in (root / "vip.js").read_text()
+assert "vip_purchase_key=" in (root / "vip.js").read_text()
+assert "vip_purchase_key:" in ext_source
 assert "activate_vip(session, item.id" in adv_source
 assert '"vip": status_for_user(session, user.telegram_id)' in identity_source
 assert 'vip.js?v=' in (root / "index.html").read_text()
