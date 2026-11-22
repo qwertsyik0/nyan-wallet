@@ -153,6 +153,26 @@ class OwnerPromoCreateRequest(BaseModel):
     description: str | None = Field(default=None, max_length=200)
 
 
+
+class WalletCustomNumber(Base):
+    __tablename__ = "wallet_custom_numbers"
+    telegram_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), primary_key=True)
+    number: Mapped[str] = mapped_column(String(12), unique=True, nullable=False)
+    request_id: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    notice_body: Mapped[str] = mapped_column(Text, nullable=False)
+    notice_state: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    notice_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+
+def get_custom_wallet_number(telegram_id: int) -> str | None:
+    with SessionLocal() as number_session:
+        number = number_session.scalar(select(WalletCustomNumber.number).where(WalletCustomNumber.telegram_id == telegram_id))
+    if number:
+        return "NYAN " + " ".join(number[i:i + 4] for i in range(0, 12, 4))
+    return None
+
+
 Base.metadata.create_all(engine)
 
 app = FastAPI(title="Nyan Wallet API", version="1.4.0")
@@ -217,6 +237,7 @@ def serialize_user(user: User) -> dict:
         "balance": user.balance,
         "is_owner": owner,
         "unlimited_balance": owner,
+        "wallet_number": get_custom_wallet_number(user.telegram_id),
         "created_at": user.created_at.isoformat(),
         "last_seen_at": user.last_seen_at.isoformat(),
     }

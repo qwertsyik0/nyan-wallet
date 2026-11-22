@@ -1,0 +1,33 @@
+name: Rare wallet number checks
+on:
+  push:
+    paths:
+      - "server/backend_app.py"
+      - "app.js"
+      - "tools/assign_rare_wallet_number.py"
+      - "tools/test_assign_rare_wallet_number.py"
+      - ".github/workflows/rare-number-check.yml"
+  pull_request:
+    paths:
+      - "server/backend_app.py"
+      - "app.js"
+      - "tools/assign_rare_wallet_number.py"
+      - "tools/test_assign_rare_wallet_number.py"
+      - ".github/workflows/rare-number-check.yml"
+permissions:
+  contents: read
+jobs:
+  numbers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: python -m pip install SQLAlchemy==2.0.43
+      - run: python -m py_compile server/backend_app.py tools/assign_rare_wallet_number.py
+      - run: node --check app.js
+      - run: python tools/test_assign_rare_wallet_number.py

@@ -828,7 +828,7 @@ function applyUserState(user) {
     if (walletNumberEl) {
         walletNumberEl.textContent = user.is_owner
             ? OWNER_WALLET_NUMBER
-            : createWalletNumber(user.telegram_id);
+            : (user.wallet_number || createWalletNumber(user.telegram_id));
     }
     if (walletHolderEl) walletHolderEl.textContent = walletHolderName(user);
     if (walletStatusEl) walletStatusEl.textContent = user.is_owner ? "Владелец" : "Участник Нян";
