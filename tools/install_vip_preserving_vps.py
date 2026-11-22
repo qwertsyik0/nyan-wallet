@@ -328,7 +328,7 @@ def main() -> None:
                 desired[path] = remote
 
     if errors:
-        raise RuntimeError("VIP preflight conflicts (nothing changed):\\n" + "\\n".join(errors))
+        raise RuntimeError("VIP preflight conflicts (nothing changed):\n" + "\n".join(errors))
     check_source(desired)
     changed = [p for p in ALL if desired[p] != current[p]]
     if not changed:
