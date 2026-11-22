@@ -9,6 +9,8 @@ on:
       - "server/__init__.py"
       - "tools/deploy_nyan_lavka_firstvds.py"
       - "tools/test_deploy_nyan_lavka_firstvds.py"
+      - "tools/open_nyan_lavka_firstvds.py"
+      - "tools/test_open_nyan_lavka_firstvds.py"
       - "tests/test_nyan_lavka_integration.py"
       - ".github/workflows/lavka-check.yml"
   pull_request:
@@ -39,12 +41,14 @@ jobs:
         run: python -m pip install fastapi==0.116.1 SQLAlchemy==2.0.43
       - name: Check syntax
         run: |
-          python -m py_compile server/nyan_lavka.py server/__init__.py tools/deploy_nyan_lavka_firstvds.py
+          python -m py_compile server/nyan_lavka.py server/__init__.py tools/deploy_nyan_lavka_firstvds.py tools/open_nyan_lavka_firstvds.py
           node --check nyan-lavka.js
       - name: Test catalog, authentication and wallet debit
         run: python tests/test_nyan_lavka_integration.py
       - name: Test installer merging and rollback
         run: python tools/test_deploy_nyan_lavka_firstvds.py
+      - name: Test owner stock and opening command
+        run: python tools/test_open_nyan_lavka_firstvds.py
       - name: Check installer module integrity
         run: |
           python - <<'PY'
