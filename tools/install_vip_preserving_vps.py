@@ -318,7 +318,7 @@ def check_source(content_by_path: dict[str, bytes]) -> None:
         ),
         "server/nyan_id.py": (b"status_for_user(session, user.telegram_id)",),
         "index.html": (b'vip.js?v=', b'vip.css?v='),
-        "vip.js": (b"/api/vip/status", b"X-VIP-Purchase-Key"),
+        "vip.js": (b"/api/vip/status", b"vip_purchase_key="),
         "server/vip.py": (b"vip_subscriptions", b"vip_weekly_credits"),
     }
     for path, required in markers.items():
