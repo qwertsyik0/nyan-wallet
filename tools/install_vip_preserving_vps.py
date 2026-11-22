@@ -61,28 +61,148 @@ def show(ref: str, path: str) -> bytes:
     return run("git", "show", f"{ref}:{path}").stdout
 
 
+def _occurrences(lines: list[str], pattern: list[str]) -> list[int]:
+    """Return exact positions, with no fuzzy overwrites."""
+    if not pattern:
+        return []
+    return [
+        index for index in range(len(lines) - len(pattern) + 1)
+        if lines[index:index + len(pattern)] == pattern
+    ]
+
+
+def _context_score(lines: list[str], position: int, old_end: int,
+                   base: list[str], start: int, end: int) -> int:
+    left = 0
+    while (left < 8 and start - left - 1 >= 0 and position - left - 1 >= 0
+           and lines[position - left - 1] == base[start - left - 1]):
+        left += 1
+    right = 0
+    while (right < 8 and end + right < len(base) and old_end + right < len(lines)
+           and lines[old_end + right] == base[end + right]):
+        right += 1
+    return left + right
+
+
+def _add_vip_delta(path: str, local: bytes, base_raw: bytes,
+                   remote_raw: bytes) -> bytes:
+    """Apply ONLY uniquely anchored VIP edits when ordinary merge conflicts.
+
+    Each removal must match the original base text exactly. Existing local
+    additions and modifications are never removed as a conflict resolution.
+    Any ambiguous/missing anchor aborts the entire preflight.
+    """
+    import difflib
+    try:
+        base = base_raw.decode("utf-8").splitlines(keepends=True)
+        newer = remote_raw.decode("utf-8").splitlines(keepends=True)
+        output = local.decode("utf-8").splitlines(keepends=True)
+    except UnicodeDecodeError as exc:
+        raise RuntimeError(f"{path}: not UTF-8; manual integration required") from exc
+
+    changes = [
+        (a0, a1, newer[b0:b1])
+        for tag, a0, a1, b0, b1 in
+        difflib.SequenceMatcher(None, base, newer, autojunk=False).get_opcodes()
+        if tag != "equal"
+    ]
+    for start, end, replacement in reversed(changes):
+        old = base[start:end]
+        if old:
+            candidates = _occurrences(output, old)
+            scored = [
+                (_context_score(output, pos, pos + len(old), base, start, end), pos)
+                for pos in candidates
+            ]
+            if not scored:
+                # A locally changed line overlaps this VIP edit: abort.
+                raise RuntimeError(
+                    f"{path}: local edits overlap a VIP replacement "
+                    f"near source line {start + 1}; no files changed."
+                )
+            scored.sort(reverse=True)
+            if (len(scored) > 1 and scored[0][0] == scored[1][0]) or (
+                    scored[0][0] == 0 and len(old) < 3):
+                raise RuntimeError(f"{path}: ambiguous patch context near line {start + 1}")
+            pos = scored[0][1]
+            output[pos:pos + len(old)] = replacement
+            continue
+
+        # VIP added new lines without deleting anything. Preserve all
+        # locally inserted lines and select a unique insertion boundary.
+        if _occurrences(output, replacement):
+            continue
+        options: list[tuple[int, int]] = []
+        for pos in range(len(output) + 1):
+            score = _context_score(output, pos, pos, base, start, end)
+            if score >= 2:
+                options.append((score, pos))
+        options.sort(reverse=True)
+        if not options or (len(options) > 1 and options[0][0] == options[1][0]):
+            # Adjacent local insertions can interrupt the two-sided anchor.
+            # Prefer a uniquely matching preceding source line in that case.
+            left = base[max(0, start - 2):start]
+            positions = _occurrences(output, left) if len(left) == 2 else []
+            if len(positions) != 1:
+                raise RuntimeError(
+                    f"{path}: cannot locate VIP insertion near line {start + 1}; "
+                    "no files changed."
+                )
+            insertion_at = positions[0] + len(left)
+        else:
+            insertion_at = options[0][1]
+        output[insertion_at:insertion_at] = replacement
+
+    merged = "".join(output).encode("utf-8")
+    if b"<<<<<<<" in merged or b">>>>>>>" in merged:
+        raise RuntimeError(f"{path}: conflict marker in result")
+    return merged
+
+
+def _merge_init_semantically(local: bytes) -> bytes:
+    """Preserve every existing registration, adding exactly two VIP hooks."""
+    source = local.decode("utf-8")
+    hooks = (
+        ("from .advanced_features import register_advanced_features",
+         "from .vip import register_vip"),
+        ("    register_advanced_features(backend_app.app)",
+         "    register_vip(backend_app.app)"),
+    )
+    for anchor, insertion in hooks:
+        if insertion in source:
+            if source.count(insertion) != 1:
+                raise RuntimeError("server/__init__.py: duplicate VIP registration")
+            continue
+        if source.count(anchor) != 1:
+            raise RuntimeError("server/__init__.py: VIP insertion anchor ambiguous or absent")
+        source = source.replace(anchor + "\n", anchor + "\n" + insertion + "\n", 1)
+    return source.encode("utf-8")
+
+
 def merge_one(path: str, local: bytes) -> bytes:
+    base_raw = show(BASE, path)
+    vip_raw = show(SOURCE, path)
+
+    if path == "server/__init__.py":
+        return _merge_init_semantically(local)
+
     with tempfile.TemporaryDirectory(prefix="nyan-vip-merge-") as temp:
         folder = Path(temp)
         ours = folder / "ours"
         common = folder / "base"
         theirs = folder / "vip"
         ours.write_bytes(local)
-        common.write_bytes(show(BASE, path))
-        theirs.write_bytes(show(SOURCE, path))
+        common.write_bytes(base_raw)
+        theirs.write_bytes(vip_raw)
         result = run(
             "git", "merge-file", "--diff3", "-p",
             str(ours), str(common), str(theirs),
             check=False,
         )
-        if result.returncode != 0:
-            raise RuntimeError(
-                f"{path}: VIP changes conflict with local modifications. "
-                "No files have been changed."
-            )
-        if b"<<<<<<<" in result.stdout or b">>>>>>>" in result.stdout:
-            raise RuntimeError(f"{path}: unexpected merge marker")
-        return result.stdout
+        if result.returncode == 0 and b"<<<<<<<" not in result.stdout:
+            return result.stdout
+
+    return _add_vip_delta(path, local, base_raw, vip_raw)
 
 
 def atomic_write(path: Path, content: bytes, mode: int = 0o644) -> None:
@@ -185,6 +305,7 @@ def main() -> None:
     current: dict[str, bytes | None] = {}
     desired: dict[str, bytes] = {}
     modes: dict[str, int] = {}
+    errors: list[str] = []
     for path in ALL:
         target = ROOT / path
         if target.is_symlink():
@@ -195,13 +316,19 @@ def main() -> None:
         if path in MODIFIED:
             if existing is None:
                 raise RuntimeError(f"Required local file is missing: {path}")
-            desired[path] = merge_one(path, existing)
+            try:
+                desired[path] = merge_one(path, existing)
+            except RuntimeError as exc:
+                errors.append(str(exc))
         else:
             remote = show(SOURCE, path)
             if existing is not None and existing != remote:
-                raise RuntimeError(f"{path} exists locally with different contents")
-            desired[path] = remote
+                errors.append(f"{path}: existing local file differs from VIP source")
+            else:
+                desired[path] = remote
 
+    if errors:
+        raise RuntimeError("VIP preflight conflicts (nothing changed):\\n" + "\\n".join(errors))
     check_source(desired)
     changed = [p for p in ALL if desired[p] != current[p]]
     if not changed:
