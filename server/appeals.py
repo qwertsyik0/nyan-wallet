@@ -766,7 +766,23 @@ async def owner_appeals(
             if query.isdigit():
                 filters.append(core.User.telegram_id == int(query))
             stmt = stmt.where(or_(*filters))
-        rows = session.execute(stmt.order_by(Appeal.updated_at.desc()).limit(200)).all()
+        # Active VIP appeals are prioritised without excluding regular users.
+        from .vip import VipSubscription
+        priority = (
+            select(VipSubscription.request_id)
+            .where(
+                VipSubscription.telegram_id == Appeal.telegram_id,
+                VipSubscription.starts_at <= now_utc(),
+                VipSubscription.ends_at > now_utc(),
+                Appeal.status.in_(OPEN_APPEAL_STATUSES),
+            )
+            .correlate(Appeal).exists()
+        )
+        rows = session.execute(stmt.order_by(priority.desc(), Appeal.updated_at.desc()).limit(200)).all()
+        active_vip_ids = set(session.scalars(select(VipSubscription.telegram_id).where(
+            VipSubscription.starts_at <= now_utc(),
+            VipSubscription.ends_at > now_utc(),
+        )).all())
 
         items = []
         for item, topic, user in rows:
@@ -781,6 +797,7 @@ async def owner_appeals(
                     "label": human_user(user),
                 },
                 "message_preview": item.message[:220],
+                "vip_priority": item.telegram_id in active_vip_ids and item.status in OPEN_APPEAL_STATUSES,
             })
         return {"ok": True, "appeals": items}
 
