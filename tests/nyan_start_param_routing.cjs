@@ -25,7 +25,7 @@ function promoAt(href, startParam = '') {
 }
 
 const base = 'https://qwertsyik0.github.io/nyan-wallet/';
-for (const game of ['nyan_story', 'nyan_spy', 'nyan_mafia', 'nyan_awards', 'lottery']) {
+for (const game of ['nyan_story', 'nyan_spy', 'nyan_mafia', 'lottery']) {
   assert.equal(promoAt(`${base}?tgWebAppStartParam=${game}`), null, `${game} hijacked`);
   assert.equal(promoAt(base, game), null, `${game} initData hijacked`);
 }
@@ -53,4 +53,7 @@ function navigate(startParam) {
 }
 assert.equal(navigate('nyan_story'), `${base}nyan-story.html`);
 assert.equal(navigate('nyan_spy'), `${base}nyan-spy.html`);
+for (const retired of ['nyan_awards', 'nyan-awards', 'awards2026', 'nyan_confessions', 'nyan_confessions_owner', 'nyan_last_message', 'last_message']) {
+  assert.equal(navigate(retired), null, `${retired} must not redirect to a retired project`);
+}
 console.log('Mini App routing: game start params never open the promo card');
