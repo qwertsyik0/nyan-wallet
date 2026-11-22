@@ -25,11 +25,14 @@ from pathlib import Path
 
 SERVICE = "nyan-wallet"
 MODULE_URL = "https://raw.githubusercontent.com/qwertsyik0/nyan-wallet/main/server/nyan_lavka.py"
-MODULE_SHA256 = "224bdd438a54fc8bace8042747372c368a12c43fe20f3d80c8309c05b7cb4cbb"
-IMPORT_AFTER = "from .nyan_awards_2026 import register_nyan_awards_2026"
+MODULE_SHA256 = "0e3c7ef44f274ae9a25b3c3f50518f3cb9ecbefcd4aa4d848f9707f7220dcea6"
+BASE_URL = "https://raw.githubusercontent.com/qwertsyik0/nyan-wallet/8879cced237eebdede7c62e76c01e4c5a1b6622d/server/nyan_lavka.py"
+BASE_SHA256 = "224bdd438a54fc8bace8042747372c368a12c43fe20f3d80c8309c05b7cb4cbb"
+IMPORT_AFTER = "from .user_bans import register_user_bans"
 IMPORT_NEW = "from .nyan_lavka import register_nyan_lavka"
-CALL_AFTER = "    register_nyan_awards_2026(backend_app.app)"
+CALL_AFTER = "    register_user_bans(backend_app.app)"
 CALL_NEW = "    register_nyan_lavka(backend_app.app)"
+EXPECTED_SKUS = ["hint","chance","box","ticket","key","letter","time","shield","compass","magnifier","map","crystal","potion","charm"]
 EXPECTED_ROUTES = (
     "/api/nyan-lavka/catalog",
     "/api/nyan-lavka/status",
@@ -72,13 +75,13 @@ def patch_initializer(source: str) -> str:
     return source
 
 
-def download_module() -> bytes:
-    req = urllib.request.Request(MODULE_URL, headers={"User-Agent": "Nyan-Lavka-Deploy/1.0"})
+def download_module(url: str = MODULE_URL, checksum: str = MODULE_SHA256) -> bytes:
+    req = urllib.request.Request(url, headers={"User-Agent": "Nyan-Lavka-Deploy/1.0"})
     with urllib.request.urlopen(req, timeout=25) as response:
         payload = response.read(160_001)
     if len(payload) > 160_000:
         raise RuntimeError("Размер модуля превышает лимит")
-    if hashlib.sha256(payload).hexdigest() != MODULE_SHA256:
+    if hashlib.sha256(payload).hexdigest() != checksum:
         raise RuntimeError("Контрольная сумма модуля не совпадает. Установка отменена")
     source = payload.decode("utf-8")
     ast.parse(source, filename="server/nyan_lavka.py")
@@ -86,6 +89,28 @@ def download_module() -> bytes:
         raise RuntimeError("В модуле не найдена регистрация маршрутов")
     return payload
 
+
+
+def merge_module(current: bytes | None, newest: bytes) -> bytes:
+    if current is None or current == newest:
+        return newest
+    if hashlib.sha256(current).hexdigest() == BASE_SHA256:
+        return newest
+    if not shutil.which("git"):
+        raise RuntimeError("Модуль лавки изменён локально. Для объединения нужен git")
+    baseline = download_module(BASE_URL, BASE_SHA256)
+    with tempfile.TemporaryDirectory(prefix="nyan-lavka-merge-") as temp:
+        root = Path(temp)
+        for name, data in (("local", current), ("base", baseline), ("new", newest)):
+            (root / name).write_bytes(data)
+        result = subprocess.run(
+            ["git", "merge-file", "-p", str(root / "local"), str(root / "base"), str(root / "new")],
+            capture_output=True, check=False,
+        )
+        if result.returncode != 0:
+            raise RuntimeError("Локальный модуль лавки конфликтует с обновлением. Файлы не изменены")
+        ast.parse(result.stdout.decode("utf-8"), filename="server/nyan_lavka.py")
+        return result.stdout
 
 def replace_atomic(path: Path, payload: bytes) -> None:
     fd, name = tempfile.mkstemp(prefix=".nyan-lavka-", dir=str(path.parent))
@@ -114,7 +139,10 @@ def validate_service() -> None:
                 health = json.load(response)
             with urllib.request.urlopen("http://127.0.0.1:8000/openapi.json", timeout=3) as response:
                 paths = json.load(response).get("paths", {})
-            if health.get("ok") is True and all(route in paths for route in EXPECTED_ROUTES):
+            with urllib.request.urlopen("http://127.0.0.1:8000/api/nyan-lavka/catalog", timeout=3) as response:
+                catalog = json.load(response)
+            skus = {item["sku"] for item in catalog.get("items", [])}
+            if health.get("ok") is True and all(route in paths for route in EXPECTED_ROUTES) and set(EXPECTED_SKUS) <= skus:
                 print("OK: сервис работает, все маршруты лавки доступны")
                 return
             last = "Не все маршруты API зарегистрированы"
@@ -135,10 +163,12 @@ def main() -> int:
     project = find_project(args.root)
     module_path = project / "server/nyan_lavka.py"
     init_path = project / "server/__init__.py"
+    if init_path.is_symlink() or module_path.is_symlink():
+        raise RuntimeError("Файлы лавки не должны быть символическими ссылками")
     before_init = init_path.read_bytes()
     after_init = patch_initializer(before_init.decode("utf-8")).encode("utf-8")
     before_module = module_path.read_bytes() if module_path.exists() else None
-    after_module = download_module()
+    after_module = merge_module(before_module, download_module())
     changes = [name for name, changed in (
         ("server/__init__.py", before_init != after_init),
         ("server/nyan_lavka.py", before_module != after_module),
@@ -158,7 +188,7 @@ def main() -> int:
         return 0
 
     backup = project / ".nyan-lavka-backups" / time.strftime("%Y%m%d-%H%M%S")
-    backup.mkdir(parents=True, exist_ok=False)
+    backup.mkdir(parents=True, exist_ok=False, mode=0o700)
     shutil.copy2(init_path, backup / "__init__.py")
     if before_module is not None:
         shutil.copy2(module_path, backup / "nyan_lavka.py")
@@ -179,7 +209,8 @@ def main() -> int:
         if rollback.returncode:
             print("ВНИМАНИЕ: старый сервис не перезапустился:", rollback.stderr[-1200:], file=sys.stderr)
         raise
-    print("УСПЕХ: API лавки установлен. Балансы не тронуты, товары не открыты, остатки = 0")
+    print("УСПЕХ: API лавки установлен, все 14 товаров доступны. Существующие остатки и покупки сохранены")
+    print("Открыть в Telegram: https://t.me/nyancash_bot?startapp=nyan_lavka")
     return 0
 
 

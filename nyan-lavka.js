@@ -6,17 +6,26 @@
   const $ = id => document.getElementById(id);
   const PENDING_KEY = 'nyan-lavka-pending-v1';
   const goods = [
-    { id: 'hint', image: './assets/nyan-lavka/hint.png', title: 'подсказка Няника', short: 'намёк на решение загадки', details: 'Небольшая подсказка к одному из раундов. Иногда одного намёка достаточно, чтобы всё встало на место.', tag: 'бонус', kind: 'boost' },
-    { id: 'chance', image: './assets/nyan-lavka/chance.png', title: 'второй шанс', short: 'ещё одна попытка в раунде', details: 'Позволяет попробовать ответить ещё раз, если первая попытка оказалась неверной. Действует в одном раунде.', tag: 'бонус', kind: 'boost' },
-    { id: 'box', image: './assets/nyan-lavka/box.png', title: 'тайная коробка', short: 'содержимое неизвестно', details: 'Никто не знает, что внутри, пока коробка не будет открыта. Сюрприз может оказаться приятным.', tag: 'сюрприз', kind: 'secret' },
-    { id: 'ticket', image: './assets/nyan-lavka/ticket.png', title: 'дополнительный билет', short: 'больше шансов в финале', details: 'Дополнительный игровой билет для финального розыгрыша события.', tag: 'бонус', kind: 'boost' },
-    { id: 'key', image: './assets/nyan-lavka/key.png', title: 'золотой ключ', short: 'открывает тайный ящик', details: 'Ключ от одного из запертых ящиков. Что находится за замком, станет известно только во время события.', tag: 'редкое', kind: 'secret' },
-    { id: 'letter', image: './assets/nyan-lavka/letter.png', title: 'запечатанное письмо', short: 'важная часть истории', details: 'Кто-то оставил письмо без имени отправителя. Его содержимое может повлиять на развязку.', tag: 'секретное', kind: 'secret' }
+    { id: 'hint', image: './assets/nyan-lavka/hint.svg', title: 'подсказка Няника', short: 'намёк на решение загадки', details: 'Небольшая подсказка к одному из раундов. Иногда одного намёка достаточно, чтобы всё встало на место.', tag: 'бонус', kind: 'boost' },
+    { id: 'chance', image: './assets/nyan-lavka/chance.svg', title: 'второй шанс', short: 'ещё одна попытка в раунде', details: 'Позволяет попробовать ответить ещё раз, если первая попытка оказалась неверной. Действует в одном раунде.', tag: 'бонус', kind: 'boost' },
+    { id: 'box', image: './assets/nyan-lavka/box.svg', title: 'тайная коробка', short: 'содержимое неизвестно', details: 'Никто не знает, что внутри, пока коробка не будет открыта. Сюрприз может оказаться приятным.', tag: 'сюрприз', kind: 'secret' },
+    { id: 'ticket', image: './assets/nyan-lavka/ticket.svg', title: 'дополнительный билет', short: 'больше шансов в финале', details: 'Дополнительный игровой билет для финального розыгрыша события.', tag: 'бонус', kind: 'boost' },
+    { id: 'key', image: './assets/nyan-lavka/key.svg', title: 'золотой ключ', short: 'открывает тайный ящик', details: 'Ключ от одного из запертых ящиков. Что находится за замком, станет известно только во время события.', tag: 'редкое', kind: 'secret' },
+    { id: 'letter', image: './assets/nyan-lavka/letter.svg', title: 'запечатанное письмо', short: 'важная часть истории', details: 'Кто-то оставил письмо без имени отправителя. Его содержимое может повлиять на развязку.', tag: 'секретное', kind: 'secret' },
+    {"id":"time","image":"./assets/nyan-lavka/time.svg","title":"карманное время","short":"ещё 30 секунд на ответ","details":"Маленькие песочные часы добавляют 30 секунд к таймеру одного раунда. Чтобы успеть проверить свою догадку и не отвечать наугад.","tag":"бонус","kind":"boost","tone":"pink","isNew":true},
+    {"id":"shield","image":"./assets/nyan-lavka/shield.svg","title":"щит удачи","short":"защита от одного штрафа","details":"Защищает от одного игрового штрафа за неверный ответ. После использования щит исчезает. На другие правила раунда не влияет.","tag":"защита","kind":"boost","tone":"lilac","isNew":true},
+    {"id":"compass","image":"./assets/nyan-lavka/compass.svg","title":"лунный компас","short":"верное направление в истории","details":"Стрелка этого компаса указывает на один из верных путей в сюжетной развилке. Решение остаётся за тобой, но заблудиться будет сложнее.","tag":"секретное","kind":"secret","tone":"lilac","isNew":true},
+    {"id":"magnifier","image":"./assets/nyan-lavka/magnifier.svg","title":"внимательный взгляд","short":"одна скрытая деталь загадки","details":"Няник покажет одну деталь, которую легко упустить в задании. Предмет помогает внимательнее посмотреть на загадку, но не раскрывает готовый ответ.","tag":"бонус","kind":"boost","tone":"pink","isNew":true},
+    {"id":"map","image":"./assets/nyan-lavka/map.svg","title":"обрывок карты","short":"путь к спрятанному тайнику","details":"На старой карте отмечен тайник события. Собери подсказки из истории, чтобы понять, где он находится. Содержимое тайника пока остаётся секретом.","tag":"находка","kind":"secret","tone":"gold","isNew":true},
+    {"id":"crystal","image":"./assets/nyan-lavka/crystal.svg","title":"розовый кристалл","short":"открывает скрытый фрагмент","details":"Если поднести кристалл к свету, можно увидеть скрытый фрагмент истории. Он поможет связать воедино события, о которых рассказали не всё.","tag":"редкое","kind":"secret","tone":"pink","isNew":true},
+    {"id":"potion","image":"./assets/nyan-lavka/potion.svg","title":"эликсир спокойствия","short":"убирает один ложный вариант","details":"Убирает один неверный вариант в раунде с выбором ответа. Немного тишины в голове, немного уверенности и один шаг ближе к решению.","tag":"бонус","kind":"boost","tone":"lilac","isNew":true},
+    {"id":"charm","image":"./assets/nyan-lavka/charm.svg","title":"талисман Няника","short":"личная записка перед финалом","details":"Талисман с маленькой лапкой хранит личную записку от Няника. Её можно открыть перед финальным раундом и узнать дополнительную деталь истории.","tag":"особое","kind":"secret","tone":"pink","isNew":true}
   ];
-  const fallbackPrices = { hint: 120, chance: 190, box: 320, ticket: 260, key: 590, letter: 210 };
+  const fallbackPrices = { hint: 120, chance: 190, box: 320, ticket: 260, key: 590, letter: 210, time: 90, shield: 240, compass: 280, magnifier: 150, map: 360, crystal: 450, potion: 230, charm: 380 };
   const dialog = $('product-dialog');
   let state = null;
   let filter = 'all';
+  let query = '';
   let selected = null;
   let busy = false;
   let offset = 0;
@@ -25,7 +34,29 @@
   tg?.expand?.();
 
   function auth() { return Boolean(tg?.initData); }
-  function price(value) { return `${Number(value).toLocaleString('ru-RU')} 🐾`; }
+  function price(value) { return Number(value).toLocaleString('ru-RU') + ' лапкоинов'; }
+  function priceNode(value) {
+    const node = document.createElement('span');
+    node.className = 'price-value';
+    node.setAttribute('aria-label', value == null ? 'баланс пока недоступен' : price(value));
+    const amount = document.createElement('span');
+    amount.setAttribute('aria-hidden', 'true');
+    amount.textContent = value == null ? '—' : Number(value).toLocaleString('ru-RU');
+    const coin = document.createElement('img');
+    coin.className = 'currency-icon';
+    coin.src = './assets/lapcoin/lapcoin.webp';
+    coin.alt = '';
+    coin.setAttribute('aria-hidden', 'true');
+    coin.width = 28;
+    coin.height = 28;
+    coin.decoding = 'async';
+    node.append(amount, coin);
+    return node;
+  }
+  function productCount(count) {
+    const last = count % 10, two = count % 100;
+    return count + ' ' + (last === 1 && two !== 11 ? 'товар' : last >= 2 && last <= 4 && (two < 12 || two > 14) ? 'товара' : 'товаров');
+  }
   function live() { return !!state?.is_open && !!state?.closes_at && Date.now() + offset < Date.parse(state.closes_at); }
   function notice(message, error = false) {
     $('notice').textContent = message;
@@ -73,7 +104,11 @@
     const note = $('dialog-note');
     const available = auth() && live() && !state?.blocked && !item.purchased && item.remaining > 0 && state?.balance != null && state.balance >= item.price;
     button.disabled = !available || busy;
-    button.textContent = busy ? 'проверяем покупку…' : item.purchased ? 'уже куплено' : !live() ? 'лавка пока закрыта' : item.remaining <= 0 ? 'раскуплено' : !auth() ? 'открыть в Telegram' : state?.balance == null ? 'нет кошелька' : state.balance < item.price ? 'не хватает 🐾' : 'купить за ' + price(item.price);
+    button.textContent = busy ? 'проверяем покупку…' : item.purchased ? 'уже куплено' : !live() ? 'лавка пока закрыта' : item.remaining <= 0 ? 'раскуплено' : !auth() ? 'открыть в Telegram' : state?.balance == null ? 'нет кошелька' : state.balance < item.price ? 'не хватает лапкоинов' : 'купить за ' + price(item.price);
+    if (available && !busy) {
+      button.textContent = 'купить за ';
+      button.append(priceNode(item.price));
+    }
     note.textContent = item.purchased ? 'этот предмет уже есть у тебя' : !live() ? 'покупки станут доступны после открытия лавки' : 'один экземпляр товара на аккаунт';
   }
 
@@ -89,7 +124,8 @@
     icon.append(image);
     $('dialog-title').textContent = meta.title;
     $('dialog-description').textContent = meta.details;
-    $('dialog-price').textContent = price(item.price);
+    $('dialog-price').replaceChildren(priceNode(item.price));
+    $('dialog-icon').dataset.tone = meta.tone || (meta.id === 'key' ? 'gold' : ['chance', 'ticket'].includes(meta.id) ? 'lilac' : 'pink');
     $('dialog-note').classList.remove('error');
     updateBuy();
     dialog.showModal();
@@ -97,17 +133,24 @@
 
   function render() {
     $('telegram-entry').hidden = auth();
-    $('wallet-balance').textContent = !auth() ? 'в Telegram' : state?.balance == null ? '— 🐾' : price(state.balance);
+    if (auth()) $('wallet-balance').replaceChildren(priceNode(state?.balance));
+    else $('wallet-balance').textContent = 'в Telegram';
     const list = $('product-grid');
     list.replaceChildren();
-    const filtered = goods.filter(meta => filter === 'all' || meta.kind === filter);
-    $('visible-count').textContent = `${filtered.length} ${filtered.length === 1 ? 'товар' : filtered.length < 5 ? 'товара' : 'товаров'}`;
+    const filtered = goods.filter(meta => (filter === 'all' || meta.kind === filter) && (meta.title + ' ' + meta.short + ' ' + meta.tag).toLocaleLowerCase('ru-RU').includes(query));
+    $('visible-count').textContent = productCount(filtered.length);
+    if (!filtered.length) {
+      const empty = document.createElement('p');
+      empty.className = 'empty';
+      empty.textContent = 'Ничего не нашлось. Попробуй другое название или категорию';
+      list.append(empty);
+    }
     filtered.forEach(meta => {
       const item = itemFor(meta);
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'product';
-      button.dataset.tone = meta.id === 'key' ? 'gold' : 'pink';
+      button.dataset.tone = meta.tone || (meta.id === 'key' ? 'gold' : ['chance', 'ticket'].includes(meta.id) ? 'lilac' : 'pink');
       if (live() && item.remaining <= 0) button.classList.add('is-sold-out');
       button.setAttribute('aria-label', `${meta.title}, ${price(item.price)}, подробнее`);
       const icon = document.createElement('span');
@@ -118,6 +161,16 @@
       image.alt = '';
       image.loading = 'lazy';
       icon.append(image);
+      const art = document.createElement('span');
+      art.className = 'product-art';
+      art.setAttribute('aria-hidden', 'true');
+      art.append(icon);
+      if (meta.isNew) {
+        const badge = document.createElement('span');
+        badge.className = 'new-label';
+        badge.textContent = 'новое';
+        art.append(badge);
+      }
       const tag = document.createElement('span');
       tag.className = 'tag';
       tag.textContent = meta.tag;
@@ -129,13 +182,13 @@
       bottom.className = 'product-bottom';
       const cost = document.createElement('strong');
       cost.className = 'product-price';
-      cost.textContent = price(item.price);
+      cost.append(priceNode(item.price));
       const arrow = document.createElement('span');
-      arrow.className = 'product-arrow';
+      arrow.className = 'product-detail';
       arrow.setAttribute('aria-hidden', 'true');
-      arrow.textContent = '›';
+      arrow.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 11v5m0-9v.1"/></svg>';
       bottom.append(cost, arrow);
-      button.append(icon, tag, title, desc, bottom);
+      button.append(art, tag, title, desc, bottom);
       button.addEventListener('click', () => showProduct(meta));
       list.append(button);
     });
@@ -257,6 +310,13 @@
     } catch (error) { notice(error.message, true); }
   }
 
+  $('catalog-search').addEventListener('input', event => {
+    query = event.target.value.trim().toLocaleLowerCase('ru-RU');
+    render();
+  });
+  document.querySelectorAll('.filter').forEach(button => {
+    button.querySelector('.filter-count').textContent = String(goods.filter(meta => button.dataset.filter === 'all' || meta.kind === button.dataset.filter).length);
+  });
   document.querySelectorAll('.filter').forEach(button => button.addEventListener('click', () => {
     filter = button.dataset.filter;
     document.querySelectorAll('.filter').forEach(other => {
@@ -267,7 +327,18 @@
     render();
   }));
   $('dialog-close').addEventListener('click', () => dialog.close());
-  dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+  dialog.addEventListener('click', event => {
+    if (event.target !== dialog) return;
+    const box = dialog.getBoundingClientRect();
+    if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) dialog.close();
+  });
+  tg?.BackButton?.show?.();
+  tg?.BackButton?.onClick?.(() => {
+    if (dialog.open) { dialog.close(); return; }
+    const target = new URL('./index.html', location.href);
+    target.hash = location.hash;
+    location.replace(target.toString());
+  });
   $('dialog-buy').addEventListener('click', () => void buy());
   $('owner-open').addEventListener('click', () => void ownerAction('/api/nyan-lavka/owner/open', { minutes: Number($('owner-minutes').value) }, 'Открыть лавку? Повторного запуска не будет.'));
   $('owner-close').addEventListener('click', () => void ownerAction('/api/nyan-lavka/owner/close', null, 'Закрыть лавку досрочно?'));

@@ -105,3 +105,67 @@ button:disabled{cursor:default}
 .owner-orders{margin-top:12px;max-height:250px;overflow:auto}
 .owner-order{padding:9px 0;border-top:1px solid #f0dce5;color:#8a5570;font-size:10px;line-height:1.5}
 .owner-order button{margin-top:4px;padding:6px 9px;border:1px solid #e9c7d9;border-radius:9px;background:#fff;color:#873d63;font-size:10px}
+
+/* Updated event catalog, aligned with Nyan Wallet. */
+:root{--sub:#946079}
+body{font-size:16px}
+body:has(dialog[open]){overflow:hidden}
+button,input{font:inherit}
+.app{padding-left:18px;padding-right:18px}
+.brand strong{font-size:13px}.brand span{font-size:12px}
+.hero{min-height:260px}
+.hero-copy{padding:26px;max-width:60%}
+.hero-label{font-size:12px;letter-spacing:.09em}
+.hero h1{font-size:clamp(36px,9vw,48px)}
+.hero p{font-size:14px;line-height:1.5;max-width:200px}
+.hero-status{font-size:12px;margin-top:20px}
+.mascot{right:5px;bottom:-2px;height:204px;width:192px}
+.intro-line{font-size:12px;line-height:1.5;margin:16px 3px 28px}
+.eyebrow{font-size:12px}.section-heading h2{font-size:25px}.visible-count{font-size:12px}
+.filters{gap:7px;padding:3px 2px 5px}
+.filter{display:inline-flex;align-items:center;gap:8px;font-size:14px;padding:10px 13px}
+.filter-count{font-size:12px;opacity:.72}
+.search-box{display:flex;align-items:center;gap:10px;padding:0 14px;min-height:46px;margin:0 0 16px;border:1px solid var(--line);border-radius:15px;background:#fff;color:var(--sub)}
+.search-box:focus-within{border-color:#d987ad;box-shadow:0 0 0 3px #fce5ef}
+.search-box svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round}
+.search-box input{width:100%;min-width:0;padding:13px 0;border:0;outline:0;background:transparent;color:var(--text);font-size:16px}
+.search-box input::placeholder{color:#a4758d;opacity:1;font-size:14px}
+.product-grid{gap:12px}
+.product{padding:12px;min-height:0;border-radius:23px;background:#fff}
+.product-art{position:relative;display:grid;place-items:center;min-height:128px;border:1px solid #f8e7ef;border-radius:15px;background:radial-gradient(ellipse at 50% 80%,#ffe1ee,#fff7fa 80%);overflow:hidden}
+.product[data-tone="lilac"] .product-art,.sheet-icon[data-tone="lilac"]{background:radial-gradient(ellipse at 50% 80%,#ede4f6,#f8f3fc 70%);border-color:#eee4f4}
+.product[data-tone="gold"] .product-art,.sheet-icon[data-tone="gold"]{background:radial-gradient(ellipse at 50% 80%,#f9e5ca,#fff9ef 70%);border-color:#f5e8d5}
+.product-icon{align-self:center;width:104px;height:104px}
+.product .product-icon img{transform:none;filter:drop-shadow(0 5px 3px rgba(114,34,70,.06))}
+.new-label{position:absolute;top:8px;left:8px;padding:4px 6px;border:1px solid rgba(146,41,84,.09);border-radius:7px;background:rgba(255,255,255,.9);color:#9c446e;font-size:11px;line-height:1;font-weight:750}
+.product .tag{margin:14px 2px 0;font-size:11px;color:#a6577d}
+.product h3{font-size:16px;font-weight:800;line-height:1.25;margin:5px 2px 0;color:var(--text);overflow-wrap:break-word}
+.product p{font-size:13px;line-height:1.45;color:var(--sub);margin:7px 2px 16px;min-height:38px}
+.product-bottom{margin-left:2px;margin-right:2px}
+.product-price{font-size:19px}
+.price-value{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.currency-icon{display:block;width:1.45em;height:1.45em;object-fit:contain;flex:none}
+.product-detail{display:grid;place-items:center;width:32px;height:32px;border-radius:11px;background:var(--soft);color:#a04b75;flex:none}
+.product-detail svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round}
+.wallet-balance{max-width:160px;font-size:14px;padding:10px}
+.sheet-icon{width:136px;height:128px;margin-top:10px;border:1px solid #f8e7ef;border-radius:20px;background:#fff0f6}
+.sheet .sheet-icon img{width:112px;height:112px;transform:none}
+.sheet h2{font-size:27px;margin:20px 0 12px}
+.sheet p{font-size:16px;line-height:1.6}
+.sheet-price{font-size:14px}
+.primary{justify-content:center;font-size:16px;padding:16px}
+.primary .price-value{font-size:16px;line-height:1.5}
+.close{width:40px;height:40px}
+.sheet .sheet-note{font-size:12px}
+.owner-panel summary,.owner-panel p,.owner-stock-row,.owner-duration,.owner-orders,.owner-order{font-size:14px}
+.owner-stock-row button,.owner-actions button,.owner-order button{font-size:13px}
+.telegram-entry,.notice,.countdown{font-size:14px}
+.artist-credit{margin-top:28px;padding:16px 8px 0;text-align:center;color:var(--text);font-size:13px;line-height:1.5;opacity:.5}
+.empty{font-size:14px;line-height:1.5;padding:35px 15px;border:1px dashed var(--line);border-radius:22px}
+@media(max-width:360px){
+.app{padding-left:12px;padding-right:12px}.hero-copy{padding:24px 18px;max-width:60%}
+.hero-label{font-size:11px}.hero p{max-width:154px}.mascot{right:-20px;width:165px;height:180px;opacity:1}
+.product-grid{gap:8px}.product{padding:10px;border-radius:20px;min-height:0}.product-art{min-height:112px}
+.product-icon{width:92px;height:92px}.product h3{font-size:15px}.product-price{font-size:18px}.filter{padding:10px;gap:6px}
+.owner-stock-row{flex-wrap:wrap}.owner-stock-row label{flex-basis:100%}
+}

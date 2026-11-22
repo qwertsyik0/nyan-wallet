@@ -1,0 +1,57 @@
+name: Nyan Lavka integration
+
+on:
+  push:
+    paths:
+      - "nyan-lavka.*"
+      - "assets/nyan-lavka/**"
+      - "server/nyan_lavka.py"
+      - "server/__init__.py"
+      - "tools/deploy_nyan_lavka_firstvds.py"
+      - "tools/test_deploy_nyan_lavka_firstvds.py"
+      - "tests/test_nyan_lavka_integration.py"
+      - ".github/workflows/lavka-check.yml"
+  pull_request:
+    paths:
+      - "nyan-lavka.*"
+      - "assets/nyan-lavka/**"
+      - "server/nyan_lavka.py"
+      - "server/__init__.py"
+      - "tools/*nyan_lavka*"
+      - "tests/test_nyan_lavka_integration.py"
+      - ".github/workflows/lavka-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  lavka:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install isolated test dependencies
+        run: python -m pip install fastapi==0.116.1 SQLAlchemy==2.0.43
+      - name: Check syntax
+        run: |
+          python -m py_compile server/nyan_lavka.py server/__init__.py tools/deploy_nyan_lavka_firstvds.py
+          node --check nyan-lavka.js
+      - name: Test catalog, authentication and wallet debit
+        run: python tests/test_nyan_lavka_integration.py
+      - name: Test installer merging and rollback
+        run: python tools/test_deploy_nyan_lavka_firstvds.py
+      - name: Check installer module integrity
+        run: |
+          python - <<'PY'
+          import hashlib, importlib.util
+          from pathlib import Path
+          spec = importlib.util.spec_from_file_location("installer", "tools/deploy_nyan_lavka_firstvds.py")
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          assert hashlib.sha256(Path("server/nyan_lavka.py").read_bytes()).hexdigest() == module.MODULE_SHA256
+          PY

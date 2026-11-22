@@ -7,9 +7,8 @@
   <meta name="description" content="Секретная лавка Няника в Nyan Wallet">
   <title>Лавка Няника</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="./nyan-lavka.css?v=20261108-1">
-  <script defer src="./nyan-lavka.js?v=20261108-1"></script>
-  <script defer src="./lapcoin-ui.js?v=20261116-newcoin1"></script>
+  <link rel="stylesheet" href="./nyan-lavka.css?v=20261122-lavka3">
+  <script defer src="./nyan-lavka.js?v=20261122-lavka3"></script>
 </head>
 <body>
   <div class="app">
@@ -18,13 +17,13 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 5-7 7 7 7"/></svg>
       </a>
       <div class="brand"><strong>NYAN WALLET</strong><span>особое событие</span></div>
-      <span class="wallet-balance" id="wallet-balance">— 🐾</span>
+      <span class="wallet-balance" id="wallet-balance">—</span>
     </header>
 
     <main>
       <section class="hero" aria-labelledby="shop-title">
         <div class="hero-copy">
-          <span class="hero-label"><span class="hero-dot"></span> СЕКРЕТНОЕ МЕСТО</span>
+          <span class="hero-label"> СЕКРЕТНОЕ МЕСТО</span>
           <h1 id="shop-title">лавка<br><em>Няника</em></h1>
           <p>маленькие находки, большие сюрпризы</p>
           <span class="hero-status" id="shop-status">скоро открытие</span>
@@ -52,15 +51,17 @@
       </section>
 
       <section class="catalog" aria-labelledby="catalog-title">
-        <div class="section-heading"><div><span class="eyebrow">ЧТО ВНУТРИ</span><h2 id="catalog-title">товары лавки</h2></div><span id="visible-count" class="visible-count">6 товаров</span></div>
+        <div class="section-heading"><div><span class="eyebrow">ЧТО ВНУТРИ</span><h2 id="catalog-title">товары лавки</h2></div><span id="visible-count" class="visible-count">14 товаров</span></div>
         <div class="filters" aria-label="Категории товаров" role="group">
-          <button class="filter is-active" type="button" data-filter="all" aria-pressed="true">всё</button>
-          <button class="filter" type="button" data-filter="boost" aria-pressed="false">бонусы</button>
-          <button class="filter" type="button" data-filter="secret" aria-pressed="false">секретное</button>
+          <button class="filter is-active" type="button" data-filter="all" aria-pressed="true">всё <span class="filter-count">14</span></button>
+          <button class="filter" type="button" data-filter="boost" aria-pressed="false">бонусы <span class="filter-count">7</span></button>
+          <button class="filter" type="button" data-filter="secret" aria-pressed="false">секретное <span class="filter-count">7</span></button>
         </div>
+        <label class="search-box"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 4.5 4.5"/></svg><input id="catalog-search" type="search" placeholder="найти что-нибудь особенное" aria-label="Поиск товаров" autocomplete="off" maxlength="100"></label>
         <div class="product-grid" id="product-grid" aria-live="polite"></div>
       </section>
     </main>
+    <footer class="artist-credit">Художник иконок: Byllye$</footer>
   </div>
 
   <dialog class="sheet" id="product-dialog" aria-labelledby="dialog-title">
