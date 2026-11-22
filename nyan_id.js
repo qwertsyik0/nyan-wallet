@@ -341,30 +341,6 @@
     if (event.key === "Escape" && layer && !layer.hidden) close();
   });
 
-  const CONFESSIONS_URL = "https://nyan-wallet-bridge.qwertsyik.workers.dev/api/nyan-confessions";
-  let confessionsReady;
-
-  function addConfessionsEntry(nyanIdButton) {
-    const link = document.createElement("a");
-    link.id = "nyan-confessions-link";
-    link.className = "nyan-confessions-entry";
-    link.href = CONFESSIONS_URL;
-    link.hidden = true;
-
-    const mascot = new Image(42, 42);
-    mascot.src = "./assets/nyan-mafia/nyanik.webp";
-    mascot.alt = "";
-    const title = document.createElement("strong");
-    title.textContent = "Nyan Confessions";
-    link.append(mascot, title);
-    nyanIdButton.after(link);
-
-    confessionsReady ??= fetch(CONFESSIONS_URL + "/feed?before=1")
-      .then(response => response.ok && response.headers.get("Content-Type")?.includes("application/json"))
-      .catch(() => false);
-    confessionsReady.then(ready => { link.hidden = !ready; });
-  }
-
   function ensureEntryPoints() {
     const profile = el("adv-profile-view");
     if (profile && !el("nyid-profile-open")) {
@@ -394,7 +370,6 @@
     }
 
     const nyanIdButton = more?.querySelector("#nyid-home-open");
-    if (nyanIdButton && !el("nyan-confessions-link")) addConfessionsEntry(nyanIdButton);
   }
 
   function scheduleEntryPoints() {

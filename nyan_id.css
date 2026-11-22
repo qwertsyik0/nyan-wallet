@@ -7,25 +7,6 @@
 .nyid-entry-copy small{display:block;margin-top:3px;color:#9d6c82;font-size:10px;line-height:1.4}
 .nyid-entry-arrow{font-size:21px;color:#b07591}
 .nyid-home-action{background:linear-gradient(140deg,#fff3f8,#ffe5f0)!important;border-color:#f1cadd!important;font-weight:850!important;color:#923c62!important}
-.nyan-confessions-entry{
-  grid-column:1/-1;
-  display:flex;
-  align-items:center;
-  gap:10px;
-  min-height:52px;
-  margin-top:3px;
-  padding:5px 12px;
-  border:1px solid #efd6e2;
-  border-radius:16px;
-  background:linear-gradient(120deg,#fff,#fff0f6);
-  color:#812b54;
-  font-size:14px;
-  text-decoration:none;
-}
-.nyan-confessions-entry[hidden]{display:none}
-.nyan-confessions-entry img{width:42px;height:42px;object-fit:contain;flex:none}
-.nyan-confessions-entry:active{background:#ffe8f2}
-.nyan-confessions-entry:focus-visible{outline:2px solid #a83a66;outline-offset:2px}
 .nyid-layer{position:fixed;inset:0;z-index:20040;display:flex;align-items:flex-end;justify-content:center;padding:12px;background:rgba(48,17,34,.5);-webkit-backdrop-filter:blur(7px);backdrop-filter:blur(7px)}
 .nyid-layer[hidden]{display:none!important}
 .nyid-dialog{width:min(100%,480px);max-height:min(95dvh,840px);overflow-y:auto;overscroll-behavior:contain;padding:18px 16px calc(18px + env(safe-area-inset-bottom, 0px));border-radius:28px 28px 20px 20px;background:linear-gradient(180deg,#fff9fc 0%,#fff 100%);border:1px solid rgba(255,255,255,.9);box-shadow:0 24px 80px rgba(45,8,26,.25);color:#6f284d}

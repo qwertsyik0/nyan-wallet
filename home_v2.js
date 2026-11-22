@@ -13,11 +13,9 @@
     ["giveaways", "✦", "Розыгрыши", "nyg-my-button"],
     ["lottery", "🎫", "Лотерея", "nyan-lottery-link"],
     ["fortune", "🎡", "Колесо фортуны", "nyan-fortune-link"],
-    ["awards", "✦", "NYAN AWARDS", "nyan-awards-link"],
     ["purchases", "▤", "Покупки", "nyg-my-purchases-button"],
     ["appeals", "✉", "Обращения", "appeals-button"],
     ["studio", "✳", "Интерактивы", "nyan-studio-link"],
-    ["last-message", "✉", "Последнее сообщение", "nyan-last-message-link"],
   ];
 
   let scheduled = false;
@@ -73,11 +71,6 @@
       home.id = "nyan-home-v2";
       home.className = "nyan-home-v2";
       home.innerHTML = `
-        <section class="nyan-home-panel nyan-last-message-entry">
-          <div class="nyan-last-message-symbol" aria-hidden="true"><img src="./assets/last-message/tab-icon.png?v=20261121-icon2" alt="" width="46" height="33" decoding="async"></div>
-          <div class="nyan-last-message-main"><strong>Последнее сообщение</strong><span>письмо без отправителя. собираем фрагменты вместе</span></div>
-          <button type="button" class="nyan-last-message-open" data-home-target="nyan-last-message-link">Открыть</button>
-        </section>
         <section class="nyan-home-panel">
           <div class="nyan-home-panel-head">
             <div class="nyan-home-panel-title">Сегодня</div>
@@ -107,7 +100,7 @@
           </div>
           <div class="nyan-home-more">
             ${MORE_ACTIONS.map(([key, icon, label, target]) => `
-              <button type="button" class="nyan-home-more-button" data-home-target="${escapeHtml(target)}" data-home-secondary="${escapeHtml(key)}"><span class="nyan-home-more-icon" aria-hidden="true">${key === "last-message" ? '<img class="nyan-last-message-more-icon" src="./assets/last-message/tab-icon.png?v=20261121-icon2" alt="" width="26" height="19" decoding="async">' : escapeHtml(icon)}</span><span class="nyan-home-more-label">${escapeHtml(label)}</span></button>
+              <button type="button" class="nyan-home-more-button" data-home-target="${escapeHtml(target)}" data-home-secondary="${escapeHtml(key)}"><span class="nyan-home-more-icon" aria-hidden="true">${escapeHtml(icon)}</span><span class="nyan-home-more-label">${escapeHtml(label)}</span></button>
             `).join("")}
             <button id="nyan-home-owner" class="nyan-home-more-button" type="button" data-home-target="owner-button" hidden>
               <span class="nyan-home-more-icon" aria-hidden="true">⚙</span><span class="nyan-home-more-label">Управление</span>
@@ -120,10 +113,6 @@
         const button = event.target.closest("[data-home-target]");
         if (!button) return;
         const target = button.dataset.homeTarget;
-        if (target === "nyan-last-message-link") {
-          window.location.assign("./last-message.html");
-          return;
-        }
         if (target === "nyan-studio-link") {
           window.location.assign("./interactive-builder.html");
           return;
@@ -134,10 +123,6 @@
         }
         if (target === "nyan-fortune-link") {
           window.location.assign("./fortune.html");
-          return;
-        }
-        if (target === "nyan-awards-link") {
-          window.location.assign("./nyan-awards-vote.html");
           return;
         }
         if (target) proxyClick(target);
@@ -211,7 +196,7 @@
       if (!homeButton) continue;
       // Never offer a dead action before its original handler exists.
       const hide = !proxy || proxy.hidden || proxy.disabled;
-      const unavailable = ["nyan-studio-link", "nyan-lottery-link", "nyan-fortune-link", "nyan-awards-link", "nyan-last-message-link"].includes(target) ? false : hide;
+      const unavailable = ["nyan-studio-link", "nyan-lottery-link", "nyan-fortune-link"].includes(target) ? false : hide;
       if (homeButton.hidden !== Boolean(unavailable)) homeButton.hidden = Boolean(unavailable);
     }
 
