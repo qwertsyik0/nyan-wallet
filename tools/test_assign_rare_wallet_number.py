@@ -123,5 +123,37 @@ console.log(String(l%1000000).padStart(6,"0")+String(r%1000000).padStart(6,"0"))
             actual = subprocess.check_output(["node", "-e", code, str(uid)], text=True).strip()
             self.assertEqual(rare.generated_number(uid), actual)
 
+
+class HealthProbeTest(unittest.TestCase):
+    def test_slow_startup_waits_and_ignores_proxy_environment(self):
+        import io
+        from unittest.mock import Mock, patch
+        clock = [0.0]
+        opener = Mock()
+        def open_response(*args, **kwargs):
+            if clock[0] < 35:
+                raise rare.urllib.error.URLError("not started")
+            return io.StringIO('{"ok":true}')
+        opener.open.side_effect = open_response
+        with patch.object(rare.urllib.request, "build_opener", return_value=opener) as builder, \
+             patch.object(rare.time, "monotonic", side_effect=lambda: clock[0]), \
+             patch.object(rare.time, "sleep", side_effect=lambda seconds: clock.__setitem__(0, clock[0] + seconds)), \
+             patch("builtins.print"):
+            rare.health()
+        self.assertGreaterEqual(clock[0], 35)
+        self.assertEqual(builder.call_args.args[0].proxies, {})
+
+    def test_failed_probe_reports_last_http_status(self):
+        from unittest.mock import Mock, patch
+        clock = [0.0]
+        opener = Mock()
+        opener.open.side_effect = rare.urllib.error.HTTPError("http://127.0.0.1:8000/api/health", 503, "busy", {}, None)
+        with patch.object(rare.urllib.request, "build_opener", return_value=opener), \
+             patch.object(rare.time, "monotonic", side_effect=lambda: clock[0]), \
+             patch.object(rare.time, "sleep", side_effect=lambda seconds: clock.__setitem__(0, clock[0] + seconds)):
+            with self.assertRaisesRegex(RuntimeError, "HTTP 503"):
+                rare.health(timeout=2)
+
+
 if __name__ == "__main__":
     unittest.main()

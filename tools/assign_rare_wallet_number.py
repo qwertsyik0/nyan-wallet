@@ -173,16 +173,31 @@ def service_value(name):
         ["systemctl", "show", "nyan-wallet", "-p", name, "--value"], text=True).strip()
 
 
-def health():
-    for _ in range(15):
+def health(timeout=120):
+    # A local readiness probe must not follow HTTP_PROXY from the SSH shell.
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    started = time.monotonic()
+    deadline = started + timeout
+    next_message = started + 10
+    last = "соединение ещё не установлено"
+    while time.monotonic() < deadline:
         try:
-            with urllib.request.urlopen("http://127.0.0.1:8000/api/health", timeout=3) as response:
-                if json.load(response).get("ok"):
-                    return
+            with opener.open("http://127.0.0.1:8000/api/health", timeout=3) as response:
+                data = json.load(response)
+            if isinstance(data, dict) and data.get("ok") is True:
+                return
+            last = "API ответил, но не подтвердил готовность"
+        except urllib.error.HTTPError as error:
+            last = f"HTTP {error.code}"
+        except urllib.error.URLError as error:
+            last = "нет соединения с локальным API"
         except (OSError, ValueError):
-            pass
+            last = "локальный API ещё не готов к ответу"
+        if time.monotonic() >= next_message:
+            print(f"Ожидаем запуск API: {int(time.monotonic() - started)} с. {last}", flush=True)
+            next_message = time.monotonic() + 10
         time.sleep(1)
-    raise RuntimeError("API не прошёл проверку запуска")
+    raise RuntimeError(f"API не подтвердил готовность за {timeout} с: {last}")
 
 
 def main():
@@ -222,6 +237,7 @@ def main():
         if url.startswith(prefix):
             url = url.replace(prefix, "postgresql+psycopg://", 1)
             break
+    health()  # Verify the original API before changing files or restarting it.
     before = core_path.read_bytes()
     after = patch_core(before.decode()).encode()
     if after != before:
@@ -232,10 +248,16 @@ def main():
             replace_atomic(core_path, after)
             subprocess.run(["systemctl", "restart", "nyan-wallet"], check=True)
             health()
-        except BaseException:
+        except BaseException as original_error:
             replace_atomic(core_path, before)
             subprocess.run(["systemctl", "restart", "nyan-wallet"], check=False)
-            raise
+            print("Изменение кода отменено. Проверяем запуск прежней версии", flush=True)
+            try:
+                health()
+                print("Прежняя версия API работает", flush=True)
+            except Exception:
+                print("Прежняя версия пока не подтвердила готовность; нужен журнал systemd", file=sys.stderr)
+            raise original_error
         print("Код API обновлён. Копия:", backup)
     else:
         health()
