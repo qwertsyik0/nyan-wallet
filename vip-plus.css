@@ -61,8 +61,48 @@
 .nyan-vip-plus-field textarea{min-height:67px;resize:vertical}
 .nyan-vip-plus-admin-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:10px 0}
 
-/* VIP background overrides only the wallet balance card, after the user opts in. */
-.nyan-vip-exclusive-skin #wallet-card,.nyan-vip-exclusive-skin #wallet-view .balance-card{background-image:url('./assets/vip/02_vip_background_9x16.png')!important;background-size:cover!important;background-position:center center!important}
+/* Server-verified VIP entitlement automatically decorates the MAIN wallet
+   card. Other owned skins stay intact underneath, and return after VIP ends. */
+.nyan-vip-exclusive-skin #wallet-card{
+  background-image:url('./assets/vip/02_vip_background_9x16.png')!important;
+  background-size:cover!important;
+  background-position:center center!important;
+  background-color:#ffeaf3!important;
+  border-color:#efb7d4!important;
+}
+.nyan-vip-exclusive-skin #wallet-card :is(
+  .wallet-card-name,.wallet-card-type,.wallet-status,.balance,.balance-label,
+  .currency-name,.wallet-detail-label,.wallet-number,.wallet-holder
+){color:#762a50!important;text-shadow:none!important}
+#nyan-vip-open .nyan-vip-entry-img{object-fit:contain}
+#wallet-card.nyan-vip-wallet-active .wallet-card-mark{
+  font-size:0!important;
+  border-color:rgba(217,136,177,.55);
+  background:rgba(255,255,255,.82) url('./assets/vip/07_vip_paw_icon.png') center/34px 34px no-repeat!important;
+}
+#wallet-card.nyan-vip-wallet-active .wallet-card-name{
+  display:flex;align-items:center;gap:5px;white-space:nowrap;
+}
+#wallet-card.nyan-vip-wallet-active .wallet-card-name::after{
+  content:"";display:inline-block;flex:none;width:23px;height:23px;
+  background:url('./assets/vip/08_vip_medallion.png') center/contain no-repeat;
+}
+.nyan-vip-plus-auto-state{font-size:11px;line-height:1.5;color:#895073;margin:10px 2px 0}
+.nyan-vip-owned-skin .appeal-skin-preview{
+  background-image:url('./assets/vip/02_vip_background_9x16.png');
+  background-color:#ffeaf3;background-position:center;background-size:cover;
+  background-repeat:no-repeat;
+}
+.nyan-vip-owned-skin .appeal-skin-title::before{
+  content:"";display:inline-block;vertical-align:-5px;width:23px;height:23px;margin-right:5px;
+  background:url('./assets/vip/08_vip_medallion.png') center/contain no-repeat;
+}
+@media(max-width:380px){
+  #wallet-card.nyan-vip-wallet-active .wallet-card-name{font-size:14px;gap:3px}
+  #wallet-card.nyan-vip-wallet-active .wallet-card-name::after{width:18px;height:18px}
+  #wallet-card.nyan-vip-wallet-active .wallet-card-mark{background-size:29px 29px!important}
+  #wallet-card.nyan-vip-wallet-active .wallet-status{max-width:86px}
+}
 
 /* Full frame fits within the Nyan ID card instead of being clipped off-screen. */
 .nyid-card.nyid-vip-active{border:2px solid #d991b5;box-shadow:0 0 0 2px #ffe5f1,0 15px 35px rgba(144,49,92,.16)}

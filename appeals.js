@@ -570,6 +570,37 @@
         }
     }
 
+    // VIP is a virtual owned design, unlocked by the authenticated subscription.
+    // It does not overwrite the user's permanent custom skins in the database.
+    function syncVipSkinCard() {
+        const box = document.getElementById("appeal-my-skins");
+        if (!box) return;
+        const active = document.documentElement.classList.contains("nyan-vip-active");
+        const installed = document.documentElement.classList.contains("nyan-vip-exclusive-skin");
+        let card = document.getElementById("nyan-vip-owned-skin");
+        if (!active) { card?.remove(); return; }
+        box.querySelector(".appeal-empty")?.remove();
+        if (!card) {
+            card = document.createElement("article");
+            card.id = "nyan-vip-owned-skin";
+            card.className = "appeal-skin nyan-vip-owned-skin";
+            card.innerHTML = '<div class="appeal-skin-preview"></div>' +
+                '<div class="appeal-skin-body"><div class="appeal-skin-title">Nyan VIP</div>' +
+                '<div class="appeal-skin-meta"></div><button type="button"></button></div>';
+            card.querySelector("button")?.addEventListener("click", () => {
+                window.dispatchEvent(new Event("nyan:vip-skin-selected"));
+            });
+            box.prepend(card);
+        }
+        const meta = card.querySelector(".appeal-skin-meta");
+        const button = card.querySelector("button");
+        if (meta) meta.textContent = installed ? "VIP фон установлен" : "Доступен по подписке";
+        if (button) {
+            button.disabled = installed;
+            button.textContent = installed ? "Установлен" : "Установить";
+        }
+    }
+
     async function loadMySkins(render = false) {
         if (!tg?.initData) return;
         const box = document.getElementById("appeal-my-skins");
@@ -580,26 +611,37 @@
             if (!render || !box) return;
             if (!data.skins?.length) {
                 box.innerHTML = '<div class="appeal-empty">У вас пока нет дополнительных дизайнов.</div>';
+                syncVipSkinCard();
                 return;
             }
             box.innerHTML = "";
+            const vipInstalled = document.documentElement.classList.contains("nyan-vip-exclusive-skin");
+            const defaultInstalled = !active && !vipInstalled;
             const defaultCard = document.createElement("article");
             defaultCard.className = "appeal-skin";
             defaultCard.innerHTML =
                 '<div class="appeal-skin-preview" style="background:linear-gradient(145deg,#fffdfd,#fff0f6 52%,#f9dce9)"></div>' +
                 '<div class="appeal-skin-body"><div class="appeal-skin-title">Стандартный Nyan Wallet</div>' +
-                '<div class="appeal-skin-meta">' + (active ? "Можно вернуть в любой момент" : "Установлен сейчас") + '</div>' +
-                '<button type="button" ' + (!active ? "disabled" : "") + '>' + (!active ? "Установлен" : "Вернуть") + '</button></div>';
-            defaultCard.querySelector("button")?.addEventListener("click", activateDefaultSkin);
+                '<div class="appeal-skin-meta">' + (defaultInstalled ? "Установлен сейчас" : "Можно вернуть в любой момент") + '</div>' +
+                '<button type="button" ' + (defaultInstalled ? "disabled" : "") + '>' + (defaultInstalled ? "Установлен" : "Вернуть") + '</button></div>';
+            defaultCard.querySelector("button")?.addEventListener("click", () => {
+                if (!active && vipInstalled) {
+                    window.dispatchEvent(new Event("nyan:wallet-skin-selected"));
+                    loadMySkins(true);
+                } else {
+                    activateDefaultSkin();
+                }
+            });
             box.appendChild(defaultCard);
             for (const skin of data.skins) {
+                const visuallyActive = skin.active && !vipInstalled;
                 const card = document.createElement("article");
                 card.className = "appeal-skin";
                 card.innerHTML =
                     '<div class="appeal-skin-preview"></div>' +
                     '<div class="appeal-skin-body"><div class="appeal-skin-title">' + esc(skin.title) + '</div>' +
-                    '<div class="appeal-skin-meta">' + (skin.active ? "Установлен сейчас" : "Доступен") + '</div>' +
-                    '<button type="button" ' + (skin.active ? "disabled" : "") + '>' + (skin.active ? "Установлен" : "Установить") + '</button></div>';
+                    '<div class="appeal-skin-meta">' + (visuallyActive ? "Установлен сейчас" : (skin.active ? "Сохранённый дизайн" : "Доступен")) + '</div>' +
+                    '<button type="button" ' + (visuallyActive ? "disabled" : "") + '>' + (visuallyActive ? "Установлен" : "Установить") + '</button></div>';
                 box.appendChild(card);
                 const glitchMode = cssGlitchMode(skin);
                 if (glitchMode) {
@@ -618,8 +660,18 @@
                         if (preview) preview.style.backgroundImage = 'url("' + url + '")';
                     }).catch(() => {});
                 }
-                card.querySelector("button")?.addEventListener("click", () => activateSkin(skin.id));
+                card.querySelector("button")?.addEventListener("click", () => {
+                    if (skin.active && vipInstalled) {
+                        // This skin is already selected on the server, just
+                        // reveal it by disabling the VIP visual override.
+                        window.dispatchEvent(new Event("nyan:wallet-skin-selected"));
+                        loadMySkins(true);
+                    } else {
+                        activateSkin(skin.id);
+                    }
+                });
             }
+            syncVipSkinCard();
         } catch (error) {
             if (render && box) box.innerHTML = '<div class="appeal-error">' + esc(error.message) + '</div>';
         }
@@ -632,6 +684,7 @@
                 headers: headers(true),
             });
             tg?.HapticFeedback?.notificationOccurred?.("success");
+            window.dispatchEvent(new Event("nyan:wallet-skin-selected"));
             await loadMySkins(true);
         } catch (error) {
             alert(error.message);
@@ -645,6 +698,7 @@
                 headers: headers(true),
             });
             tg?.HapticFeedback?.notificationOccurred?.("success");
+            window.dispatchEvent(new Event("nyan:wallet-skin-selected"));
             await loadMySkins(true);
         } catch (error) {
             alert(error.message);
@@ -1117,6 +1171,8 @@
             await openAppeals();
         }
     }
+
+    window.addEventListener("nyan:vip-appearance", syncVipSkinCard);
 
     window.addEventListener("beforeunload", () => {
         for (const url of skinObjectUrls.values()) URL.revokeObjectURL(url);
