@@ -57,4 +57,34 @@ except RuntimeError as error:
 else:
     raise AssertionError("A genuine local conflict must be rejected")
 
+
+# VPS index often has newer Nyan ID cache versions and extra local scripts.
+local_html = (
+    '<head>\n'
+    '  <link rel="stylesheet" href="./nyan_id.css?v=20261115-custom">\n'
+    '  <link rel="stylesheet" href="./local-only.css">\n'
+    '</head>\n'
+    '<body>\n'
+    '<script src="./nyan_id.js?v=20261119-local"></script>\n'
+    '<script src="./local-confessions.js"></script>\n'
+    '</body>\n'
+).encode()
+merged_html = module._merge_index_semantically(local_html)
+assert b"local-only.css" in merged_html and b"local-confessions.js" in merged_html
+assert merged_html.count(b'vip.js?v=') == 1
+assert merged_html.count(b'vip.css?v=') == 1
+assert b"nyan_id.js?v=20261122-vip2" in merged_html
+assert module._merge_index_semantically(merged_html) == merged_html
+
+vip_css = (
+    b".old-styles{color:red}\n"
+    b"/* Paid VIP is independent from the lifetime-earned rank. */\n"
+    b".nyid-card.nyid-vip-active{border:2px solid pink}\n"
+)
+custom_css = b".old-styles{color:blue}\n.my-local-class{color:green}\n"
+merged_css = module._merge_nyan_id_css_semantically(custom_css, vip_css)
+assert b".my-local-class{color:green}" in merged_css
+assert b".nyid-card.nyid-vip-active" in merged_css
+assert module._merge_nyan_id_css_semantically(merged_css, vip_css) == merged_css
+
 print("VIP installer semantic merge, preservation and conflict protection: OK")
