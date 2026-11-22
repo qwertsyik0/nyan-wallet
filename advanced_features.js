@@ -278,8 +278,8 @@ async function buyAdvReward(reward) {
     try {
         const headers = advHeaders(true);
         const vipKey = reward.is_vip_subscription ? window.NyanVipPurchaseKey?.get(reward.id) : null;
-        if (vipKey) headers["X-VIP-Purchase-Key"] = vipKey;
-        const r = await fetch(`${API_ADV}/api/rewards/${reward.id}/request`, { method: "POST", headers });
+        const vipQuery = vipKey ? `?vip_purchase_key=${encodeURIComponent(vipKey)}` : "";
+        const r = await fetch(`${API_ADV}/api/rewards/${reward.id}/request${vipQuery}`, { method: "POST", headers });
         const d = await advJson(r);
         if (!r.ok) throw new Error(d.detail || "Не удалось создать заявку");
         if (vipKey && d.request?.status === "fulfilled") window.NyanVipPurchaseKey?.clear(reward.id);
