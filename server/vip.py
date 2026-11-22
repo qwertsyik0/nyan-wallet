@@ -91,7 +91,7 @@ def aware(value: datetime) -> datetime:
 def is_vip_reward(title: str | None) -> bool:
     """Only the established 'Статус «VIP» на 30 дней' catalog item."""
     normalized = re.sub(r"[«»\"'’]", "", str(title or "").casefold())
-    return " ".join(normalized.split()) == "статус vip на 30 дней"
+    return " ".join(normalized.split()) in {"статус vip на 30 дней", "vip на 30 дней", "подписка vip на 30 дней"}
 
 
 def _latest_end(session, telegram_id: int) -> datetime | None:
