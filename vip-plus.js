@@ -6,9 +6,11 @@
   const tg = window.Telegram?.WebApp;
   const API = 'https://nyan-wallet-bridge.qwertsyik.workers.dev';
   const ASSETS = './assets/vip/';
-  const SKIN_KEY = 'nyan-vip-exclusive-wallpaper';
+  const SKIN_KEY = 'nyan-vip-exclusive-wallpaper-v2';
   let lastState = null;
   let loading = false;
+  let refreshQueued = false;
+  let benefitsEndpointAvailable = null;
   const $ = id => document.getElementById(id);
   const asset = name => ASSETS + name;
   const image = (name, alt, className = '') => {
@@ -42,30 +44,57 @@
       body: body === null ? undefined : JSON.stringify(body),
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.ok) throw new Error(data.detail || 'Не удалось получить VIP данные');
+    if (!response.ok || !data.ok) {
+      const error = new Error(response.status === 404
+        ? 'Дополнительные возможности VIP пока не подключены'
+        : (typeof data.detail === 'string' ? data.detail : 'Не удалось получить VIP данные'));
+      error.status = response.status;
+      throw error;
+    }
     return data;
   }
-  function enabledSkin() { try { return localStorage.getItem(SKIN_KEY) === '1'; } catch { return false; } }
-  function saveSkin(enabled) { try { localStorage.setItem(SKIN_KEY, enabled ? '1' : '0'); } catch {} }
+  // New subscriptions start with the VIP background enabled. Users can still
+  // switch to one of their previous skins without losing the VIP emblem.
+  function enabledSkin() { try { return localStorage.getItem(SKIN_KEY) !== '0'; } catch { return true; } }
+  function saveSkin(enabled) { try { localStorage.setItem(SKIN_KEY, enabled ? '1' : '0'); } catch (_) {} }
   function applySkin() {
-    document.documentElement.classList.toggle('nyan-vip-exclusive-skin', Boolean(lastState?.active && enabledSkin()));
+    const active = lastState?.active === true;
+    const installed = active && enabledSkin();
+    document.documentElement.classList.toggle('nyan-vip-active', active);
+    document.documentElement.classList.toggle('nyan-vip-exclusive-skin', installed);
+    const card = $('wallet-card');
+    card?.classList.toggle('nyan-vip-wallet-active', active);
+    const mark = card?.querySelector('.wallet-card-mark');
+    if (mark) {
+      if (active) mark.setAttribute('aria-label', 'Значок Nyan VIP');
+      else mark.removeAttribute('aria-label');
+    }
     const button = $('nyan-vip-skin-toggle');
     if (button) {
-      button.disabled = !lastState?.active;
-      button.textContent = !lastState?.active ? 'Доступно после активации VIP' :
-        enabledSkin() ? 'Убрать VIP фон кошелька' : 'Применить VIP фон кошелька';
+      button.disabled = !active;
+      button.textContent = !active ? 'VIP фон появится после покупки' :
+        installed ? 'Вернуть прежний фон' : 'Установить VIP фон';
     }
+    const note = $('nyan-vip-auto-state');
+    if (note) note.textContent = !active
+      ? 'После покупки VIP фон и значок будут установлены автоматически.'
+      : installed
+        ? 'VIP фон и значок уже установлены на карточку Nyan Wallet.'
+        : 'VIP значок активен. При желании можно вернуть VIP фон.';
+    window.dispatchEvent(new CustomEvent('nyan:vip-appearance', {
+      detail: { active, installed }
+    }));
   }
   const PERKS = [
     { img: '09_vip_30days_promo.png', title: '30 дней VIP', desc: '30 дней с возможностью продления' },
-    { img: '08_vip_medallion.png', title: 'VIP значок', desc: 'Отображается в Nyan ID' },
+    { img: '08_vip_medallion.png', title: 'VIP значок', desc: 'На карточке Wallet и в Nyan ID' },
     { img: '11_vip_profile_frame.png', title: 'Рамка Nyan ID', desc: 'Эксклюзивное оформление профиля' },
     { img: '10_vip_priority_support.png', title: 'Приоритет обращений', desc: 'Ваши заявки поднимаются выше в очереди Nyan Wallet' },
     { img: '16_vip_cashback.png', title: 'Кэшбэк 8%', desc: 'Вместо обычных 5% за подтверждённые покупки Nyan Shop' },
     { img: '12_vip_gift.png', title: 'Подарки', desc: 'Выдаёт администрация вручную' },
     { img: '15_vip_raffle.png', title: 'VIP розыгрыши', desc: 'Допуск выдаёт администрация вручную' },
     { img: '13_vip_early_access.png', title: 'Ранний доступ', desc: 'Анонсы и материалы для активных VIP' },
-    { img: '14_vip_wallet_customization.png', title: 'VIP оформление', desc: 'Эксклюзивный фон кошелька' },
+    { img: '14_vip_wallet_customization.png', title: 'VIP оформление', desc: 'Сразу устанавливается после покупки' },
   ];
   function addSection(root) {
     const banner = image('01_vip_hero_banner.png', 'Nyan VIP: Няник и Мишня', 'nyan-vip-plus-banner');
@@ -97,14 +126,14 @@
     section.append(subtitle, grid);
 
     const controls = elem('div', 'nyan-vip-plus-controls');
-    const toggle = elem('button', 'nyan-vip-plus-button', 'VIP фон кошелька');
+    const toggle = elem('button', 'nyan-vip-plus-button', 'VIP оформление');
     toggle.id = 'nyan-vip-skin-toggle';
     toggle.type = 'button';
     toggle.addEventListener('click', () => {
       if (!lastState?.active) return;
       saveSkin(!enabledSkin());
       applySkin();
-      notice(enabledSkin() ? 'VIP оформление включено' : 'Возвращён ваш обычный фон кошелька');
+      notice(enabledSkin() ? 'VIP фон установлен на карточку' : 'Возвращён ваш прежний фон кошелька');
     });
     const appeal = elem('button', 'nyan-vip-plus-button secondary', 'Перейти к обращениям');
     appeal.type = 'button';
@@ -115,6 +144,8 @@
       else notice('Раздел обращений пока не загружен. Открой его с главного экрана.', true);
     });
     controls.append(toggle, appeal);
+    const appearanceNote = elem('p', 'nyan-vip-plus-auto-state', 'VIP фон и значок устанавливаются автоматически.');
+    appearanceNote.id = 'nyan-vip-auto-state';
     const ownerNote = elem('p', 'nyan-vip-plus-hint', 'Подарки и места в VIP розыгрышах назначаются администрацией отдельно.');
     const access = elem('section', 'nyan-vip-plus-access');
     access.id = 'nyan-vip-plus-access';
@@ -123,7 +154,7 @@
     const message = elem('div', 'nyan-vip-plus-notice');
     message.id = 'nyan-vip-plus-notice';
     message.setAttribute('role', 'status');
-    section.append(controls, ownerNote, access, grants, message);
+    section.append(controls, appearanceNote, ownerNote, access, grants, message);
 
     if (original) {
       original.hidden = true;
@@ -258,21 +289,51 @@
     }
   }
   async function refresh() {
-    if (loading || !tg?.initData) return;
+    if (!tg?.initData) return;
+    if (loading) { refreshQueued = true; return; }
     loading = true;
     try {
-      const data = await request('/api/vip/benefits');
-      renderBenefits(data);
+      // The existing, production VIP endpoint is authoritative for paid status.
+      // Extra benefits may still be absent on a separately deployed VPS.
+      const status = await request('/api/vip/status');
+      lastState = { active: status.active === true };
+      applySkin();
+
+      let extras = null;
+      if (benefitsEndpointAvailable !== false) {
+        try {
+          extras = await request('/api/vip/benefits');
+          benefitsEndpointAvailable = true;
+        } catch (error) {
+          if (error.status === 404) benefitsEndpointAvailable = false;
+          // Keep cosmetics working even if an optional benefit is unavailable.
+        }
+      }
+      renderBenefits(extras
+        ? { ...extras, active: status.active === true }
+        : { active: status.active === true, is_owner: false,
+            manual_gifts: [], raffle_entries: [], early_access: null });
+      if (!extras) {
+        if ($('nyan-vip-plus-access')) $('nyan-vip-plus-access').hidden = true;
+        if ($('nyan-vip-plus-grants')) $('nyan-vip-plus-grants').hidden = true;
+        if ($('nyan-vip-plus-admin')) $('nyan-vip-plus-admin').hidden = true;
+      }
       notice('');
-    } catch (err) {
-      // Fail closed: no cosmetic privileges without verified server state.
+    } catch (error) {
+      // No cached entitlement may unlock a paid appearance.
       lastState = null;
       applySkin();
       if ($('nyan-vip-plus-access')) $('nyan-vip-plus-access').hidden = true;
       if ($('nyan-vip-plus-grants')) $('nyan-vip-plus-grants').hidden = true;
       if ($('nyan-vip-plus-admin')) $('nyan-vip-plus-admin').hidden = true;
-      if ($('nyan-vip-plus')) notice(err.message || 'Проверка VIP недоступна', true);
-    } finally { loading = false; }
+      if ($('nyan-vip-plus')) notice('Не удалось проверить подписку. Откройте VIP ещё раз.', true);
+    } finally {
+      loading = false;
+      if (refreshQueued) {
+        refreshQueued = false;
+        queueMicrotask(refresh);
+      }
+    }
   }
   function enhance() {
     const overlay = $('nyan-vip-overlay');
@@ -296,7 +357,20 @@
     entryObserver.observe(document.body, {childList:true, subtree:true});
     enhance();
     refresh();
-    window.addEventListener('nyan:vip-updated', refresh);
+    // Both the VIP popup and the rewards catalog emit this after payment.
+    window.addEventListener('nyan:vip-updated', () => {
+      saveSkin(true);
+      refresh();
+    });
+    window.addEventListener('nyan:wallet-skin-selected', () => {
+      saveSkin(false);
+      applySkin();
+    });
+    window.addEventListener('nyan:vip-skin-selected', () => {
+      if (!lastState?.active) return;
+      saveSkin(true);
+      applySkin();
+    });
     document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, {once:true});
