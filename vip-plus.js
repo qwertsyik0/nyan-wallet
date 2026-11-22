@@ -72,6 +72,14 @@
     const heading = root.querySelector('.nyan-vip-head');
     heading?.insertAdjacentElement('afterend', banner);
 
+    // Keep the existing purchase action visible without scrolling through all perks.
+    const status = root.querySelector('#nyan-vip-state');
+    const buyButton = root.querySelector('#nyan-vip-buy');
+    const buyMessage = root.querySelector('#nyan-vip-message');
+    if (status && buyButton) {
+      status.insertAdjacentElement('afterend', buyButton);
+      if (buyMessage) buyButton.insertAdjacentElement('afterend', buyMessage);
+    }
     const original = root.querySelector('.nyan-vip-perks');
     const section = elem('section', 'nyan-vip-plus');
     section.id = 'nyan-vip-plus';
@@ -221,6 +229,7 @@
       : 'Активируется с VIP, стандартный кэшбэк 5%';
     const access = $('nyan-vip-plus-access');
     if (access) {
+      access.hidden = !data.active && !data.is_owner;
       access.replaceChildren();
       access.append(elem('h4', '', 'Ранний доступ'));
       if (data.early_access) {
@@ -237,9 +246,10 @@
     }
     const grants = $('nyan-vip-plus-grants');
     if (grants) {
+      const items = [...(data.manual_gifts || []), ...(data.raffle_entries || [])];
+      grants.hidden = !data.active && !data.is_owner && !items.length;
       grants.replaceChildren();
       grants.append(elem('h4', '', 'Мои VIP подарки и розыгрыши'));
-      const items = [...(data.manual_gifts || []), ...(data.raffle_entries || [])];
       if (!items.length) grants.append(elem('p', '', 'Администрация пока не выдавала подарков или допусков.'));
       else for (const item of items) {
         grants.append(elem('div', 'nyan-vip-plus-grant', (item.kind === 'gift' ? 'Подарок: ' : 'Розыгрыш: ') +
@@ -258,6 +268,9 @@
       // Fail closed: no cosmetic privileges without verified server state.
       lastState = null;
       applySkin();
+      if ($('nyan-vip-plus-access')) $('nyan-vip-plus-access').hidden = true;
+      if ($('nyan-vip-plus-grants')) $('nyan-vip-plus-grants').hidden = true;
+      if ($('nyan-vip-plus-admin')) $('nyan-vip-plus-admin').hidden = true;
       if ($('nyan-vip-plus')) notice(err.message || 'Проверка VIP недоступна', true);
     } finally { loading = false; }
   }
