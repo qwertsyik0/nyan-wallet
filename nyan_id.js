@@ -533,9 +533,10 @@
     if (identity?.vip?.active) {
       // Export the ORIGINAL VIP status asset on the shared Nyan ID PNG.
       const logo = new Image();
-      logo.src = "./assets/vip/04_vip_small_label.png";
+      logo.src = "./assets/vip/08_vip_medallion.png";
       try { await logo.decode(); } catch (_) {}
-      if (logo.naturalWidth) canvas.getContext("2d")?.drawImage(logo, 996, 150, 100, 58);
+      // Transparent medallion avoids a rectangular pink patch in shared PNGs.
+      if (logo.naturalWidth) canvas.getContext("2d")?.drawImage(logo, 1010, 151, 88, 88);
     }
     return await new Promise((resolve, reject) => {
       canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Не удалось сформировать PNG.")), "image/png");
