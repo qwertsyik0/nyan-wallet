@@ -1,49 +1,78 @@
-/* Original Nyan VIP PNG pack, used as assets, not recreated UI graphics. */
-.nyan-vip-entry-img{display:block;width:48px;height:48px;object-fit:contain}
-.nyan-vip-symbol:has(.nyan-vip-entry-img){width:50px;height:50px;background:transparent}
-.nyan-vip-dialog{padding:15px 14px calc(17px + env(safe-area-inset-bottom,0px));background:linear-gradient(180deg,#fff9fc,#fff2f8 62%,#fffafd)}
-.nyan-vip-plus-banner{display:block;width:100%;height:auto;max-height:160px;object-fit:cover;object-position:center;border-radius:18px;border:1px solid #f3cadf;margin:0 0 12px}
+/* Nyan VIP • tidy, compact and unclipped presentation of the original PNG kit. */
+.nyan-vip-entry{box-sizing:border-box;min-width:0;min-height:73px;padding:11px 13px;gap:11px}
+.nyan-vip-symbol:has(.nyan-vip-entry-img){width:49px;height:49px;flex:none;border-radius:50%;background:#ffe6f0;overflow:hidden;box-shadow:0 2px 8px rgba(130,43,83,.1)}
+.nyan-vip-entry-img{display:block;width:100%;height:100%;object-fit:cover;border-radius:50%}
+.nyan-vip-copy{min-width:0;flex:1}
+.nyan-vip-copy strong{font-size:15px;line-height:1.25}
+.nyan-vip-copy small{font-size:11px;line-height:1.35;white-space:normal;overflow-wrap:anywhere}
+#nyan-vip-open .nyan-vip-chevron{display:block;flex:none;background:none;color:#ac6085;font-size:25px;font-weight:400;line-height:1;width:auto;height:auto}
+
+.nyan-vip-overlay{box-sizing:border-box;padding:10px}
+.nyan-vip-dialog{box-sizing:border-box;position:relative;width:min(100%,480px);max-height:min(94dvh,920px);max-height:min(94svh,920px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding:17px 15px calc(22px + env(safe-area-inset-bottom,0px));border:1px solid #f1d8e5;border-radius:25px 25px 19px 19px;background:linear-gradient(180deg,#fffafd 0%,#fff7fb 64%,#fffafd 100%);color:#743253;box-shadow:0 24px 70px rgba(45,12,31,.22);scrollbar-width:thin;scrollbar-color:#e7bfd2 transparent}
+.nyan-vip-head{align-items:center;gap:12px;margin:0 0 13px}
+.nyan-vip-head h2{margin:3px 0 0;font-size:23px;line-height:1.13;letter-spacing:-.035em;color:#802e56}
+.nyan-vip-kicker{font-size:9px;letter-spacing:.11em}
+.nyan-vip-close{width:37px;height:37px;border-radius:13px;font-size:23px}
+.nyan-vip-plus-banner{display:block;box-sizing:border-box;width:100%;height:auto;max-height:none;aspect-ratio:1378/439;object-fit:contain;object-position:center;border:1px solid #f3d1e3;border-radius:16px;margin:0 0 12px;background:#ffedf5}
+.nyan-vip-state{padding:13px 14px;border:1px solid #eed4e1;border-radius:16px;background:#fff;gap:5px}
+.nyan-vip-state.active{background:#fff0f7;border-color:#e8bcd4}
+.nyan-vip-state strong{font-size:14px;line-height:1.35}
+.nyan-vip-state span{font-size:11.5px;line-height:1.5;overflow-wrap:anywhere}
+.nyan-vip-buy{margin-top:10px;min-height:47px;padding:12px;border:0;border-radius:14px;background:#9d3869;color:#fff;font-size:13px;font-weight:850;line-height:1.4;box-shadow:0 4px 12px rgba(131,46,84,.13)}
+.nyan-vip-buy:disabled{box-shadow:none}
+.nyan-vip-message{margin:7px 0 0;min-height:0;font-size:11px;line-height:1.5}
 .nyan-vip-perks[hidden]{display:none!important}
-.nyan-vip-plus{margin:12px 0 15px}
-.nyan-vip-plus-title{font-size:14px;line-height:1.35;font-weight:900;color:#7d2d57;margin:0 0 10px}
-.nyan-vip-plus-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
-.nyan-vip-plus-card{min-width:0;display:flex;align-items:center;gap:8px;min-height:83px;box-sizing:border-box;padding:9px;border:1px solid #f1d5e4;background:rgba(255,255,255,.84);border-radius:17px;box-shadow:0 4px 12px rgba(137,39,82,.04)}
-.nyan-vip-plus-icon{width:55px;height:55px;max-width:40%;flex:none;object-fit:contain}
-.nyan-vip-plus-card-copy{min-width:0;display:flex;flex-direction:column;gap:4px;line-height:1.25}
-.nyan-vip-plus-card-copy strong{color:#883b64;font-weight:850;font-size:11px}
-.nyan-vip-plus-card-copy span{color:#a1758c;font-size:9px;line-height:1.45}
-.nyan-vip-plus-controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px}
-.nyan-vip-plus-button{display:block;width:100%;min-height:42px;box-sizing:border-box;background:#953a69;color:#fff;padding:10px 8px;border:none;border-radius:13px;font-size:11px;line-height:1.35;font-weight:800;cursor:pointer}
-.nyan-vip-plus-button.secondary{background:#fff;color:#883b64;border:1px solid #e9bfd5}
-.nyan-vip-plus-button:disabled{opacity:.5;cursor:default}
-.nyan-vip-plus-hint{margin:12px 1px;color:#aa7892;font-size:10px;line-height:1.5}
-.nyan-vip-plus-access,.nyan-vip-plus-grants{border:1px solid #efcfdf;background:rgba(255,255,255,.83);border-radius:15px;padding:12px;margin-top:9px}
-.nyan-vip-plus-access h4,.nyan-vip-plus-grants h4{font-size:11px;color:#853b64;margin:0 0 7px;font-weight:850}
-.nyan-vip-plus-access strong{font-size:11px;color:#843a60}
-.nyan-vip-plus-access p,.nyan-vip-plus-grants p{font-size:10px;line-height:1.5;color:#a07289;margin:5px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
-.nyan-vip-plus-preview-link{display:inline-flex;padding:8px 12px;margin-top:8px;border-radius:11px;background:#a34270;color:#fff;text-decoration:none;font-size:10px;font-weight:750}
-.nyan-vip-plus-grant{font-size:10px;color:#843958;padding:7px 0;border-top:1px solid #f4dbe8}
-.nyan-vip-plus-notice{min-height:0;margin:8px 0 0;color:#7d3b60;font-size:10px;line-height:1.45;text-align:center}
-.nyan-vip-plus-notice[data-error="true"]{color:#ae2455}
-.nyan-vip-plus-admin{margin-top:15px;padding:13px;border:1px solid #e6bbd2;background:#fff7fb;border-radius:16px}
-.nyan-vip-plus-admin[hidden]{display:none!important}
-.nyan-vip-plus-admin summary{font-weight:850;font-size:12px;color:#7f3159;cursor:pointer}
-.nyan-vip-plus-fields,.nyan-vip-plus-admin-cashback,.nyan-vip-plus-admin-preview{display:grid;gap:8px;margin-top:12px}
-.nyan-vip-plus-admin h4{font-size:11px;color:#84395d;margin:10px 0 2px}
-.nyan-vip-plus-field{display:flex;flex-direction:column;gap:5px}
-.nyan-vip-plus-field span{font-size:10px;font-weight:750;color:#7e4261}
-.nyan-vip-plus-field input,.nyan-vip-plus-field textarea{box-sizing:border-box;width:100%;max-width:100%;border:1px solid #eacddd;border-radius:11px;padding:10px;background:#fff;color:#743453;font:inherit;font-size:12px}
-.nyan-vip-plus-field textarea{min-height:65px;resize:vertical}
-.nyan-vip-plus-admin-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
-.nyan-vip-exclusive-skin #wallet-card,.nyan-vip-exclusive-skin .balance-card{background-image:url('./assets/vip/02_vip_background_9x16.png')!important;background-size:cover!important;background-position:center center!important}
-/* The real original PNG frame and badge are visible only for valid paid VIP. */
-.nyid-card.nyid-vip-active{border:2px solid #d990b4;box-shadow:0 0 0 3px #ffe3f0,0 18px 42px rgba(144,49,92,.20)}
-.nyid-card.nyid-vip-active::before{content:"";pointer-events:none;position:absolute;right:-32px;top:50px;width:140px;height:140px;background:url('./assets/vip/11_vip_profile_frame.png') center/contain no-repeat;opacity:.32;z-index:-1}
-.nyid-card.nyid-vip-active .nyid-edition{padding-left:22px;background-image:url('./assets/vip/06_vip_crown_icon.png');background-repeat:no-repeat;background-size:16px auto;background-position:4px center}
-.nyid-card.nyid-vip-active .nyid-card-foot b{display:inline-flex;align-items:center;gap:4px}
-.nyid-card.nyid-vip-active .nyid-card-foot b::before{content:"";display:inline-block;width:17px;height:17px;background:url('./assets/vip/07_vip_paw_icon.png') center/contain no-repeat;flex:none}
-@media(max-width:380px){.nyan-vip-plus-card{min-height:75px;padding:7px;gap:6px}.nyan-vip-plus-icon{width:44px;height:44px}.nyan-vip-plus-card-copy strong{font-size:10px}.nyan-vip-plus-card-copy span{font-size:9px}}
-@media(min-width:620px){.nyan-vip-plus-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-/* Original CTA image from the supplied kit, still a real button via vip.js. */
-#nyan-vip-open .nyan-vip-chevron{display:block;flex:none;width:94px;height:32px;font-size:0;color:transparent;background:url('./assets/vip/05_vip_open_button.png') center/contain no-repeat}
-@media(max-width:365px){#nyan-vip-open .nyan-vip-chevron{width:75px;height:28px}}
+.nyan-vip-plus{min-width:0;margin:17px 0 0}
+.nyan-vip-plus-title{margin:0 2px 11px;font-size:14px;font-weight:900;line-height:1.3;color:#7d3056}
+.nyan-vip-plus-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:stretch}
+.nyan-vip-plus-card{box-sizing:border-box;display:flex;flex-direction:column;align-items:center;min-width:0;min-height:169px;padding:11px 9px 13px;gap:6px;overflow:hidden;text-align:center;border:1px solid #f0dae5;border-radius:17px;background:#fff;box-shadow:0 4px 13px rgba(132,52,89,.035)}
+.nyan-vip-plus-icon{display:block;flex:none;width:100%;max-width:100%;height:102px;max-height:none;margin:0;object-fit:contain;object-position:center}
+.nyan-vip-plus-card-copy{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;min-width:0;width:100%;gap:4px;overflow-wrap:anywhere;line-height:1.3}
+.nyan-vip-plus-card-copy strong{display:block;width:100%;color:#83365a;font-size:12px;font-weight:850;line-height:1.32}
+.nyan-vip-plus-card-copy span{display:block;width:100%;color:#996f82;font-size:10.5px;line-height:1.4}
+.nyan-vip-plus-card:first-child{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,125px) minmax(0,1fr);align-items:center;gap:13px;min-height:119px;padding:11px 13px;text-align:left}
+.nyan-vip-plus-card:first-child .nyan-vip-plus-icon{height:auto;max-height:117px;aspect-ratio:4/3;object-fit:contain;border-radius:11px}
+.nyan-vip-plus-card:first-child .nyan-vip-plus-card-copy{align-items:flex-start;text-align:left;gap:6px}
+.nyan-vip-plus-card:first-child .nyan-vip-plus-card-copy strong{font-size:13px}
+.nyan-vip-plus-card:first-child .nyan-vip-plus-card-copy span{font-size:11px}
+.nyan-vip-plus-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:13px}
+.nyan-vip-plus-button{box-sizing:border-box;display:flex;justify-content:center;align-items:center;width:100%;min-width:0;min-height:49px;padding:11px 9px;border:1px solid #9b3a68;border-radius:13px;background:#9b3a68;color:#fff;font-size:11.5px;line-height:1.35;font-weight:800;text-align:center;white-space:normal;overflow-wrap:anywhere;cursor:pointer}
+.nyan-vip-plus-button.secondary{background:#fff;color:#873c63;border-color:#ebcbdc}
+.nyan-vip-plus-button:disabled{opacity:.52;cursor:default}
+.nyan-vip-plus-hint{margin:11px 2px 0;color:#9f7289;font-size:10.5px;line-height:1.5}
+.nyan-vip-plus-access,.nyan-vip-plus-grants{box-sizing:border-box;min-width:0;margin-top:10px;padding:13px;border:1px solid #eed5e1;border-radius:15px;background:rgba(255,255,255,.93)}
+.nyan-vip-plus-access[hidden],.nyan-vip-plus-grants[hidden],.nyan-vip-plus-admin[hidden]{display:none!important}
+.nyan-vip-plus-access h4,.nyan-vip-plus-grants h4{margin:0 0 7px;font-size:12px;font-weight:850;color:#85395c}
+.nyan-vip-plus-access strong{font-size:12px;line-height:1.4;color:#833b5d}
+.nyan-vip-plus-access p,.nyan-vip-plus-grants p{margin:5px 0 0;color:#976a82;font-size:11px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+.nyan-vip-plus-grant{padding:8px 0;border-top:1px solid #f1dfe8;color:#85415f;font-size:11px;line-height:1.4;overflow-wrap:anywhere}
+.nyan-vip-plus-preview-link{display:inline-flex;min-height:36px;align-items:center;margin-top:10px;padding:7px 12px;border-radius:11px;background:#9d3869;color:#fff;font-size:11px;font-weight:800;text-decoration:none}
+.nyan-vip-plus-notice{margin:8px 1px 0;min-height:0;text-align:center;color:#8c4668;font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+.nyan-vip-plus-notice[data-error="true"]{color:#aa2553}
+.nyan-vip-footnote{margin:13px 2px 0;color:#9f758a;font-size:10.5px;line-height:1.55}
+
+.nyan-vip-plus-admin{margin-top:14px;padding:13px;border:1px solid #e9c2d5;border-radius:15px;background:#fff7fb}
+.nyan-vip-plus-admin summary{font-size:12px;font-weight:850;color:#823758;cursor:pointer}
+.nyan-vip-plus-fields,.nyan-vip-plus-admin-cashback,.nyan-vip-plus-admin-preview{display:grid;gap:9px;margin-top:13px}
+.nyan-vip-plus-admin h4{margin:12px 0 1px;color:#83395c;font-size:12px}
+.nyan-vip-plus-field{display:flex;flex-direction:column;min-width:0;gap:5px}
+.nyan-vip-plus-field span{font-size:11px;color:#7e4563;font-weight:750}
+.nyan-vip-plus-field input,.nyan-vip-plus-field textarea{box-sizing:border-box;width:100%;max-width:100%;min-width:0;min-height:40px;padding:10px;border:1px solid #e9cfdd;border-radius:11px;background:#fff;color:#713452;font:inherit;font-size:12px}
+.nyan-vip-plus-field textarea{min-height:67px;resize:vertical}
+.nyan-vip-plus-admin-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:10px 0}
+
+/* VIP background overrides only the wallet balance card, after the user opts in. */
+.nyan-vip-exclusive-skin #wallet-card,.nyan-vip-exclusive-skin #wallet-view .balance-card{background-image:url('./assets/vip/02_vip_background_9x16.png')!important;background-size:cover!important;background-position:center center!important}
+
+/* Full frame fits within the Nyan ID card instead of being clipped off-screen. */
+.nyid-card.nyid-vip-active{border:2px solid #d991b5;box-shadow:0 0 0 2px #ffe5f1,0 15px 35px rgba(144,49,92,.16)}
+.nyid-card.nyid-vip-active::before{content:"";position:absolute;z-index:-1;right:15px;top:58px;width:96px;height:96px;background:url('./assets/vip/11_vip_profile_frame.png') center/contain no-repeat;opacity:.17;pointer-events:none}
+.nyid-card.nyid-vip-active .nyid-edition{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:0;padding:5px 8px;border-radius:999px;background:#a93d73;color:#fff8fc;border-color:#a93d73;line-height:1.3}
+.nyid-card.nyid-vip-active .nyid-edition::before{content:"";display:block;flex:none;width:20px;height:20px;background:url('./assets/vip/08_vip_medallion.png') center/contain no-repeat}
+.nyid-card.nyid-vip-active .nyid-card-foot b{display:inline-flex;align-items:center;gap:5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nyid-card.nyid-vip-active .nyid-card-foot b::before{content:"";display:block;flex:none;width:19px;height:19px;background:url('./assets/vip/08_vip_medallion.png') center/contain no-repeat}
+
+.nyan-vip-entry:focus-visible,.nyan-vip-buy:focus-visible,.nyan-vip-plus-button:focus-visible,.nyan-vip-close:focus-visible{outline:2px solid #9b3262;outline-offset:3px}
+@media(max-width:365px){.nyan-vip-overlay{padding:7px}.nyan-vip-dialog{padding:14px 12px calc(19px + env(safe-area-inset-bottom,0px));border-radius:23px 23px 17px 17px}.nyan-vip-plus-grid{gap:8px}.nyan-vip-plus-card{padding:10px 7px 12px}.nyan-vip-plus-icon{height:91px}.nyan-vip-plus-card-copy span{font-size:10px}.nyan-vip-plus-card:first-child{grid-template-columns:minmax(0,105px) minmax(0,1fr);gap:9px;padding:10px}.nyan-vip-plus-controls{gap:7px}}
+@media(max-width:315px){.nyan-vip-plus-grid{grid-template-columns:1fr}.nyan-vip-plus-card:first-child{grid-column:auto}.nyan-vip-plus-card:not(:first-child){min-height:0;display:grid;grid-template-columns:92px minmax(0,1fr);text-align:left}.nyan-vip-plus-card:not(:first-child) .nyan-vip-plus-icon{height:86px}.nyan-vip-plus-card:not(:first-child) .nyan-vip-plus-card-copy{align-items:flex-start;text-align:left}}
+@media(prefers-reduced-motion:reduce){.nyan-vip-dialog{scroll-behavior:auto}}
