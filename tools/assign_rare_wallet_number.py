@@ -65,6 +65,22 @@ def generated_number(telegram_id):
     return f"{left % 1000000:06d}{right % 1000000:06d}"
 
 
+
+def sync_transfer_alias(conn, telegram_id, number):
+    from sqlalchemy import text
+    alias = "NYAN" + number
+    other = conn.execute(text(
+        "SELECT telegram_id FROM wallet_aliases WHERE alias=:alias"
+    ), {"alias": alias}).scalar_one_or_none()
+    if other is not None and int(other) != int(telegram_id):
+        raise RuntimeError("Номер занят другим адресом переводов; изменения отменены")
+    # PostgreSQL and SQLite both support the same upsert here.
+    conn.execute(text("""
+        INSERT INTO wallet_aliases (telegram_id, alias, created_at)
+        VALUES (:uid, :alias, :now)
+        ON CONFLICT (telegram_id) DO UPDATE SET alias=excluded.alias
+    """), {"uid": telegram_id, "alias": alias, "now": datetime.now(timezone.utc)})
+
 def assign(engine, request_id, telegram_id, raw_number, number_change=False):
     from sqlalchemy import select, text
     number = raw_number.replace("NYAN", "").replace(" ", "")
@@ -92,6 +108,7 @@ def assign(engine, request_id, telegram_id, raw_number, number_change=False):
         existing = conn.execute(select(n).where(n.c.telegram_id == telegram_id)).mappings().one_or_none()
         if existing:
             if existing["request_id"] == request_id and existing["number"] == number and request["status"] == "fulfilled":
+                sync_transfer_alias(conn, telegram_id, number)
                 return False
             if not number_change:
                 raise RuntimeError("У получателя уже есть другой редкий номер. Изменения не применены")
@@ -113,6 +130,7 @@ def assign(engine, request_id, telegram_id, raw_number, number_change=False):
             conn.execute(n.update().where(n.c.telegram_id == telegram_id).values(**values))
         else:
             conn.execute(n.insert().values(telegram_id=telegram_id, **values))
+        sync_transfer_alias(conn, telegram_id, number)
         conn.execute(r.update().where(r.c.id == request_id).values(status="fulfilled", processed_at=now))
         meta = t["spend_request_meta"]
         previous = conn.execute(select(meta).where(meta.c.request_id == request_id)).mappings().one_or_none()

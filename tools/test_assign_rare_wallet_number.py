@@ -26,12 +26,34 @@ class RareNumberTest(unittest.TestCase):
               Column("owner_comment", Text), Column("updated_at", DateTime(timezone=True)))
         Table("admin_audit", m, Column("id", Integer, primary_key=True), Column("action", String),
               Column("target_telegram_id", BigInteger), Column("details", Text), Column("created_at", DateTime(timezone=True)))
+        Table("wallet_aliases", m, Column("telegram_id", BigInteger, primary_key=True),
+              Column("alias", String(16), unique=True), Column("created_at", DateTime(timezone=True)))
         m.create_all(self.engine)
         with self.engine.begin() as c:
             c.execute(self.users.insert(), [{"telegram_id": 7, "balance": 1000}, {"telegram_id": 8, "balance": 500}])
             c.execute(self.requests.insert(), [
                 {"id": 96, "telegram_id": 7, "reward_title": "Редкий номер кошелька", "status": "pending"},
                 {"id": 95, "telegram_id": 8, "reward_title": "Билет", "status": "pending"}])
+
+    def test_transfer_alias_is_synced_and_repaired_on_repeat(self):
+        rare.assign(self.engine, 96, 7, "777700007777")
+        a = Table("wallet_aliases", MetaData(), autoload_with=self.engine)
+        with self.engine.begin() as c:
+            self.assertEqual(c.execute(select(a.c.alias).where(a.c.telegram_id == 7)).scalar_one(), "NYAN777700007777")
+            c.execute(a.update().where(a.c.telegram_id == 7).values(alias="NYAN111122223333"))
+        self.assertFalse(rare.assign(self.engine, 96, 7, "777700007777"))
+        with self.engine.connect() as c:
+            self.assertEqual(c.execute(select(a.c.alias).where(a.c.telegram_id == 7)).scalar_one(), "NYAN777700007777")
+
+    def test_transfer_alias_collision_rolls_back_request(self):
+        a = Table("wallet_aliases", MetaData(), autoload_with=self.engine)
+        with self.engine.begin() as c:
+            c.execute(a.insert().values(telegram_id=8, alias="NYAN777700007777"))
+        with self.assertRaisesRegex(RuntimeError, "адресом переводов"):
+            rare.assign(self.engine, 96, 7, "777700007777")
+        with self.engine.connect() as c:
+            self.assertEqual(c.execute(select(self.requests.c.status).where(self.requests.c.id == 96)).scalar_one(), "pending")
+            self.assertEqual(c.execute(select(func.count()).select_from(self.notes)).scalar_one(), 0)
 
     def tearDown(self):
         self.engine.dispose()
