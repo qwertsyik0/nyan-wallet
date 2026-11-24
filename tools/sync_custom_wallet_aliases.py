@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Synchronize installed custom wallet numbers with transfer aliases, atomically."""
 import os
+import argparse
 from pathlib import Path
 import subprocess
 import sys
@@ -12,6 +13,9 @@ def service_value(name):
         text=True).strip()
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--user', type=int, help='Synchronize only this wallet')
+    args = parser.parse_args()
     if os.geteuid() != 0:
         raise RuntimeError("запусти под root на VPS кошелька")
     if service_value("ActiveState") != "active":
@@ -23,7 +27,7 @@ def main():
         python = folder / "bin/python"
         if python.is_file():
             if Path(sys.prefix).resolve() != folder.resolve():
-                os.execv(str(python), [str(python), str(Path(__file__).resolve())])
+                os.execv(str(python), [str(python), str(Path(__file__).resolve()), *sys.argv[1:]])
             break
     pid = service_value("MainPID")
     if not pid.isdigit() or int(pid) < 1:
@@ -47,8 +51,11 @@ def main():
             conn.execute(text("LOCK TABLE wallet_aliases IN SHARE ROW EXCLUSIVE MODE"))
             rows = conn.execute(text("""
                 SELECT telegram_id, number FROM wallet_custom_numbers
+                WHERE (:uid IS NULL OR telegram_id=:uid)
                 ORDER BY telegram_id FOR UPDATE
-            """)).mappings().all()
+            """), {"uid": args.user}).mappings().all()
+            if args.user is not None and not rows:
+                raise RuntimeError("у указанного пользователя нет установленного номера")
             for row in rows:
                 uid, number = row["telegram_id"], row["number"]
                 if len(number) != 12 or not number.isascii() or not number.isdigit() or number == "777777777777":
@@ -58,7 +65,7 @@ def main():
                     "SELECT telegram_id FROM wallet_aliases WHERE alias=:alias"
                 ), {"alias": alias}).scalar_one_or_none()
                 if other is not None and int(other) != int(uid):
-                    raise RuntimeError("конфликт адресов переводов; всё отменено")
+                    raise RuntimeError(f"номер {alias} для ID {uid} уже принадлежит адресу переводов ID {other}; ничего не изменено")
                 current = conn.execute(text(
                     "SELECT alias FROM wallet_aliases WHERE telegram_id=:uid"
                 ), {"uid": uid}).scalar_one_or_none()
