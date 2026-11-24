@@ -65,7 +65,7 @@ def generated_number(telegram_id):
     return f"{left % 1000000:06d}{right % 1000000:06d}"
 
 
-def assign(engine, request_id, telegram_id, raw_number):
+def assign(engine, request_id, telegram_id, raw_number, number_change=False):
     from sqlalchemy import select, text
     number = raw_number.replace("NYAN", "").replace(" ", "")
     if len(number) != 12 or not number.isascii() or not number.isdigit():
@@ -74,13 +74,18 @@ def assign(engine, request_id, telegram_id, raw_number):
         raise RuntimeError("Этот номер зарезервирован владельцем")
     t = schema(engine)
     n, r, u = t["numbers"], t["spend_requests"], t["users"]
+    outbox = None
+    if number_change:
+        from sqlalchemy import MetaData, Table
+        outbox = Table("telegram_relay_outbox", MetaData(), autoload_with=engine)
     with engine.begin() as conn:
         if engine.dialect.name == "postgresql":
             conn.execute(text("SELECT pg_advisory_xact_lock(692235143)"))
         n.create(conn, checkfirst=True)
         request = conn.execute(select(r).where(r.c.id == request_id).with_for_update()).mappings().one_or_none()
-        if not request or request["telegram_id"] != telegram_id or "Редкий номер кошелька" not in request["reward_title"]:
-            raise RuntimeError("Заявка или получатель не соответствует редкому номеру")
+        expected_title = "Смена номера/дизайна кошелька" if number_change else "Редкий номер кошелька"
+        if not request or request["telegram_id"] != telegram_id or expected_title not in request["reward_title"]:
+            raise RuntimeError("Заявка или получатель не соответствует выбранной награде")
         user = conn.execute(select(u).where(u.c.telegram_id == telegram_id).with_for_update()).mappings().one_or_none()
         if not user:
             raise RuntimeError("Кошелёк получателя не найден")
@@ -88,33 +93,42 @@ def assign(engine, request_id, telegram_id, raw_number):
         if existing:
             if existing["request_id"] == request_id and existing["number"] == number and request["status"] == "fulfilled":
                 return False
-            raise RuntimeError("У получателя уже есть другой редкий номер. Изменения не применены")
+            if not number_change:
+                raise RuntimeError("У получателя уже есть другой редкий номер. Изменения не применены")
         if request["status"] != "pending":
             raise RuntimeError("Заявка уже обработана, выдача остановлена")
         custom = dict(conn.execute(select(n.c.telegram_id, n.c.number)).all())
-        if number in custom.values():
+        if any(uid != telegram_id and value == number for uid, value in custom.items()):
             raise RuntimeError("Этот номер уже занят")
         for uid in conn.execute(select(u.c.telegram_id)).scalars():
             if uid != telegram_id and uid not in custom and generated_number(uid) == number:
                 raise RuntimeError("Этот номер уже используется кошельком")
         now = datetime.now(timezone.utc)
         formatted = "NYAN " + " ".join(number[i:i + 4] for i in range(0, 12, 4))
-        body = f"Заявка #{request_id} выполнена!\nТебе установлен редкий номер кошелька: {formatted}.\nОткрой Nyan Wallet заново, чтобы увидеть его на карточке."
-        conn.execute(n.insert().values(
-            telegram_id=telegram_id, number=number, request_id=request_id, created_at=now,
-            notice_body=body, notice_state="pending"))
+        label = "новый" if number_change else "редкий"
+        body = f"Заявка #{request_id} выполнена!\nТебе установлен {label} номер кошелька: {formatted}.\nОткрой Nyan Wallet заново, чтобы увидеть его на карточке."
+        values = dict(number=number, request_id=request_id, created_at=now,
+                      notice_body=body, notice_state="queued" if number_change else "pending", notice_message_id=None)
+        if existing:
+            conn.execute(n.update().where(n.c.telegram_id == telegram_id).values(**values))
+        else:
+            conn.execute(n.insert().values(telegram_id=telegram_id, **values))
         conn.execute(r.update().where(r.c.id == request_id).values(status="fulfilled", processed_at=now))
         meta = t["spend_request_meta"]
         previous = conn.execute(select(meta).where(meta.c.request_id == request_id)).mappings().one_or_none()
-        comment = f"Установлен редкий номер {formatted}"
+        comment = f"Установлен {label} номер {formatted}"
         if previous:
             comment = ((previous["owner_comment"] + "\n") if previous["owner_comment"] else "") + comment
             conn.execute(meta.update().where(meta.c.request_id == request_id).values(owner_comment=comment, updated_at=now))
         else:
             conn.execute(meta.insert().values(request_id=request_id, owner_comment=comment, updated_at=now))
         conn.execute(t["wallet_notifications"].insert().values(
-            telegram_id=telegram_id, kind="wallet_number", title="Редкий номер установлен",
+            telegram_id=telegram_id, kind="wallet_number", title="Новый номер установлен" if number_change else "Редкий номер установлен",
             body=body, is_read=False, created_at=now))
+        if outbox is not None:
+            conn.execute(outbox.insert().values(
+                source_key=f"wallet-number-change:{request_id}", chat_id=telegram_id,
+                body=body, state="pending", attempts=0, created_at=now))
         conn.execute(t["admin_audit"].insert().values(
             action="wallet_number_assigned", target_telegram_id=telegram_id,
             details=f"Заявка #{request_id}, номер {formatted}", created_at=now))
@@ -205,6 +219,7 @@ def main():
     parser.add_argument("--request", type=int, required=True)
     parser.add_argument("--user", type=int, required=True)
     parser.add_argument("--number", required=True)
+    parser.add_argument("--number-change", action="store_true", help="Fulfil an ordinary number/design change, with Telegram outbox delivery")
     args = parser.parse_args()
     if os.geteuid() != 0:
         raise RuntimeError("Запусти под root")
@@ -264,9 +279,9 @@ def main():
     from sqlalchemy import create_engine
     engine = create_engine(url, pool_pre_ping=True)
     try:
-        changed = assign(engine, args.request, args.user, args.number)
+        changed = assign(engine, args.request, args.user, args.number, number_change=args.number_change)
         print("Номер установлен, заявка закрыта" if changed else "Номер уже был установлен по этой заявке")
-        state = deliver(engine, args.user, args.request, token)
+        state = "queued" if args.number_change else deliver(engine, args.user, args.request, token)
         print("Уведомление в кошельке сохранено. Telegram:", state)
         if state in ("sending", "uncertain"):
             print("Доставку Telegram нужно проверить вручную; повтор сообщения не выполняется")
