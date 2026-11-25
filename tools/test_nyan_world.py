@@ -94,6 +94,13 @@ class WorldTest(unittest.TestCase):
         lid=st["ledger"][0]["id"];self.do("reverse",{"id":lid,"reason":"correction"})
         self.assertEqual([c["budget"] for c in self.state()["countries"]],[1000,500])
         self.do("reverse",{"id":lid,"reason":"again"},code=400)
+    def test_reverse_combined_funding_and_transfer(self):
+        rid=self.submit()
+        self.do("review",{"id":rid,"status":"approved","effects":{"budget_delta":1500,"recipient_id":2,"transfer_amount":2000}})
+        self.do("apply",{"id":rid})
+        st=self.state();self.assertEqual([c["budget"] for c in st["countries"]],[500,2500])
+        self.do("reverse",{"id":st["ledger"][0]["id"],"reason":"undo combined decision"})
+        self.assertEqual([c["budget"] for c in self.state()["countries"]],[1000,500])
     def test_revision_and_history_permissions(self):
         rid=self.submit()
         self.do("review",{"id":rid,"status":"needs_revision","comment":"add cost"})

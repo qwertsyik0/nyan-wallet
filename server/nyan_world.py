@@ -235,7 +235,7 @@ def perform(c,user,p):
         for e in group: totals[e["country_id"]]=totals.get(e["country_id"],0)-e["delta"]
         for cid,delta in totals.items():
             co=row(c,countries,cid); integer(co["budget"]+delta,"остаток после исправления",0)
-        for e in group: money(c,row(c,countries,e["country_id"]),-e["delta"],reason,key,uid,e["id"])
+        for e in reversed(group): money(c,row(c,countries,e["country_id"]),-e["delta"],reason,key,uid,e["id"])
         return
     if p.kind=="review":
         r=row(c,requests,integer(d.get("id"),"заявка",1))
