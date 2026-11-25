@@ -61,7 +61,7 @@ from .finance_workspace import register_finance_workspace
 from .elections import register_elections
 from .elections_voting import register_elections_voting
 from .bot_menu import sync_bot_menu_buttons
-from .nyan_world import register_world
+from .nyan_world import register_world, m as world_metadata
 from .user_bans import register_user_bans
 from .nyan_lavka import register_nyan_lavka
 from .promo_delayed_fee import register_promo_delayed_fee
@@ -78,6 +78,7 @@ from .survey_channel_followups_20261011 import send_survey_channel_followups_202
 # Telegram calls, notification workers or other startup side effects.
 if os.getenv("NYAN_RESTORE_SCHEMA_ONLY") == "1":
     backend_app.Base.metadata.create_all(backend_app.engine)
+    world_metadata.create_all(backend_app.engine)
 else:
     register_campaign_promos()
     apply_interactive_grants_20261004()
