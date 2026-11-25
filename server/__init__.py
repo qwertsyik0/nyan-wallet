@@ -61,6 +61,7 @@ from .finance_workspace import register_finance_workspace
 from .elections import register_elections
 from .elections_voting import register_elections_voting
 from .bot_menu import sync_bot_menu_buttons
+from .nyan_world import register_world
 from .user_bans import register_user_bans
 from .nyan_lavka import register_nyan_lavka
 from .promo_delayed_fee import register_promo_delayed_fee
@@ -110,6 +111,7 @@ else:
     register_transfers(backend_app.app)
     register_antifraud(backend_app.app)
     print_recent_wallet_transfers_20261011()
+    register_world(backend_app.app)
     register_broadcast(backend_app.app)
     register_maintenance(backend_app.app)
     register_quote_reflection(backend_app.app)
