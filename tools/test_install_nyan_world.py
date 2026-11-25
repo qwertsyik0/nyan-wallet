@@ -37,6 +37,8 @@ class InstallTest(unittest.TestCase):
                 self.assertEqual((root/"index.html").read_text().count("nyan-world-entry.js"),1)
                 self.assertEqual((root/"index.html").read_text().count("nyan-world-invite.js"),1)
                 self.assertTrue((root/"nyan-world-info.html").is_file())
+                for name in ("nyan-world-rules.html","nyan-world-rules.js","nyan-world-rules.css"):
+                    self.assertTrue((root/name).is_file())
                 self.assertTrue((root/"assets/nyan-world/nyanik-hold.webp").is_file())
                 self.assertEqual(run.call_count,0 if frontend else 1)
                 if frontend: self.assertEqual((root/"server/__init__.py").read_bytes(),originals[root/"server/__init__.py"])

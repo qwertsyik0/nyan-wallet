@@ -1,0 +1,9 @@
+.world-rules-gate{position:fixed;inset:0;z-index:40000;display:flex;align-items:center;justify-content:center;overflow:auto;overscroll-behavior:contain;padding:190px 16px max(28px,env(safe-area-inset-bottom));background:#42142b77;backdrop-filter:blur(7px)}
+.world-rules-gate[hidden]{display:none!important}.world-rules-locked{overflow:hidden}
+.world-rules-window{position:relative;width:min(100%,420px);flex:none;border:1px solid #edbcd2;border-radius:24px;background:linear-gradient(145deg,#fffafd,#ffe6f1);box-shadow:0 24px 80px #48152b40}
+.world-rules-mascot{position:absolute;top:-172px;left:50%;transform:translateX(-50%);width:210px;height:210px;object-fit:contain;pointer-events:none;image-rendering:pixelated}
+.world-rules-titlebar{padding:16px 20px;border-bottom:1px solid #f0cbdc;border-radius:24px 24px 0 0;background:linear-gradient(100deg,#fff5fa,#ffd9e9);font-size:.875rem;font-weight:800;letter-spacing:.08em}
+.world-rules-copy{padding:26px}.world-rules-copy h2{font-size:clamp(1.6rem,7vw,2rem);line-height:1.12;margin:0 0 16px;letter-spacing:-.035em}.world-rules-copy p{line-height:1.55;margin:0 0 22px;color:#92566e}
+.world-rules-link{display:block;padding:15px 18px;border-radius:15px;background:linear-gradient(120deg,#b23972,#922954);color:white;text-decoration:none;text-align:center;font-size:1rem;font-weight:750;min-height:48px}
+.world-rules-hero{padding-top:4px}.world-rules-hero img{display:block;margin:0 auto 12px;object-fit:contain;image-rendering:pixelated}.world-rules-page{max-width:720px}.world-rules-page h1{font-size:clamp(2.4rem,9vw,4rem)}
+@media(max-height:600px){.world-rules-gate{align-items:flex-start;padding-top:130px}.world-rules-mascot{width:155px;height:155px;top:-125px}.world-rules-copy{padding:22px}}
