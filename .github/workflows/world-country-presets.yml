@@ -1,0 +1,36 @@
+name: World country presets
+on:
+  push:
+    paths: ['tools/seed_nyan_world_countries.py', 'tools/test_seed_nyan_world_countries.py', '.github/workflows/world-country-presets.yml']
+  pull_request:
+    paths: ['tools/seed_nyan_world_countries.py', 'tools/test_seed_nyan_world_countries.py', '.github/workflows/world-country-presets.yml']
+permissions:
+  contents: read
+jobs:
+  presets:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: world
+          POSTGRES_PASSWORD: world_test_password
+          POSTGRES_DB: world_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install 'SQLAlchemy==2.0.43' 'fastapi==0.115.12' 'httpx==0.28.1' 'psycopg[binary]==3.2.9'
+      - run: python -m py_compile tools/seed_nyan_world_countries.py
+      - run: python tools/test_seed_nyan_world_countries.py
+      - name: PostgreSQL preset safety checks
+        run: python tools/test_seed_nyan_world_countries.py
+        env:
+          NYAN_WORLD_TEST_DATABASE_URL: postgresql+psycopg://world:world_test_password@localhost:5432/world_test
