@@ -38,7 +38,6 @@ assert actions_match, "Single compact More menu definition missing"
 menu = ast.literal_eval("[" + actions_match.group(1) + "]")
 targets = [row[3] for row in menu]
 assert targets == [
-    "nyan-world-open",
     "earn-button",
     "spend-button",
     "transfer-button",

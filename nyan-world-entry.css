@@ -1,0 +1,9 @@
+#wallet-view .nyan-world-entry{display:flex;align-items:center;gap:14px;width:100%;min-height:78px;margin:0 0 12px;padding:12px 16px;text-align:left;border:1px solid #ebcbdb;border-radius:20px;background:linear-gradient(110deg,#fffafc,#ffe9f2);color:#79264d;box-shadow:0 7px 20px rgba(130,36,77,.06);cursor:pointer;box-sizing:border-box;font-family:inherit}
+#wallet-view .nyan-world-entry-icon{display:block;width:52px;height:52px;object-fit:contain;flex:none;filter:drop-shadow(0 3px 5px #92295418)}
+#wallet-view .nyan-world-entry-copy{display:flex;min-width:0;flex:1;flex-direction:column;gap:4px}
+#wallet-view .nyan-world-entry-copy strong{font-size:16px;line-height:1.2;font-weight:850;color:#79264d}
+#wallet-view .nyan-world-entry-copy small{font-size:13px;line-height:1.35;color:#a36b86;white-space:normal;overflow-wrap:anywhere}
+#wallet-view .nyan-world-entry-chevron{flex:none;color:#a7517d}
+#wallet-view .nyan-world-entry:focus-visible{outline:3px solid #f35c9b;outline-offset:3px}
+#wallet-view .nyan-world-entry:active{background:#ffe4ef}
+@media(max-width:360px){#wallet-view .nyan-world-entry{gap:10px;padding:11px 13px}#wallet-view .nyan-world-entry-icon{width:46px;height:46px}}

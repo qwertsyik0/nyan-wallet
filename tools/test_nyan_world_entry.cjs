@@ -1,0 +1,36 @@
+const assert=require("node:assert/strict");
+const fs=require("node:fs");
+const path=require("node:path");
+const {JSDOM}=require("jsdom");
+const source=fs.readFileSync(path.resolve(__dirname,"../nyan-world-entry.js"),"utf8");
+const tick=()=>new Promise(r=>setTimeout(r,0));
+async function run(){
+ const dom=new JSDOM('<head></head><body><main id="wallet-view"><header></header><button id="nyid-front-open">ID</button><button id="nyan-vip-open">VIP</button><section id="wallet-card"></section><section class="actions" hidden><button id="nyan-world-open">old world</button></section></main></body>',{runScripts:"outside-only",url:"https://example.test/index.html"});
+ const w=dom.window;w.eval(source);await tick();
+ let button=w.document.getElementById("nyan-world-open");
+ assert.equal(w.document.getElementById("nyan-vip-open").nextElementSibling,button);
+ assert.equal(button.nextElementSibling.id,"wallet-card");
+ assert.equal(button.hidden,false);
+ assert.equal(button.querySelector("img").getAttribute("src"),"./assets/nyan-world/globe.webp");
+ assert.ok(button.classList.contains("nyan-world-entry"));
+ assert.equal(w.document.querySelectorAll("#nyan-world-open").length,1);
+ assert.equal(w.document.querySelector(".actions").contains(button),false);
+ w.eval(source);await tick();
+ assert.equal(w.document.querySelectorAll("#nyan-world-open").length,1);
+ assert.equal(w.document.querySelectorAll("#nyan-world-entry-style").length,1);
+ w.document.getElementById("nyan-vip-open").remove();await tick();
+ assert.equal(w.document.getElementById("nyid-front-open").nextElementSibling,button);
+ const vip=w.document.createElement("button");vip.id="nyan-vip-open";
+ w.document.getElementById("nyid-front-open").insertAdjacentElement("afterend",vip);await tick();
+ assert.equal(vip.nextElementSibling,button);
+ dom.window.close();
+ const delayed=new JSDOM('<head></head><body><main id="wallet-view"><header></header><section id="wallet-card"></section></main></body>',{runScripts:"outside-only",url:"https://example.test/index.html"});
+ delayed.window.eval(source);await tick();
+ const d=delayed.window.document;
+ assert.equal(d.getElementById("wallet-card").previousElementSibling.id,"nyan-world-open");
+ const id=d.createElement("button");id.id="nyid-front-open";d.getElementById("wallet-card").insertAdjacentElement("beforebegin",id);await tick();
+ assert.equal(id.nextElementSibling.id,"nyan-world-open");
+ delayed.window.close();
+ console.log("OK: card above balance after VIP, generated icon, legacy button moved, late anchors, no duplicates");
+}
+run().catch(e=>{console.error(e);process.exit(1)});
