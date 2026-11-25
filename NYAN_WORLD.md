@@ -33,3 +33,7 @@ The installer does not populate real-world countries or leaders. All starting co
 ## Tests
 
 .github/workflows/nyan-world.yml validates Python and JavaScript syntax and tests authentication, permissions, data isolation, idempotence, atomic transfers, reversal, moderation, revisions, assignment uniqueness, registration, paused seasons and rollback on insufficient funds.
+
+## Opening invitation
+
+The wallet shows a Nyanik invitation after successful loading on each opening, including resuming a hidden Mini App. It does not reopen during ordinary balance refreshes or internal tab changes. There is no persistent dismissal flag. Only the top cross closes it; Escape and backdrop clicks do not dismiss. The information button opens nyan-world-info.html and retains Telegram launch parameters. That page describes the game and links to the country cabinet. Season rules, availability and chat link are loaded from the current World season when available. The mascot is an optimized generated transparent WebP.
