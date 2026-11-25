@@ -14,23 +14,80 @@ function amount(v){return Number(v||0).toLocaleString("ru-RU")}
 function co(id){return state.countries.find(x=>x.id===Number(id))}
 async function api(path,body){if(!tg?.initData)throw Error("Открой NYAN WORLD внутри Telegram через Nyan Wallet");const r=await fetch(API+"/api/world"+path,{method:body?"POST":"GET",headers:{"Content-Type":"application/json","X-Telegram-Init-Data":tg.initData},body:body?JSON.stringify(body):undefined,cache:"no-store"});let d;try{d=await r.json()}catch{throw Error("Сервер пока не подключён. Нужна установка NYAN WORLD на VPS")}if(!r.ok)throw Error(typeof d.detail==="string"?d.detail:"Проверь заполнение полей");return d}
 async function load(){try{status.className="";status.textContent="Загружаем…";state=await api("/state"+(selectedSeason?"?season_id="+selectedSeason:""));status.textContent="";render()}catch(e){status.className="error";status.textContent=e.message}}
-async function act(kind,data,key=crypto.randomUUID()){return api("/actions",{kind,data,operation_id:key})}
+async function act(kind,data,key=operationId()){return api("/actions",{kind,data,operation_id:key})}
+function operationId(){if(typeof window.crypto?.randomUUID==="function")return window.crypto.randomUUID();const bytes=new Uint8Array(16);window.crypto.getRandomValues(bytes);bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;const h=[...bytes].map(b=>b.toString(16).padStart(2,"0")).join("");return h.slice(0,8)+"-"+h.slice(8,12)+"-"+h.slice(12,16)+"-"+h.slice(16,20)+"-"+h.slice(20)}
 function field(label,value="",type="text",options){const l=el("label",label);const n=el(options?"select":type==="textarea"?"textarea":"input");if(!options&&type!=="textarea")n.type=type;if(options)for(const [v,t] of options){const o=el("option",t);o.value=v;n.append(o)}n.value=value??"";if(type==="number"){n.step="1";n.max="1000000000000000";n.min="-1000000000000000"}l.append(n);document.getElementById("fields").append(l);return n}
 function check(label,value){const l=el("label");const n=el("input");n.type="checkbox";n.checked=!!value;l.append(n,document.createTextNode(label));document.getElementById("fields").append(l);return n}
 function indicatorFields(values={}){const wrap=el("div");document.getElementById("fields").append(el("h3","Показатели"),wrap);function add(k="",v=0){const row=el("div",undefined,"indicator-row"),key=el("input"),val=el("input");key.placeholder="Название";key.setAttribute("aria-label","Название показателя");key.value=k;val.type="number";val.step="1";val.value=v;val.setAttribute("aria-label","Значение показателя");row.append(key,val,button("×",()=>row.remove()));wrap.append(row)}Object.entries(values).forEach(([k,v])=>add(k,v));wrap.after(button("Добавить показатель",()=>add()));return ()=>Object.fromEntries([...wrap.children].filter(r=>r.children[0].value.trim()).map(r=>[r.children[0].value.trim(),num(r.children[1])]))}
 function num(n){if(!n.value.trim())throw Error("Заполни числовое поле");const v=Number(n.value);if(!Number.isSafeInteger(v)||Math.abs(v)>1e15)throw Error("Нужно целое число в допустимых пределах");return v}
 function optional(n){return n.value.trim()?num(n):null}
-function open(title,build){document.getElementById("fields").replaceChildren();document.getElementById("form-title").textContent=title;document.getElementById("form-error").textContent="";formKey=crypto.randomUUID();formAction=build();dialog.showModal()}
-document.getElementById("close").onclick=()=>{if(!busy)dialog.close()};
-document.getElementById("form").onsubmit=async e=>{e.preventDefault();if(busy)return;busy=true;document.getElementById("submit").disabled=true;document.getElementById("close").disabled=true;try{const {kind,data}=formAction();await act(kind,data,formKey);dialog.close();await load()}catch(err){document.getElementById("form-error").textContent=err.message+" Если связь прервалась, нажми сохранить ещё раз: операция защищена от повтора."}finally{busy=false;document.getElementById("submit").disabled=false;document.getElementById("close").disabled=false}};
+let editorFocus=null;
+const fallbackBackdrop=el("div",undefined,"world-dialog-backdrop");
+fallbackBackdrop.hidden=true;document.body.append(fallbackBackdrop);
+dialog.setAttribute("aria-labelledby","form-title");dialog.setAttribute("aria-modal","true");dialog.setAttribute("role","dialog");
+function restoreEditor(){fallbackBackdrop.hidden=true;document.documentElement.classList.remove("world-dialog-open");if(editorFocus?.isConnected)editorFocus.focus()}
+function showEditor(){
+ editorFocus=document.activeElement;
+ if(!dialog.open){
+  try{if(typeof dialog.showModal!=="function")throw Error("fallback");dialog.showModal()}
+  catch{dialog.classList.add("world-dialog-fallback");dialog.setAttribute("open","");fallbackBackdrop.hidden=false}
+ }
+ document.documentElement.classList.add("world-dialog-open");
+ document.getElementById("close").focus();
+}
+function hideEditor(){
+ if(dialog.classList.contains("world-dialog-fallback")){dialog.removeAttribute("open");restoreEditor()}
+ else if(typeof dialog.close==="function"){dialog.close();restoreEditor()}
+ else{dialog.removeAttribute("open");restoreEditor()}
+}
+function open(title,build){
+ document.getElementById("fields").replaceChildren();document.getElementById("form-title").textContent=title;
+ document.getElementById("form-error").textContent="";document.getElementById("submit").hidden=false;
+ formAction=null;formKey=null;formAction=build();if(formAction)formKey=operationId();showEditor();
+}
+function readOnly(title,render){
+ open(title,()=>{render(document.getElementById("fields"));return null});
+ document.getElementById("submit").hidden=true;
+}
+document.getElementById("close").onclick=()=>{if(!busy)hideEditor()};
+dialog.addEventListener("close",restoreEditor);
+document.getElementById("form").onsubmit=async e=>{e.preventDefault();if(busy||!formAction)return;busy=true;document.getElementById("submit").disabled=true;document.getElementById("close").disabled=true;try{const {kind,data}=formAction();await act(kind,data,formKey);hideEditor();await load()}catch(err){document.getElementById("form-error").textContent=err.message+" Если связь прервалась, нажми сохранить ещё раз: операция защищена от повтора."}finally{busy=false;document.getElementById("submit").disabled=false;document.getElementById("close").disabled=false}};
 dialog.addEventListener("cancel",e=>{if(busy)e.preventDefault()});
+document.addEventListener("keydown",e=>{
+ if(!dialog.open||!dialog.classList.contains("world-dialog-fallback"))return;
+ if(e.key==="Escape"){e.preventDefault();if(!busy)hideEditor()}
+ if(e.key==="Tab"){
+  const list=[...dialog.querySelectorAll('button,input,textarea,select,a[href]')].filter(n=>!n.disabled&&!n.hidden&&!n.closest("[hidden]"));
+  const first=list[0],last=list.at(-1);if(!first)return;
+  if(e.shiftKey&&(document.activeElement===first||!dialog.contains(document.activeElement))){e.preventDefault();last.focus()}
+  else if(!e.shiftKey&&(document.activeElement===last||!dialog.contains(document.activeElement))){e.preventDefault();first.focus()}
+ }
+});
+function countryInformation(c){
+ readOnly("Информация о стране: "+c.name,box=>{
+  const identity=el("dl",undefined,"country-info-identity");
+  identity.append(el("dt","Страна"),el("dd",c.name),el("dt","Руководитель"),el("dd",c.leader||"Не указан"),el("dt","Участие"),el("dd",c.occupied||(c.player_id!==undefined&&c.player_id!==null)?"Игрок назначен":"Страна свободна"));
+  box.append(identity);
+  if(c.frozen)box.append(el("p","Подача действий этой страны приостановлена.","muted"));
+  if(c.budget!==undefined){
+   const g=el("div",undefined,"grid");
+   for(const [label,value] of [["Бюджет",c.budget],["Доход за период",c.income],["Расход за период",c.expense],["Долг",c.debt],...Object.entries(c.indicators||{})]){
+    const item=el("div",label,"metric");item.append(el("strong",amount(value)));g.append(item)
+   }
+   box.append(el("p","Валюта: "+state.season.currency,"muted"),g);
+   if(c.notes)box.append(el("p",c.notes,"country-info-notes"));
+  }else{
+   box.append(el("p","Бюджет, внутренние показатели и заметки доступны руководителю страны и организатору.","muted"));
+  }
+ });
+}
 function seasonForm(s={}){open(s.id?"Настройки сезона":"Новый сезон",()=>{const name=field("Название",s.name||""),currency=field("Название игровой валюты",s.currency||"Мировые единицы"),status=field("Состояние",s.status||"draft","text",Object.entries(names).filter(([k])=>["draft","registration","active","paused","finished"].includes(k))),rules=field("Правила",s.rules||"","textarea"),chat=field("Ссылка на Telegram чат",s.chat_url||""),sel=check("Сделать этот сезон текущим",s.id===state.active_season_id);return ()=>({kind:"season",data:{id:s.id,name:name.value,currency:currency.value,status:status.value,rules:rules.value,chat_url:chat.value,select:sel.checked}})})}
 function countryForm(c={}){open(c.id?"Настройки страны":"Добавить страну",()=>{const name=field("Страна",c.name),leader=field("Руководитель государства",c.leader),player=field("Telegram ID игрока. Пусто: страна свободна",c.player_id,"number"),income=field("Доход за расчётный период",c.income||0,"number"),expense=field("Расход за расчётный период",c.expense||0,"number"),debt=field("Государственный долг",c.debt||0,"number");const opening=!c.id?field("Начальный бюджет",0,"number"):null;const frozen=check("Приостановить подачу действий страны",c.frozen),notes=field("Заметки в кабинете страны",c.notes||"","textarea"),ind=indicatorFields(c.indicators);return ()=>({kind:"country",data:{id:c.id,season_id:state.season.id,name:name.value,leader:leader.value,player_id:optional(player),income:num(income),expense:num(expense),debt:num(debt),opening_budget:opening?num(opening):0,frozen:frozen.checked,notes:notes.value,indicators:ind()}})})}
 function budgetForm(c,kind){open(kind==="transfer"?"Перевод из бюджета":kind==="cycle"?"Начислить доходы и расходы":"Изменить бюджет",()=>{let delta,target,sum;if(kind==="budget")delta=field("Изменение бюджета: плюс начислит, минус спишет",0,"number");if(kind==="transfer"){target=field("Страна получателя","","text",state.countries.filter(x=>x.id!==c.id).map(x=>[x.id,x.name]));sum=field("Сумма",0,"number")}if(kind==="cycle")document.getElementById("fields").append(el("p","Будет применено: "+amount(c.income)+" дохода и "+amount(c.expense)+" расхода. Повторный отдельный расчёт создаст новый период."));const reason=field("Основание или название периода","","textarea");return ()=>({kind,data:{country_id:c.id,delta:delta?num(delta):undefined,recipient_id:target?Number(target.value):undefined,amount:sum?num(sum):undefined,reason:reason.value}})})}
 function submitForm(c,r){open(r?"Доработать заявку":"Новое действие",()=>{const kind=field("Вид заявки",r?.kind||(!state.my_country_id?"registration":"decision"),"text",Object.entries(kinds).filter(([k])=>state.my_country_id?k!=="registration":k==="registration"));const title=field("Заголовок",r?.title||""),body=field("Опиши действие, его обоснование и ожидаемый результат",r?.body||"","textarea");return ()=>({kind:r?"resubmit":"submit",data:{id:r?.id,country_id:c.id,kind:kind.value,title:title.value,body:body.value}})})}
 function review(r){open("Рассмотреть заявку #"+r.id,()=>{const status=field("Решение",["approved","in_progress"].includes(r.status)?r.status:"approved","text",["approved","in_progress","needs_revision","rejected","cancelled"].map(k=>[k,names[k]])),comment=field("Комментарий организатора",r.comment,"textarea");const e=r.effects||{},delta=field("Изменение бюджета при применении последствий",e.budget_delta||0,"number"),income=field("Новый доход. Пусто: без изменений",e.income,"number"),expense=field("Новый расход. Пусто: без изменений",e.expense,"number"),debt=field("Новый долг. Пусто: без изменений",e.debt,"number"),target=field("Получатель перевода, если нужен",e.recipient_id||"","text",[["","Без перевода"],...state.countries.filter(c=>c.id!==r.country_id).map(c=>[c.id,c.name])]),sum=field("Сумма перевода",e.transfer_amount||"","number"),due=field("Плановый срок, по мск",r.due_at?new Date(new Date(r.due_at).getTime()+3*3600000).toISOString().slice(0,16):"","datetime-local"),ind=indicatorFields(e.indicators);document.getElementById("fields").append(el("p","Одобрение сохраняет последствия. Их применение выполняется отдельной кнопкой. Плановый срок служит ориентиром, автоматического списания нет.","muted"));return ()=>{const eff={budget_delta:num(delta),indicators:ind()};for(const [k,n] of [["income",income],["expense",expense],["debt",debt]])if(n.value!=="")eff[k]=num(n);if(target.value){eff.recipient_id=Number(target.value);eff.transfer_amount=num(sum)}return {kind:"review",data:{id:r.id,status:status.value,comment:comment.value,effects:eff,due_at:due.value?due.value+":00+03:00":""}}}})}
 function confirmAction(title,kind,data){open(title,()=>{document.getElementById("fields").append(el("p","Подтверди действие. Результат будет записан в историю."));return ()=>({kind,data})})}
-function showHistory(r){open("История заявки #"+r.id,()=>{const box=el("div","Загружаем…");document.getElementById("fields").append(box);api("/requests/"+r.id+"/history").then(d=>{box.replaceChildren();for(const item of d.items){const v=JSON.parse(item.body),n=el("div",undefined,"record");n.append(el("strong",names[v.status]||v.status),el("small",date(item.created_at)),el("p",v.body),el("p",v.comment));box.append(n)}}).catch(e=>box.textContent=e.message);return ()=>{throw Error("Это окно только для просмотра")}})}
+function showHistory(r){readOnly("История заявки #"+r.id,box=>{box.textContent="Загружаем…";api("/requests/"+r.id+"/history").then(d=>{box.replaceChildren();for(const item of d.items){const v=JSON.parse(item.body),n=el("div",undefined,"record");n.append(el("strong",names[v.status]||v.status),el("small",date(item.created_at)),el("p",v.body),el("p",v.comment));box.append(n)}}).catch(e=>box.textContent=e.message)})}
 function render(){app.replaceChildren();const nav=el("nav",undefined,"tabs");const tabs=[["overview","Кабинет"],["requests","Заявки"],["countries","Страны"],["ledger","Бюджет"]];if(state.is_owner)tabs.push(["admin","Управление"],["audit","История управления"]);for(const [key,title] of tabs){const b=button(title,()=>{tab=key;render()});b.setAttribute("aria-selected",String(tab===key));nav.append(b)}app.append(nav);
 if(state.is_owner){const bar=el("div",undefined,"actions");bar.append(button("Новый сезон",()=>seasonForm()));if(state.seasons.length){const s=el("select");s.setAttribute("aria-label","Просматриваемый сезон");for(const se of state.seasons){const o=el("option",se.name+(se.id===state.active_season_id?" · текущий":""));o.value=se.id;s.append(o)}s.value=state.season?.id||"";s.onchange=()=>{selectedSeason=Number(s.value);load()};bar.append(s)}app.append(bar)}
 if(!state.season){app.append(card("Сезон готовится"));return}
@@ -42,7 +99,7 @@ if(tab==="ledger"){const box=card("Операции государственны
 if(tab==="admin"){const n=card("Управление сезоном");n.append(el("p","Участник только подаёт заявки. Изменения бюджетов и показателей выполняются по твоим решениям."),button("Настройки сезона",()=>seasonForm(se)));if(se.id!==state.active_season_id)n.append(button("Сделать текущим",()=>confirmAction("Выбрать сезон","select_season",{id:se.id})));n.append(button("Добавить страну",()=>countryForm()));app.append(n);for(const c of state.countries)app.append(countryCard(c))}
 if(tab==="audit"){const box=card("История управления");for(const a of state.audit){const n=el("div",undefined,"record");const labels={season:"Настройки сезона",select_season:"Выбор сезона",country:"Настройки страны",budget:"Изменение бюджета",transfer:"Перевод",cycle:"Расчёт доходов и расходов",reverse:"Исправление операции",submit:"Новая заявка",resubmit:"Доработка",withdraw:"Отзыв заявки",review:"Рассмотрение",apply:"Применение последствий",read_notices:"Чтение уведомлений"};n.append(el("strong",labels[a.kind]||a.kind),el("small",date(a.created_at)+" · ID "+a.actor_id));const p=JSON.parse(a.payload);if(p.title||p.name)n.append(el("p",p.title||p.name));if(p.reason||p.comment)n.append(el("p",p.reason||p.comment));if(p.country_id)n.append(el("p","Страна: "+(co(p.country_id)?.name||p.country_id)));box.append(n)}app.append(box)}
 }
-function countryCard(c){const n=card(c.name);if(c.leader)n.append(el("p",c.leader));n.append(el("span",c.frozen?"Действия приостановлены":c.player_id===null||c.player_id===undefined?(c.budget===undefined?"Информация о стране":"Свободна"):"Игрок назначен","chip"));if(c.budget!==undefined){n.append(el("div",amount(c.budget),"balance"),el("small",state.season.currency));const g=el("div",undefined,"grid");for(const [label,v] of [["Доход за период",c.income],["Расход за период",c.expense],["Долг",c.debt],...Object.entries(c.indicators||{})]){const x=el("div",label,"metric");x.append(el("strong",amount(v)));g.append(x)}n.append(g);if(c.notes)n.append(el("p",c.notes))}if(state.is_owner){n.append(el("p","Игрок: "+(c.player_id||"не назначен"),"muted"));const a=el("div",undefined,"actions");a.append(button("Настройки",()=>countryForm(c)),button("Бюджет",()=>budgetForm(c,"budget")),button("Перевод",()=>budgetForm(c,"transfer")),button("Расчёт периода",()=>budgetForm(c,"cycle")));n.append(a)}else if(!state.my_country_id&&["registration","active"].includes(state.season.status)&&!c.occupied){n.append(button("Подать заявку на страну",()=>submitForm(c)))}return n}
+function countryCard(c){const n=card(c.name);if(c.leader)n.append(el("p",c.leader));n.append(el("span",c.frozen?"Действия приостановлены":c.occupied||(c.player_id!==null&&c.player_id!==undefined)?"Игрок назначен":"Свободна","chip"));const info=button("Информация о стране",()=>countryInformation(c),"country-info-open");info.setAttribute("aria-haspopup","dialog");n.append(info);if(c.budget!==undefined){n.append(el("div",amount(c.budget),"balance"),el("small",state.season.currency));const g=el("div",undefined,"grid");for(const [label,v] of [["Доход за период",c.income],["Расход за период",c.expense],["Долг",c.debt],...Object.entries(c.indicators||{})]){const x=el("div",label,"metric");x.append(el("strong",amount(v)));g.append(x)}n.append(g);if(c.notes)n.append(el("p",c.notes))}if(state.is_owner){n.append(el("p","Игрок: "+(c.player_id||"не назначен"),"muted"));const a=el("div",undefined,"actions");a.append(button("Настройки",()=>countryForm(c)),button("Бюджет",()=>budgetForm(c,"budget")),button("Перевод",()=>budgetForm(c,"transfer")),button("Расчёт периода",()=>budgetForm(c,"cycle")));n.append(a)}else if(!state.my_country_id&&["registration","active"].includes(state.season.status)&&!c.occupied){n.append(button("Подать заявку на страну",()=>submitForm(c)))}return n}
 document.getElementById("refresh").onclick=load;
 document.getElementById("back").onclick=e=>{e.preventDefault();location.href="./index.html"+location.search+location.hash};
 load();
