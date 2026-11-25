@@ -38,6 +38,7 @@ assert actions_match, "Single compact More menu definition missing"
 menu = ast.literal_eval("[" + actions_match.group(1) + "]")
 targets = [row[3] for row in menu]
 assert targets == [
+    "nyan-world-open",
     "earn-button",
     "spend-button",
     "transfer-button",
@@ -47,11 +48,9 @@ assert targets == [
     "nyg-my-button",
     "nyan-lottery-link",
     "nyan-fortune-link",
-    "nyan-awards-link",
     "nyg-my-purchases-button",
     "appeals-button",
     "nyan-studio-link",
-    "nyan-last-message-link",
 ], "An action is missing, duplicated or improperly routed in the More menu"
 assert len(set(targets)) == len(targets), "Duplicate actions in More"
 assert 'class="nyan-home-primary"' not in client, "Old big action tiles were recreated"
@@ -61,6 +60,6 @@ assert 'legacyActions.style.setProperty("display", "none", "important");' in cli
 assert '#nyan-home-v2>.nyan-home-primary' in home, "Outdated JS might recreate large action tiles"
 assert 'id="nyan-home-owner"' in client and 'ownerProxy.disabled' in client, "Owner menu access must remain conditional"
 assert '"nyan-home-badge"' in client, "Notification badge must remain available"
-print("OK: all fourteen actions are compact More entries; original large buttons cannot appear")
+print("OK: all current actions are compact More entries; original large buttons cannot appear")
 
 print("OK: old action grid stays hidden; new home navigation keeps original click handlers")

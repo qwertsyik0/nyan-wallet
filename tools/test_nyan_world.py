@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 from pathlib import Path
 import sys
 import types
@@ -14,11 +15,16 @@ from sqlalchemy.pool import StaticPool
 ROOT=Path(__file__).resolve().parents[1]
 class WorldTest(unittest.TestCase):
     def setUp(self):
-        self.engine=create_engine("sqlite://",connect_args={"check_same_thread":False},poolclass=StaticPool)
+        pg=os.getenv("NYAN_WORLD_TEST_DATABASE_URL")
+        if pg:
+            if not pg.endswith("/world_test"): raise RuntimeError("Only the dedicated world_test database is allowed")
+            self.engine=create_engine(pg)
+        else:
+            self.engine=create_engine("sqlite://",connect_args={"check_same_thread":False},poolclass=StaticPool)
         mapper=registry()
         users=Table("users",mapper.metadata,Column("telegram_id",BigInteger,primary_key=True))
         class User: pass
-        mapper.map_imperatively(User,users);mapper.metadata.create_all(self.engine)
+        mapper.map_imperatively(User,users);mapper.metadata.create_all(self.engine);self.usersmeta=mapper.metadata
         def verify(raw):
             if raw not in {"owner","player","other","third"}: raise HTTPException(401,"bad auth")
             return {"id":{"owner":1,"player":2,"other":3,"third":4}[raw]}
@@ -39,7 +45,7 @@ class WorldTest(unittest.TestCase):
         self.do("country",{"season_id":1,"name":"A","player_id":2,"opening_budget":1000,"indicators":{"stability":50}})
         self.do("country",{"season_id":1,"name":"B","player_id":3,"opening_budget":500})
     def tearDown(self):
-        self.client.close();self.engine.dispose()
+        self.client.close();self.w.m.drop_all(self.engine);self.usersmeta.drop_all(self.engine);self.engine.dispose()
         for k,v in self.previous.items():
             if v is None: sys.modules.pop(k,None)
             else: sys.modules[k]=v
@@ -52,6 +58,16 @@ class WorldTest(unittest.TestCase):
     def submit(self):
         self.do("submit",{"country_id":1,"title":"Build","body":"Build plant","kind":"decision"},"player")
         return self.state()["requests"][0]["id"]
+    def test_concurrent_duplicate_budget_action(self):
+        if self.engine.dialect.name!="postgresql": self.skipTest("PostgreSQL concurrency check")
+        from concurrent.futures import ThreadPoolExecutor
+        key=str(uuid4())
+        def run():
+            return self.client.post("/api/world/actions",json={"operation_id":key,"kind":"budget","data":{"country_id":1,"delta":25,"reason":"concurrent"}},headers={"X-Telegram-Init-Data":"owner"}).status_code
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results=list(pool.map(lambda _:run(), range(2)))
+        self.assertEqual(results,[200,200])
+        self.assertEqual(self.state()["countries"][0]["budget"],1025)
     def test_auth_and_private_state(self):
         self.assertEqual(self.client.get("/api/world/state").status_code,401)
         self.do("budget",{"country_id":1,"delta":100,"reason":"x"},"player",code=403)

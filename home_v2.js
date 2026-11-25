@@ -4,6 +4,7 @@
   // Only one visible navigation block: the compact "Ещё" menu.
   // Existing hidden action buttons remain click targets for their original handlers.
   const MORE_ACTIONS = [
+    ["world", "◎", "NYAN WORLD", "nyan-world-open"],
     ["earn", "＋", "Заработать", "earn-button"],
     ["spend", "🐾", "Потратить", "spend-button"],
     ["transfer", "↗", "Перевести", "transfer-button"],

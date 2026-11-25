@@ -1,7 +1,7 @@
 name: NYAN WORLD checks
 on:
   push:
-    paths: ['server/nyan_world.py', 'tools/test_nyan_world.py', 'tools/install_nyan_world.py', 'nyan-world*', '.github/workflows/nyan-world.yml']
+    paths: ['server/nyan_world.py', 'tools/test_nyan_world.py', 'tools/install_nyan_world.py', 'nyan-world*', 'tools/test_nyan_world_ui.cjs', '.github/workflows/nyan-world.yml']
   pull_request:
     paths: ['server/nyan_world.py', 'tools/test_nyan_world.py', 'tools/install_nyan_world.py', 'nyan-world*', '.github/workflows/nyan-world.yml']
 permissions:
@@ -9,6 +9,19 @@ permissions:
 jobs:
   world:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: world
+          POSTGRES_PASSWORD: world_test_password
+          POSTGRES_DB: world_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -17,8 +30,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: pip install 'SQLAlchemy==2.0.43' 'fastapi==0.115.12' 'httpx==0.28.1'
+      - run: pip install 'SQLAlchemy==2.0.43' 'fastapi==0.115.12' 'httpx==0.28.1' 'psycopg[binary]==3.2.9'
       - run: python -m py_compile server/nyan_world.py tools/install_nyan_world.py
       - run: node --check nyan-world.js
       - run: node --check nyan-world-entry.js
       - run: python tools/test_nyan_world.py
+      - name: Verify PostgreSQL and concurrent retries
+        run: python tools/test_nyan_world.py
+        env:
+          NYAN_WORLD_TEST_DATABASE_URL: postgresql+psycopg://world:world_test_password@localhost:5432/world_test
+      - name: Install isolated DOM test dependency
+        run: npm install --prefix /tmp/world-ui jsdom@26
+      - name: Test owner and player UI flows
+        run: node tools/test_nyan_world_ui.cjs
+        env:
+          NODE_PATH: /tmp/world-ui/node_modules

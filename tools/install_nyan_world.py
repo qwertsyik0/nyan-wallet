@@ -67,6 +67,15 @@ def main():
             if "</body>" not in html: raise RuntimeError("не найден якорь index.html")
             html=html.replace("</body>",'<script src="./nyan-world-entry.js?v=1"></script>\n</body>',1)
         updated["index.html"]=html.encode()
+    home=root/"home_v2.js"
+    if home.is_file():
+        home_source=home.read_text()
+        if '"nyan-world-open"' not in home_source:
+            if "const MORE_ACTIONS = [" not in home_source: raise RuntimeError("не найдено меню главного экрана")
+            home_source=home_source.replace("const MORE_ACTIONS = [",'const MORE_ACTIONS = [\\n    ["world", "◎", "NYAN WORLD", "nyan-world-open"],',1)
+        updated["home_v2.js"]=home_source.encode()
+        if "index.html" in updated:
+            updated["index.html"]=re.sub(r'home_v2\\.js\\?v=[^"]+', "home_v2.js?v=20261125-world1", updated["index.html"].decode()).encode()
     originals={file:(root/file).read_bytes() if (root/file).exists() else None for file in updated}
     backup=root/".world-backups"/datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
     backup.mkdir(parents=True,mode=0o700)
