@@ -8,7 +8,7 @@ import unittest
 from uuid import uuid4
 from fastapi import HTTPException, FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, Table, MetaData, Column, BigInteger, select, func
+from sqlalchemy import create_engine, Table, MetaData, Column, BigInteger, Integer, String, Text, DateTime, select, func
 from sqlalchemy.orm import registry
 from sqlalchemy.pool import StaticPool
 
@@ -22,7 +22,12 @@ class WorldTest(unittest.TestCase):
         else:
             self.engine=create_engine("sqlite://",connect_args={"check_same_thread":False},poolclass=StaticPool)
         mapper=registry()
-        users=Table("users",mapper.metadata,Column("telegram_id",BigInteger,primary_key=True))
+        users=Table("users",mapper.metadata,Column("telegram_id",BigInteger,primary_key=True),
+            Column("username",String),Column("first_name",String),Column("last_name",String))
+        self.outbox=Table("telegram_relay_outbox",mapper.metadata,
+            Column("id",Integer,primary_key=True),Column("source_key",String,unique=True),
+            Column("chat_id",BigInteger),Column("body",Text),Column("state",String),
+            Column("attempts",Integer),Column("created_at",DateTime(timezone=True)))
         class User: pass
         mapper.map_imperatively(User,users);mapper.metadata.create_all(self.engine);self.usersmeta=mapper.metadata
         def verify(raw):
@@ -137,4 +142,60 @@ class WorldTest(unittest.TestCase):
         self.do("apply",{"id":rid},code=400)
         self.assertEqual(self.state()["countries"][0]["budget"],1020)
         self.assertEqual(self.state()["requests"][0]["status"],"approved")
+
+    def registration(self):
+        self.do("country",{"season_id":1,"name":"C"})
+        self.do("submit",{"country_id":3,"kind":"registration","title":"Join","body":"Want C"},"third")
+        return self.state()["requests"][0]["id"]
+    def test_approval_invite_private_and_idempotent(self):
+        rid=self.registration()
+        self.assertEqual(self.state("third")["season"]["chat_url"],"")
+        with self.engine.begin() as c:
+            c.execute(self.core.User.__table__.update().where(
+                self.core.User.telegram_id==4).values(username="applicant"))
+        key=str(uuid4());data={"id":rid,"status":"approved"}
+        self.do("review",data,key=key);self.do("review",data,key=key)
+        self.do("review",data,code=400)
+        st=self.state("third")
+        self.assertEqual(st["my_country_id"],3)
+        self.assertEqual(st["season"]["chat_url"],self.w.WORLD_CHAT_URL)
+        with self.engine.connect() as c:
+            rows=c.execute(select(self.outbox)).mappings().all()
+        self.assertEqual(len(rows),1)
+        self.assertEqual(rows[0]["chat_id"],4)
+        body=rows[0]["body"]
+        self.assertTrue(body.startswith("NYAN_TG_RICH_V1:"))
+        payload=json.loads(body.removeprefix("NYAN_TG_RICH_V1:"))
+        self.assertIn("@applicant",payload["text"])
+        self.assertIn("C",payload["text"])
+        self.assertEqual(payload["buttons"],[{"text":"Вступить в чат","url":self.w.WORLD_CHAT_URL}])
+        self.assertIn("одобрена",st["notices"][0]["body"])
+    def test_approval_escapes_name_and_uses_season_link(self):
+        rid=self.registration()
+        self.do("season",{"id":1,"name":"Test","currency":"WU","status":"active",
+                          "chat_url":"https://t.me/+anotherInvite"})
+        with self.engine.begin() as c:
+            c.execute(self.core.User.__table__.update().where(
+                self.core.User.telegram_id==4).values(first_name="<Alice & Bob>"))
+        self.do("review",{"id":rid,"status":"approved"})
+        with self.engine.connect() as c:
+            body=c.execute(select(self.outbox.c.body)).scalar_one()
+        payload=json.loads(body.removeprefix("NYAN_TG_RICH_V1:"))
+        self.assertIn("&lt;Alice &amp; Bob&gt;",payload["text"])
+        self.assertEqual(payload["buttons"][0]["url"],"https://t.me/+anotherInvite")
+    def test_rejected_registration_has_no_invite(self):
+        rid=self.registration()
+        self.do("review",{"id":rid,"status":"rejected","comment":"Incomplete"})
+        self.assertEqual(self.state("third")["season"]["chat_url"],"")
+        with self.engine.connect() as c:
+            self.assertEqual(c.execute(select(func.count()).select_from(self.outbox)).scalar_one(),0)
+        self.assertIsNone(self.state("third")["my_country_id"])
+    def test_missing_outbox_rolls_back_approval(self):
+        rid=self.registration()
+        self.outbox.drop(self.engine)
+        self.do("review",{"id":rid,"status":"approved"},code=503)
+        st=self.state("third")
+        self.assertIsNone(st["my_country_id"])
+        self.assertEqual(st["requests"][0]["status"],"submitted")
+
 if __name__=="__main__": unittest.main()

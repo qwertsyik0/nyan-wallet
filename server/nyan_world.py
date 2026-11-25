@@ -1,6 +1,7 @@
 """NYAN WORLD: owner-controlled season budgets and moderated written decisions."""
 from __future__ import annotations
 import json
+from html import escape
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from uuid import UUID
@@ -8,7 +9,7 @@ from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import (MetaData, Table, Column, Integer, BigInteger, String, Text,
                         DateTime, UniqueConstraint, select)
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, NoSuchTableError
 from server import backend_app as core
 
 router = APIRouter(prefix="/api/world", tags=["NYAN WORLD"])
@@ -52,6 +53,33 @@ audit = Table("nw_audit", m, Column("id", Integer, primary_key=True),
 notices = Table("nw_notices", m, Column("id", Integer, primary_key=True),
     Column("user_id", BigInteger, nullable=False), Column("body", Text, nullable=False),
     Column("is_read", Integer, nullable=False), Column("created_at", DateTime(timezone=True), nullable=False))
+WORLD_CHAT_URL = "https://t.me/+Zi1PggBzzJ9hZDEy"
+def registration_approved(c, r, co):
+    season = row(c, seasons, r["season_id"])
+    url = season["chat_url"] or WORLD_CHAT_URL
+    user = c.execute(select(core.User.__table__).where(
+        core.User.telegram_id == r["author_id"])).mappings().one_or_none()
+    user = dict(user) if user else {}
+    name = ("@" + user["username"].lstrip("@")) if user.get("username") else (
+        " ".join(str(user.get(k) or "") for k in ("first_name", "last_name")).strip()
+        or str(r["author_id"]))
+    message = (f"Уважаемый {name}, ваша заявка на должность руководителя государства "
+               f"{co['name']} одобрена!\n\nДобро пожаловать в NYAN WORLD. "
+               "Вступите в чат по кнопке ниже.")
+    # Use the approval transaction so a failed assignment never sends an invite.
+    try:
+        outbox = Table("telegram_relay_outbox", MetaData(), autoload_with=c)
+    except NoSuchTableError:
+        fail("Очередь Telegram не настроена. Одобрение не сохранено", 503)
+    body = "NYAN_TG_RICH_V1:" + pack({
+        "text": escape(message),
+        "buttons": [{"text": "Вступить в чат", "url": url}],
+    })
+    c.execute(outbox.insert().values(
+        source_key=f"nyan-world:registration-approved:{r['id']}",
+        chat_id=r["author_id"], body=body, state="pending", attempts=0, created_at=now()))
+    notify(c, r["author_id"], message + "\n" + url)
+
 LIMIT = 10**15
 STATES = {"draft", "registration", "active", "paused", "finished"}
 KINDS = {"decision", "announcement", "transfer", "registration"}
@@ -257,7 +285,10 @@ def perform(c,user,p):
             if co["player_id"] not in (None,r["author_id"]): fail("Страна уже занята")
             c.execute(countries.update().where(countries.c.id==co["id"]).values(player_id=r["author_id"]))
             r.update(status="completed");c.execute(requests.update().where(requests.c.id==r["id"]).values(status="completed"))
-        request_event(c,r,uid);notify(c,r["author_id"],f"Заявка #{r['id']}: {r['status']}. {comment}")
+            registration_approved(c,r,co)
+        request_event(c,r,uid)
+        if not (r["kind"]=="registration" and status=="approved"):
+            notify(c,r["author_id"],f"Заявка #{r['id']}: {r['status']}. {comment}")
         return
     if p.kind=="apply":
         r=row(c,requests,integer(d.get("id"),"заявка",1))
@@ -290,6 +321,8 @@ def state(season_id:int|None=None,x_telegram_init_data:str=Header(default="",ali
         season=row(c,seasons,sid) if sid else None
         cs=[dict(r) for r in c.execute(select(countries).where(countries.c.season_id==sid).order_by(countries.c.name)).mappings()]
         own=next((r for r in cs if r["player_id"]==uid),None)
+        if season:
+            season["chat_url"]=(season["chat_url"] or WORLD_CHAT_URL) if admin or own else ""
         for co in cs:
             co["indicators"]=json.loads(co["indicators"])
             co["occupied"]=co["player_id"] is not None
