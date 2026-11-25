@@ -32,7 +32,7 @@ class WorldTest(unittest.TestCase):
         self.previous={k:sys.modules.get(k) for k in ("server","server.backend_app")}
         sys.modules["server"]=parent;sys.modules["server.backend_app"]=self.core
         spec=importlib.util.spec_from_file_location("world_test_module",ROOT/"server/nyan_world.py")
-        self.w=importlib.util.module_from_spec(spec);spec.loader.exec_module(self.w)
+        self.w=importlib.util.module_from_spec(spec);sys.modules[spec.name]=self.w;spec.loader.exec_module(self.w)
         app=FastAPI();self.w.register_world(app);self.client=TestClient(app)
         with self.engine.begin() as c: c.execute(users.insert(),[{"telegram_id":i} for i in range(1,5)])
         self.do("season",{"name":"Test","currency":"WU","status":"active","select":True})
@@ -53,7 +53,6 @@ class WorldTest(unittest.TestCase):
         self.do("submit",{"country_id":1,"title":"Build","body":"Build plant","kind":"decision"},"player")
         return self.state()["requests"][0]["id"]
     def test_auth_and_private_state(self):
-        self.client.get("/api/world/state").raise_for_status if False else None
         self.assertEqual(self.client.get("/api/world/state").status_code,401)
         self.do("budget",{"country_id":1,"delta":100,"reason":"x"},"player",code=403)
         st=self.state("player")
