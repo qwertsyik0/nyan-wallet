@@ -55,7 +55,7 @@ class GiftTest(unittest.TestCase):
  def call(self,path,data=None,uid='2',code=200):
   r=self.client.get('/api/prize-gifts'+path,headers={'X-Telegram-Init-Data':uid}) if data is None else self.client.post('/api/prize-gifts'+path,json=data,headers={'X-Telegram-Init-Data':uid})
   self.assertEqual(r.status_code,code,r.text);return r.json()
- def purchase(self,key=None):return self.call('/buy',{'operation_id':key or str(uuid4()),'reward_id':1,'recipient_id':3,'message':'For you'})
+ def purchase(self,key=None):return self.call('/buy',{'operation_id':key or str(uuid4()),'reward_id':1,'recipient_id':3,'expected_cost':450,'message':'For you'})
  def balance(self,uid):
   with self.Session() as s:return s.get(self.User,uid).balance
  def test_purchase_retry_and_refund_payer_only(self):
@@ -67,20 +67,23 @@ class GiftTest(unittest.TestCase):
  def test_privacy_and_access(self):
   self.purchase();self.assertEqual(len(self.call('/state',uid='3')['gifts']),1);self.assertEqual(self.call('/state',uid='4')['gifts'],[]);self.call('/1/status',{'status':'fulfilled'},code=403)
  def test_hidden_vip_self_missing_recipient(self):
-  for rid,recipient,code in [(2,3,400),(3,3,400),(1,2,400),(1,999,404)]:self.call('/buy',{'operation_id':str(uuid4()),'reward_id':rid,'recipient_id':recipient},code=code)
+  for rid,recipient,code in [(2,3,400),(3,3,400),(1,2,400),(1,999,404)]:self.call('/buy',{'operation_id':str(uuid4()),'reward_id':rid,'recipient_id':recipient,'expected_cost':450},code=code)
   self.assertEqual(self.balance(2),1000)
  def test_failed_notification_rolls_back_payment(self):
-  self.outbox.drop(self.engine);self.call('/buy',{'operation_id':str(uuid4()),'reward_id':1,'recipient_id':3},code=503);self.assertEqual(self.balance(2),1000)
+  self.outbox.drop(self.engine);self.call('/buy',{'operation_id':str(uuid4()),'reward_id':1,'recipient_id':3,'expected_cost':450},code=503);self.assertEqual(self.balance(2),1000)
  def test_legacy_admin_cannot_reopen_cancelled_gift(self):
   rid=self.purchase()['request_id'];self.call('/'+str(rid)+'/status',{'status':'cancelled'},uid='1')
   with self.assertRaises(HTTPException):
    with self.Session.begin() as s:s.get(self.Request,rid).status='fulfilled'
   self.assertEqual(self.balance(2),1000)
+ def test_changed_price_requires_new_confirmation(self):
+  self.call('/buy',{'operation_id':str(uuid4()),'reward_id':1,'recipient_id':3,'expected_cost':100},code=409)
+  self.assertEqual(self.balance(2),1000)
  def test_concurrent_purchase_same_key(self):
   if self.engine.dialect.name!='postgresql':self.skipTest('PostgreSQL concurrency')
   from concurrent.futures import ThreadPoolExecutor
   key=str(uuid4())
-  def buy(_):return self.client.post('/api/prize-gifts/buy',json={'operation_id':key,'reward_id':1,'recipient_id':3,'message':'For you'},headers={'X-Telegram-Init-Data':'2'}).status_code
+  def buy(_):return self.client.post('/api/prize-gifts/buy',json={'operation_id':key,'reward_id':1,'recipient_id':3,'expected_cost':450,'message':'For you'},headers={'X-Telegram-Init-Data':'2'}).status_code
   with ThreadPoolExecutor(max_workers=2) as pool:self.assertEqual(list(pool.map(buy,range(2))),[200,200])
   self.assertEqual(self.balance(2),550)
 if __name__=='__main__':unittest.main()

@@ -16,6 +16,7 @@ class Buy(BaseModel):
  operation_id:UUID
  reward_id:int=Field(gt=0,strict=True)
  recipient_id:int=Field(gt=0,strict=True)
+ expected_cost:int=Field(gt=0,strict=True)
  message:str=Field(default='',max_length=500)
 class Status(BaseModel):
  status:str
@@ -67,10 +68,11 @@ def buy(p:Buy,x_telegram_init_data:str=Header(default='')):
    c=session.connection();old=c.execute(select(gifts).where(gifts.c.sender_id==uid,gifts.c.operation_id==str(p.operation_id))).mappings().first()
    if old:
     req=session.get(SpendRequest,old['request_id'])
-    if old['recipient_id']!=p.recipient_id or req.reward_id!=p.reward_id or old['message']!=p.message:raise HTTPException(409,'Ключ уже использован')
+    if old['recipient_id']!=p.recipient_id or req.reward_id!=p.reward_id or req.cost!=p.expected_cost or old['message']!=p.message:raise HTTPException(409,'Ключ уже использован')
     return {'ok':True,'request_id':req.id,'repeated':True}
    reward=session.scalar(select(Reward).where(Reward.id==p.reward_id).with_for_update())
    if not reward or is_vip_reward(reward.title) or not catalog_item(session,reward)['available']:raise HTTPException(400,'Награда недоступна для подарка')
+   if reward.cost!=p.expected_cost:raise HTTPException(409,'Цена изменилась. Обновите список и подтвердите новую стоимость')
    if users[uid].balance<reward.cost:raise HTTPException(409,'Недостаточно лапкоинов')
    users[uid].balance-=reward.cost
    req=SpendRequest(telegram_id=uid,reward_id=reward.id,reward_title=reward.title,cost=reward.cost,status='pending',created_at=w.now(),processed_at=None);session.add(req);session.flush()
