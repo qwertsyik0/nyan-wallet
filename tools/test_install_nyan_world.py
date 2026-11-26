@@ -14,7 +14,7 @@ class InstallTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);(root/"server").mkdir()
             (root/"server/__init__.py").write_text("import os\n# custom server setup\n")
-            (root/"index.html").write_text('<script src="./home_v2.js?v=old"></script></body>')
+            (root/"index.html").write_text('<script src="./home_v2.js?v=old"></script><script src="./nyan-world-invite.js?v=old"></script></body>')
             (root/"home_v2.js").write_text('const MORE_ACTIONS = [\n ["custom","x","Custom","custom-button"],\n];')
             originals={p:p.read_bytes() for p in (root/"server/__init__.py",root/"index.html",root/"home_v2.js")}
             def value(key): return "active" if key=="ActiveState" else str(root)
@@ -35,7 +35,7 @@ class InstallTest(unittest.TestCase):
                 self.assertIn("home_v2.js?v=20261125-world-card1",(root/"index.html").read_text())
                 self.assertIn("# custom server setup",(root/"server/__init__.py").read_text())
                 self.assertEqual((root/"index.html").read_text().count("nyan-world-entry.js"),1)
-                self.assertEqual((root/"index.html").read_text().count("nyan-world-invite.js"),1)
+                self.assertEqual((root/"index.html").read_text().count("nyan-world-invite.js"),0)
                 self.assertTrue((root/"nyan-world-info.html").is_file())
                 for name in ("nyan-world-rules.html","nyan-world-rules.js","nyan-world-rules.css"):
                     self.assertTrue((root/name).is_file())
