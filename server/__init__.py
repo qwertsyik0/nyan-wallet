@@ -150,3 +150,13 @@ if os.getenv('NYAN_RESTORE_SCHEMA_ONLY') == '1':
     wallet_tools_metadata.create_all(backend_app.engine)
 else:
     register_wallet_tools(backend_app.app)
+
+# WORLD_HUB_V1
+from .world_hub import register_world_hub, m as world_hub_metadata
+from .prize_gifts import register_prize_gifts, m as prize_gifts_metadata
+if os.getenv('NYAN_RESTORE_SCHEMA_ONLY') == '1':
+    world_hub_metadata.create_all(backend_app.engine)
+    prize_gifts_metadata.create_all(backend_app.engine)
+else:
+    register_world_hub(backend_app.app)
+    register_prize_gifts(backend_app.app)

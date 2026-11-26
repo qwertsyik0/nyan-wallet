@@ -1,0 +1,48 @@
+name: World hub and prize gifts
+on:
+  push:
+    paths: ['server/world_hub.py', 'server/prize_gifts.py', 'world-hub*', 'nyan-world-hub.html', 'prize-gifts.html', 'tools/test_world_hub*', 'tools/test_prize_gifts.py', 'tools/install_world_hub.py', 'tools/test_install_world_hub.py', '.github/workflows/world-hub.yml']
+  pull_request:
+    paths: ['server/world_hub.py', 'server/prize_gifts.py', 'world-hub*', 'nyan-world-hub.html', 'prize-gifts.html']
+permissions:
+  contents: read
+jobs:
+  hub:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: world_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: pip install 'SQLAlchemy==2.0.43' 'fastapi==0.115.12' 'httpx==0.28.1' 'psycopg[binary]==3.2.9'
+      - run: python -m py_compile server/world_hub.py server/prize_gifts.py tools/install_world_hub.py
+      - run: python -W ignore::DeprecationWarning tools/test_world_hub.py && python tools/test_prize_gifts.py && python tools/test_install_world_hub.py
+      - run: python -W ignore::DeprecationWarning tools/test_world_hub.py
+        env:
+          NYAN_WORLD_TEST_DATABASE_URL: postgresql+psycopg://test:test_password@localhost:5432/world_test
+      - name: Create gift test database
+        run: PGPASSWORD=test_password psql -h localhost -U test -d world_test -c 'CREATE DATABASE gifts_test'
+      - run: python tools/test_prize_gifts.py
+        env:
+          GIFT_TEST_DB: postgresql+psycopg://test:test_password@localhost:5432/gifts_test
+      - run: npm install --prefix /tmp/hub-ui jsdom@26
+      - run: node --check world-hub.js && node --check world-hub-entry.js
+      - run: node tools/test_world_hub_ui.cjs
+        env:
+          NODE_PATH: /tmp/hub-ui/node_modules
