@@ -4,7 +4,7 @@ from datetime import datetime,timezone
 from uuid import uuid4
 from fastapi import FastAPI,HTTPException
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine,Column,Integer,BigInteger,String,Text,DateTime,Table,MetaData,select
+from sqlalchemy import create_engine,Column,Integer,BigInteger,String,Text,DateTime,Table,MetaData,select,Boolean
 from sqlalchemy.orm import declarative_base,sessionmaker
 from sqlalchemy.pool import StaticPool
 ROOT=Path(__file__).resolve().parents[1]
@@ -17,7 +17,7 @@ class GiftTest(unittest.TestCase):
   class User(Base):
    __tablename__='users';telegram_id=Column(BigInteger,primary_key=True);balance=Column(Integer);first_name=Column(String);last_name=Column(String);username=Column(String)
   class Reward(Base):
-   __tablename__='reward_catalog';id=Column(Integer,primary_key=True);title=Column(String);cost=Column(Integer);is_active=Column(Integer)
+   __tablename__='reward_catalog';id=Column(Integer,primary_key=True);title=Column(String);cost=Column(Integer);is_active=Column(Boolean)
   class Request(Base):
    __tablename__='spend_requests';id=Column(Integer,primary_key=True);telegram_id=Column(BigInteger);reward_id=Column(Integer);reward_title=Column(String);cost=Column(Integer);status=Column(String);created_at=Column(DateTime(timezone=True));processed_at=Column(DateTime(timezone=True))
   class Meta(Base):

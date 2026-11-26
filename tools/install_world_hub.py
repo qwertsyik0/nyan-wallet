@@ -12,7 +12,7 @@ import time
 import urllib.request
 import json
 
-FILES=["server/world_hub.py","server/prize_gifts.py","world-hub.js","world-hub.css","world-hub-entry.js","nyan-world-hub.html","prize-gifts.html","wallet-tools.css"]
+FILES=["server/nyan_world.py","server/world_hub.py","server/prize_gifts.py","world-hub.js","world-hub.css","world-hub-entry.js","nyan-world-hub.html","prize-gifts.html","wallet-tools.css"]
 HOOK="\n# WORLD_HUB_V1\nfrom .world_hub import register_world_hub, m as world_hub_metadata\nfrom .prize_gifts import register_prize_gifts, m as prize_gifts_metadata\nif os.getenv('NYAN_RESTORE_SCHEMA_ONLY') == '1':\n    world_hub_metadata.create_all(backend_app.engine)\n    prize_gifts_metadata.create_all(backend_app.engine)\nelse:\n    register_world_hub(backend_app.app)\n    register_prize_gifts(backend_app.app)\n"
 def value(name):
     return subprocess.check_output(["systemctl","show","nyan-wallet","-p",name,"--value"],text=True).strip()
