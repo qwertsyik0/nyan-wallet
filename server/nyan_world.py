@@ -78,7 +78,8 @@ def registration_approved(c, r, co):
     c.execute(outbox.insert().values(
         source_key=f"nyan-world:registration-approved:{r['id']}",
         chat_id=r["author_id"], body=body, state="pending", attempts=0, created_at=now()))
-    notify(c, r["author_id"], message + "\n" + url)
+    notify(c, r["author_id"], message + "\n" + url,telegram=False,mirror=False)
+    notify(c,core.OWNER_TELEGRAM_ID,f"Заявка #{r['id']} одобрена. Страна: {co['name']}\nИгрок: {name} | ID: {r['author_id']}",mirror=False)
 
 LIMIT = 10**15
 STATES = {"draft", "registration", "active", "paused", "finished"}
@@ -102,8 +103,50 @@ def row(c,t,id):
     v=c.execute(select(t).where(t.c.id==id)).mappings().one_or_none()
     if v is None: fail("Запись не найдена",404)
     return dict(v)
-def notify(c,uid,body):
-    if uid: c.execute(notices.insert().values(user_id=uid,body=body,is_read=0,created_at=now()))
+def identity(c,uid):
+    user=c.execute(select(core.User.__table__).where(core.User.telegram_id==uid)).mappings().one_or_none()
+    if not user: return str(uid)
+    return ("@"+user["username"].lstrip("@")) if user.get("username") else (
+        " ".join(str(user.get(k) or "") for k in ("first_name","last_name")).strip() or str(uid))
+def queue_world_message(c,uid,body,source):
+    try:
+        outbox=Table("telegram_relay_outbox",MetaData(),autoload_with=c)
+    except NoSuchTableError:
+        fail("Очередь Telegram не настроена. Изменения не сохранены",503)
+    # Telegram counts UTF-16 units; 1600 Unicode characters fit even for emoji.
+    parts=[body[i:i+1600] for i in range(0,len(body),1600)]
+    for index,part in enumerate(parts,1):
+        text="NYAN WORLD\n"+(f"Часть {index}/{len(parts)}\n" if len(parts)>1 else "")+part
+        c.execute(outbox.insert().values(source_key=f"{source}:{index}",chat_id=uid,
+            body=text,state="pending",attempts=0,created_at=now()))
+def notify(c,uid,body,telegram=True,mirror=True):
+    if not uid: return
+    nid=c.execute(notices.insert().values(user_id=uid,body=body,is_read=0,created_at=now())).inserted_primary_key[0]
+    if telegram: queue_world_message(c,uid,body,f"nyan-world:notice:{nid}")
+    if mirror and core.OWNER_TELEGRAM_ID and int(uid)!=int(core.OWNER_TELEGRAM_ID):
+        notify(c,core.OWNER_TELEGRAM_ID,
+            f"Участник: {identity(c,uid)} | ID: {uid}\n{body}",mirror=False)
+def request_description(c,r,co):
+    kinds={"registration":"Заявка на страну","decision":"Государственное решение",
+           "announcement":"Объявление","transfer":"Перевод другой стране"}
+    return (f"Заявка #{r['id']} | {kinds.get(r['kind'],r['kind'])}\n"
+            f"Страна: {co['name']}\nАвтор: {identity(c,r['author_id'])} | ID: {r['author_id']}\n"
+            f"{r['title']}")
+def effect_description(c,e):
+    lines=[]
+    if e.get("budget_delta"): lines.append(f"Изменение бюджета: {e['budget_delta']:+d}")
+    for k,label in (("income","Новый доход"),("expense","Новый расход"),("debt","Новый долг")):
+        if k in e: lines.append(f"{label}: {e[k]}")
+    if "recipient_id" in e:
+        lines.append(f"Перевод: {e['transfer_amount']} в страну {row(c,countries,e['recipient_id'])['name']}")
+    for k,v in e.get("indicators",{}).items(): lines.append(f"Показатель {k}: {v}")
+    return "\n".join(lines) or "Бюджет и показатели без изменений"
+def season_notice(c,sid,message):
+    players=c.execute(select(countries.c.player_id).where(countries.c.season_id==sid,
+        countries.c.player_id.is_not(None))).scalars().all()
+    for uid in set(players):
+        if uid!=core.OWNER_TELEGRAM_ID: notify(c,uid,message,mirror=False)
+    notify(c,core.OWNER_TELEGRAM_ID,message,mirror=False)
 def request_event(c,r,uid):
     c.execute(history.insert().values(request_id=r["id"],actor_id=uid,body=pack(r),created_at=now()))
 def money(c,co,delta,reason,key,uid,reversal=None):
@@ -134,14 +177,18 @@ def apply_effects(c,r,uid,key):
         if target["id"]==co["id"] or target["season_id"]!=co["season_id"]: fail("Некорректная страна получателя")
         money(c,co,-e["transfer_amount"],f"Перевод по заявке #{r['id']}",key,uid)
         money(c,target,e["transfer_amount"],f"Перевод по заявке #{r['id']}",key,uid)
-        notify(c,target["player_id"],f"Получен перевод по заявке #{r['id']}")
+        notify(c,target["player_id"],f"Страна: {target['name']}. Получен перевод {e['transfer_amount']} из страны {co['name']} по заявке #{r['id']}. Бюджет: {target['budget']}")
     values={k:e[k] for k in ("income","expense","debt") if k in e}
     values["indicators"]=pack({**json.loads(co["indicators"]),**e["indicators"]})
     c.execute(countries.update().where(countries.c.id==co["id"]).values(**values))
     c.execute(requests.update().where(requests.c.id==r["id"]).values(status="completed",updated_at=now()))
     r.update(status="completed",updated_at=now())
     request_event(c,r,uid)
-    notify(c,co["player_id"],f"Последствия заявки #{r['id']} применены. {r['comment']}")
+    notify(c,r["author_id"],f"Заявка #{r['id']} выполнена.\nСтрана: {co['name']}\n{r['title']}\n\n"
+        +effect_description(c,e)+f"\nБюджет после операции: {co['budget']}\n"+r["comment"])
+    if co["player_id"] and co["player_id"]!=r["author_id"]:
+        notify(c,co["player_id"],f"Применены последствия заявки #{r['id']} для страны {co['name']}.\n"
+            +effect_description(c,e)+f"\nБюджет: {co['budget']}",mirror=False)
 
 class Action(BaseModel):
     model_config=ConfigDict(extra="forbid")
@@ -178,7 +225,9 @@ def perform(c,user,p):
                 kind=kind,title=string(d.get("title"),"заголовок",160),body=string(d.get("body"),"описание",12000),
                 status="submitted",revision=1,comment="",effects="{}",due_at="",created_at=now(),updated_at=now()))
             r=row(c,requests,result.inserted_primary_key[0]); request_event(c,r,uid)
-            notify(c,core.OWNER_TELEGRAM_ID,f"Новая заявка NYAN WORLD #{r['id']}: {co['name']}")
+            notify(c,core.OWNER_TELEGRAM_ID,"Новая заявка\n"+request_description(c,r,co)+"\n\n"+r["body"],mirror=False)
+            if uid!=core.OWNER_TELEGRAM_ID:
+                notify(c,uid,f"Заявка #{r['id']} отправлена на рассмотрение.\nСтрана: {co['name']}\n{r['title']}",mirror=False)
         else:
             r=row(c,requests,integer(d.get("id"),"заявка",1))
             if r["author_id"]!=uid: fail("Нет доступа",403)
@@ -194,6 +243,10 @@ def perform(c,user,p):
                          revision=r["revision"]+1,status="submitted",updated_at=now())
             c.execute(requests.update().where(requests.c.id==r["id"]).values(**{k:r[k] for k in ("title","body","revision","status","updated_at")}))
             request_event(c,r,uid)
+            event="Заявка отозвана" if p.kind=="withdraw" else "Доработанная заявка отправлена"
+            notify(c,core.OWNER_TELEGRAM_ID,event+"\n"+request_description(c,r,co)+"\n\n"+r["body"],mirror=False)
+            if uid!=core.OWNER_TELEGRAM_ID:
+                notify(c,uid,f"{event}.\nЗаявка #{r['id']} | {co['name']}\n{r['title']}",mirror=False)
         return
     if p.kind=="season":
         values=dict(name=string(d.get("name"),"название",120),
@@ -209,6 +262,9 @@ def perform(c,user,p):
         else:
             sid=c.execute(seasons.insert().values(**values,created_at=now())).inserted_primary_key[0]
         if d.get("select",False): c.execute(settings.update().where(settings.c.id==1).values(active_season_id=sid))
+        labels={"draft":"Черновик","registration":"Регистрация","active":"Сезон идёт","paused":"Пауза","finished":"Завершён"}
+        if d.get("id") and old["status"]!=values["status"]:
+            season_notice(c,sid,f"Сезон {values['name']}: {labels[values['status']]}")
         return
     if p.kind=="select_season":
         sid=integer(d.get("id"),"сезон",1); row(c,seasons,sid)
@@ -231,6 +287,8 @@ def perform(c,user,p):
             if old["player_id"]!=player:
                 notify(c,old["player_id"],f"Управление страной {old['name']} завершено")
                 notify(c,player,f"Ты назначен руководителем страны {values['name']}")
+            elif player and any(old[k]!=values[k] for k in values):
+                notify(c,player,f"Обновлены настройки страны {values['name']}.\nДоход: {values['income']} | расход: {values['expense']} | долг: {values['debt']}\nДействия: {'приостановлены' if values['frozen'] else 'доступны при активном сезоне'}")
         else:
             cid=c.execute(countries.insert().values(season_id=sid,budget=0,**values)).inserted_primary_key[0]
             co=row(c,countries,cid)
@@ -251,7 +309,7 @@ def perform(c,user,p):
             if target["id"]==co["id"] or target["season_id"]!=co["season_id"]: fail("Некорректный получатель")
             money(c,co,-amount,reason,key,uid); money(c,target,amount,reason,key,uid)
             notify(c,target["player_id"],f"В бюджет поступило {amount}. {reason}")
-        notify(c,co["player_id"],f"Бюджет обновлён: {co['budget']}. {reason}"); return
+        notify(c,co["player_id"] or core.OWNER_TELEGRAM_ID,f"Страна: {co['name']}\nБюджет обновлён: {co['budget']}. Основание: {reason}"); return
     if p.kind=="reverse":
         entry=row(c,ledger,integer(d.get("id"),"операция",1))
         reason=string(d.get("reason"),"причина исправления",1000)
@@ -264,6 +322,10 @@ def perform(c,user,p):
         for cid,delta in totals.items():
             co=row(c,countries,cid); integer(co["budget"]+delta,"остаток после исправления",0)
         for e in reversed(group): money(c,row(c,countries,e["country_id"]),-e["delta"],reason,key,uid,e["id"])
+        for cid in totals:
+            co=row(c,countries,cid)
+            notify(c,co["player_id"] or core.OWNER_TELEGRAM_ID,
+                f"Исправлена бюджетная операция. Страна: {co['name']}\nБюджет: {co['budget']}\nПричина: {reason}")
         return
     if p.kind=="review":
         r=row(c,requests,integer(d.get("id"),"заявка",1))
@@ -288,7 +350,16 @@ def perform(c,user,p):
             registration_approved(c,r,co)
         request_event(c,r,uid)
         if not (r["kind"]=="registration" and status=="approved"):
-            notify(c,r["author_id"],f"Заявка #{r['id']}: {r['status']}. {comment}")
+            co=row(c,countries,r["country_id"])
+            labels={"needs_revision":"возвращена на доработку","rejected":"отклонена",
+                "approved":"одобрена","in_progress":"взята в работу","cancelled":"отменена"}
+            message=f"Заявка #{r['id']} {labels[status]}.\nСтрана: {co['name']}\n{r['title']}"
+            if comment: message+="\n\nКомментарий организатора:\n"+comment
+            if status in {"approved","in_progress"}:
+                message+="\n\nПланируемые последствия:\n"+effect_description(c,e)
+                message+="\nИзменения ещё не применены."
+            if due: message+="\nПлановый срок: "+due+" (автоматического исполнения нет)"
+            notify(c,r["author_id"],message)
         return
     if p.kind=="apply":
         r=row(c,requests,integer(d.get("id"),"заявка",1))

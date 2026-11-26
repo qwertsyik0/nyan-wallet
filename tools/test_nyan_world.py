@@ -160,7 +160,8 @@ class WorldTest(unittest.TestCase):
         self.assertEqual(st["my_country_id"],3)
         self.assertEqual(st["season"]["chat_url"],self.w.WORLD_CHAT_URL)
         with self.engine.connect() as c:
-            rows=c.execute(select(self.outbox)).mappings().all()
+            rows=[r for r in c.execute(select(self.outbox)).mappings().all()
+                  if r["body"].startswith("NYAN_TG_RICH_V1:")]
         self.assertEqual(len(rows),1)
         self.assertEqual(rows[0]["chat_id"],4)
         body=rows[0]["body"]
@@ -179,7 +180,8 @@ class WorldTest(unittest.TestCase):
                 self.core.User.telegram_id==4).values(first_name="<Alice & Bob>"))
         self.do("review",{"id":rid,"status":"approved"})
         with self.engine.connect() as c:
-            body=c.execute(select(self.outbox.c.body)).scalar_one()
+            body=next(r for r in c.execute(select(self.outbox.c.body)).scalars()
+                      if r.startswith("NYAN_TG_RICH_V1:"))
         payload=json.loads(body.removeprefix("NYAN_TG_RICH_V1:"))
         self.assertIn("&lt;Alice &amp; Bob&gt;",payload["text"])
         self.assertEqual(payload["buttons"][0]["url"],"https://t.me/+anotherInvite")
@@ -188,7 +190,7 @@ class WorldTest(unittest.TestCase):
         self.do("review",{"id":rid,"status":"rejected","comment":"Incomplete"})
         self.assertEqual(self.state("third")["season"]["chat_url"],"")
         with self.engine.connect() as c:
-            self.assertEqual(c.execute(select(func.count()).select_from(self.outbox)).scalar_one(),0)
+            self.assertFalse(any(r.startswith("NYAN_TG_RICH_V1:") for r in c.execute(select(self.outbox.c.body)).scalars()))
         self.assertIsNone(self.state("third")["my_country_id"])
     def test_missing_outbox_rolls_back_approval(self):
         rid=self.registration()
@@ -197,5 +199,99 @@ class WorldTest(unittest.TestCase):
         st=self.state("third")
         self.assertIsNone(st["my_country_id"])
         self.assertEqual(st["requests"][0]["status"],"submitted")
+
+
+    def queued(self,uid=None):
+        with self.engine.connect() as c:
+            query=select(self.outbox).order_by(self.outbox.c.id)
+            if uid is not None: query=query.where(self.outbox.c.chat_id==uid)
+            return [dict(r) for r in c.execute(query).mappings()]
+    def clear_queued(self):
+        with self.engine.begin() as c: c.execute(self.outbox.delete())
+    def test_request_notifications_lifecycle_and_retry(self):
+        self.clear_queued()
+        with self.engine.begin() as c:
+            c.execute(self.core.User.__table__.update().where(
+                self.core.User.telegram_id==2).values(username="player_name"))
+        key=str(uuid4());data={"country_id":1,"title":"Quality","body":"Inspect food","kind":"decision"}
+        self.do("submit",data,"player",key=key);self.do("submit",data,"player",key=key)
+        rid=self.state()["requests"][0]["id"]
+        self.assertEqual(len(self.queued(1)),1)
+        self.assertIn("@player_name",self.queued(1)[0]["body"])
+        self.assertIn("Inspect food",self.queued(1)[0]["body"])
+        self.assertIn("Государственное решение",self.queued(1)[0]["body"])
+        self.assertEqual(len(self.queued(2)),1)
+        self.clear_queued()
+        key=str(uuid4());data={"id":rid,"status":"needs_revision","comment":"Please add a location"}
+        self.do("review",data,key=key);self.do("review",data,key=key)
+        for uid in (1,2):
+            self.assertEqual(len(self.queued(uid)),1)
+            self.assertIn("возвращена на доработку",self.queued(uid)[0]["body"])
+            self.assertIn("Please add a location",self.queued(uid)[0]["body"])
+        self.clear_queued()
+        self.do("resubmit",{"id":rid,"title":"Quality","body":"Inspect factory A"},"player")
+        self.assertIn("Inspect factory A",self.queued(1)[0]["body"])
+        self.clear_queued()
+        self.do("review",{"id":rid,"status":"approved","effects":{"budget_delta":-300,"indicators":{"stability":52}}})
+        for uid in (1,2):
+            self.assertIn("одобрена",self.queued(uid)[0]["body"])
+            self.assertIn("ещё не применены",self.queued(uid)[0]["body"])
+        self.assertEqual(self.state()["countries"][0]["budget"],1000)
+        self.clear_queued()
+        key=str(uuid4());self.do("apply",{"id":rid},key=key);self.do("apply",{"id":rid},key=key)
+        for uid in (1,2):
+            self.assertEqual(len(self.queued(uid)),1)
+            self.assertIn("выполнена",self.queued(uid)[0]["body"])
+            self.assertIn("-300",self.queued(uid)[0]["body"])
+            self.assertIn("700",self.queued(uid)[0]["body"])
+        self.assertEqual(self.queued(3),[])
+    def test_registration_rejection_and_withdraw_notifications(self):
+        rid=self.registration();self.clear_queued()
+        self.do("review",{"id":rid,"status":"rejected","comment":"Need more details"})
+        for uid in (1,4):
+            self.assertIn("отклонена",self.queued(uid)[0]["body"])
+            self.assertIn("Need more details",self.queued(uid)[0]["body"])
+            self.assertNotIn("https://t.me/",self.queued(uid)[0]["body"])
+        self.do("submit",{"country_id":3,"kind":"registration","title":"Join again","body":"New application"},"third")
+        rid=self.state()["requests"][0]["id"];self.clear_queued()
+        self.do("withdraw",{"id":rid},"third")
+        self.assertIn("отозвана",self.queued(1)[0]["body"])
+        self.assertIn("отозвана",self.queued(4)[0]["body"])
+    def test_rollback_does_not_queue_notifications(self):
+        rid=self.submit()
+        self.do("review",{"id":rid,"status":"approved","effects":{"budget_delta":-2000}})
+        self.clear_queued()
+        self.do("apply",{"id":rid},code=400)
+        self.assertEqual(self.queued(),[])
+        self.assertEqual(self.state()["countries"][0]["budget"],1000)
+    def test_long_messages_split_safely_and_preserve_content(self):
+        self.clear_queued()
+        body="😀"*5000
+        with self.engine.begin() as c: self.w.notify(c,2,body,mirror=False)
+        rows=self.queued(2);self.assertGreater(len(rows),1)
+        reconstructed=""
+        for row in rows:
+            self.assertLessEqual(len(row["body"].encode("utf-16-le"))//2,4096)
+            reconstructed+=row["body"].split("\n",2)[2]
+        self.assertEqual(reconstructed,body)
+        self.assertEqual(len({r["source_key"] for r in rows}),len(rows))
+    def test_season_state_and_budget_notifications(self):
+        self.clear_queued()
+        self.do("season",{"id":1,"name":"Test","currency":"WU","status":"paused"})
+        for uid in (1,2,3):
+            self.assertEqual(len(self.queued(uid)),1)
+            self.assertIn("Пауза",self.queued(uid)[0]["body"])
+        self.assertEqual(self.queued(4),[])
+        self.clear_queued()
+        key=str(uuid4());data={"country_id":1,"delta":10,"reason":"Correction"}
+        self.do("budget",data,key=key);self.do("budget",data,key=key)
+        for uid in (1,2):
+            self.assertEqual(len(self.queued(uid)),1)
+            self.assertIn("1010",self.queued(uid)[0]["body"])
+    def test_owner_player_no_duplicate_mirror(self):
+        self.do("country",{"season_id":1,"name":"Ownerland","player_id":1})
+        self.clear_queued()
+        self.do("budget",{"country_id":3,"delta":10,"reason":"Owner country"})
+        self.assertEqual(len(self.queued(1)),1)
 
 if __name__=="__main__": unittest.main()
