@@ -7,21 +7,10 @@
   if (!wallet) return;
   const style = document.createElement("link");
   style.rel = "stylesheet";
-  style.href = "./nyan-world-invite.css?v=20261126-news1";
+  style.href = "./nyan-world-invite.css?v=20261126-news3";
   document.head.append(style);
   let ready = window.__nyanWalletReady === true;
   let shownThisOpening = false;
-  let inFlight=false, grant=false, attempted=false;
-  const campaign="world-first-news-20261126";
-  function cacheKey(){
-    const t=window.Telegram?.WebApp;
-    try {
-      const user=t?.initDataUnsafe?.user||JSON.parse(new URLSearchParams(t?.initData||"").get("user")||"{}");
-      return user.id ? campaign+":"+user.id : null;
-    }catch{return null}
-  }
-  function cached(){try{return cacheKey()&&localStorage.getItem(cacheKey())==="seen"}catch{return false}}
-  function remember(){try{if(cacheKey())localStorage.setItem(cacheKey(),"seen")}catch{}}
   let overlay = null;
   let previousFocus = null;
   let scheduled = false;
@@ -47,39 +36,23 @@
     overlay.id = "nyan-world-invite";
     overlay.className = "nwp-backdrop";
     overlay.hidden = true;
-    overlay.innerHTML = '<div class="nwp-stage"><section class="nwp-window" role="dialog" aria-modal="true" aria-labelledby="nwp-title" aria-describedby="nwp-description"><img class="nwp-nyanik" src="./assets/nyan-world/nyanik-hold.webp" width="210" height="210" alt="" aria-hidden="true"><div class="nwp-titlebar"><span>NYAN WORLD</span><button id="nwp-close" class="nwp-close" type="button" aria-label="Закрыть приглашение"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div><div class="nwp-copy"><span class="nwp-kicker">СВОДКА NYAN WORLD</span><h2 id="nwp-title">что тут блять<br>происходит?</h2><img class="nwp-news-preview" src="./assets/nyan-world/news-hero.webp" width="900" height="386" alt="" aria-hidden="true"><p id="nwp-description">Россия и Китай спорят. Германия планирует автозавод. США вкладываются в промышленность. А ты где?</p><a id="nwp-learn" class="nwp-learn" href="./nyan-world-news.html">посмотреть</a></div></section></div>';
+    overlay.innerHTML = '<div class="nwp-stage"><section class="nwp-window" role="dialog" aria-modal="true" aria-labelledby="nwp-title" aria-describedby="nwp-description"><img class="nwp-nyanik" src="./assets/nyan-world/nyanik-hold.webp" width="210" height="210" alt="" aria-hidden="true"><div class="nwp-titlebar"><span>NYAN WORLD</span><button id="nwp-close" class="nwp-close" type="button" aria-label="Закрыть приглашение"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div><div class="nwp-copy"><span class="nwp-kicker">СВОДКА NYAN WORLD</span><h2 id="nwp-title">что тут блять происходит!</h2><img class="nwp-news-preview" src="./assets/nyan-world/news-hero.webp" width="900" height="386" alt="" aria-hidden="true"><p id="nwp-description">Россия и Китай спорят. Германия планирует автозавод. США вкладываются в промышленность. А ты где?</p><a id="nwp-learn" class="nwp-learn" href="./nyan-world-news.html">посмотреть</a></div></section></div>';
     overlay.querySelector("#nwp-close").addEventListener("click", close);
     const learn = overlay.querySelector("#nwp-learn");
     learn.href = "./nyan-world-news.html" + location.search + location.hash;
     document.body.append(overlay);
   }
-  async function check() {
+  function check() {
     scheduled = false;
     if (!ready || document.hidden || !visible(wallet) || visible(loading)) return;
     if (overlay && !overlay.hidden) {
       shownThisOpening = true;
       return;
     }
-    if (shownThisOpening || cached() || anotherDialog() || inFlight) return;
-    if(!grant){
-      if(attempted||!window.Telegram?.WebApp?.initData)return;
-      attempted=true;inFlight=true;
-      try{
-        const response=await fetch("https://nyan-wallet-bridge.qwertsyik.workers.dev/api/world/news/claim",{
-          method:"POST",headers:{"X-Telegram-Init-Data":window.Telegram.WebApp.initData},cache:"no-store"
-        });
-        if(!response.ok)return;
-        const result=await response.json();
-        if(result.campaign!==campaign||result.ok!==true)return;
-        if(!result.show){if(result.available)remember();return}
-        grant=true;
-      }catch{return}finally{inFlight=false}
-    }
-    if(document.hidden||!visible(wallet)||visible(loading)||anotherDialog())return;
+    if (shownThisOpening || anotherDialog()) return;
     if (!overlay) build();
     previousFocus = document.activeElement;
     shownThisOpening = true;
-    remember();
     overlay.hidden = false;
     document.documentElement.classList.add("nwp-open");
     overlay.querySelector("#nwp-close").focus();
@@ -91,7 +64,7 @@
   }
   window.addEventListener("nyan-wallet-ready", () => { ready = true; schedule(); });
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) { schedule(); }
+    if (!document.hidden) { shownThisOpening=false; schedule(); }
   });
   window.addEventListener("pageshow", event => {
     if (event.persisted) { shownThisOpening = false; schedule(); }

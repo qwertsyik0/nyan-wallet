@@ -26,6 +26,7 @@ async function fixture({ready=false,other=false,seen=new Set(),uid=9,fail=false}
  const a=await fixture();
  await a.ready();assert.equal(a.popup(),null,"must wait for loader");
  await a.loaded();assert.ok(a.popup()&&!a.popup().hidden);
+ assert.equal(a.d.getElementById("nwp-title").textContent,"что тут блять происходит!");
  assert.equal(a.d.activeElement.id,"nwp-close");
  assert.ok(a.d.documentElement.classList.contains("nwp-open"));
  assert.equal(a.d.getElementById("nwp-learn").href,"https://example.test/nyan-world-news.html?test=1#tgWebAppData=signed");
@@ -40,11 +41,11 @@ async function fixture({ready=false,other=false,seen=new Set(),uid=9,fail=false}
  a.d.getElementById("nwp-close").click();assert.equal(a.popup().hidden,true);
  assert.equal(a.d.documentElement.classList.contains("nwp-open"),false);
  await a.ready();assert.equal(a.popup().hidden,true,"API refresh must not reopen");
- await a.visibility(true);await a.visibility(false);assert.equal(a.popup().hidden,true,"new opening must not repeat campaign");
+ await a.visibility(true);await a.visibility(false);assert.equal(a.popup().hidden,false,"new opening must show again");
  a.d.getElementById("nwp-close").click();a.w.eval(code);await tick();
  assert.equal(a.d.querySelectorAll("#nyan-world-invite").length,1);
  a.w.dispatchEvent(new a.w.PageTransitionEvent("pageshow",{persisted:true}));await tick();
- assert.equal(a.popup().hidden,true,"cached page must not repeat");
+ assert.equal(a.popup().hidden,false,"cached page reopening must show");
  a.close();
  const b=await fixture({other:true});await b.ready();await b.loaded();
  assert.equal(b.popup(),null,"wait for existing modal");
@@ -54,8 +55,8 @@ async function fixture({ready=false,other=false,seen=new Set(),uid=9,fail=false}
  const c=await fixture({ready:true});await c.loaded();assert.equal(c.popup().hidden,false,"late script must use readiness flag");c.close();
  const shared=new Set();
  const first=await fixture({ready:true,seen:shared});await first.loaded();assert.equal(first.popup().hidden,false);first.close();
- const second=await fixture({ready:true,seen:shared});await second.loaded();assert.equal(second.popup(),null,"server prevents repeat on another device");second.close();
- const offline=await fixture({ready:true,fail:true});await offline.loaded();assert.equal(offline.popup(),null,"network failure does not break wallet");offline.close();
+ const second=await fixture({ready:true,seen:shared});await second.loaded();assert.equal(second.popup().hidden,false,"previous campaign views do not suppress popup");second.close();
+ const offline=await fixture({ready:true,fail:true});await offline.loaded();assert.equal(offline.popup().hidden,false,"popup works without a claim request");offline.close();
  const info=fs.readFileSync(path.join(root,"nyan-world-info.html"),"utf8");
  const page=new JSDOM(info,{runScripts:"outside-only",url:"https://example.test/nyan-world-info.html?test=1#tgWebAppData=signed"});
  page.window.Telegram={WebApp:{initData:"signed",ready(){},expand(){}}};
@@ -66,5 +67,5 @@ async function fixture({ready=false,other=false,seen=new Set(),uid=9,fail=false}
  assert.equal(page.window.document.querySelector("#world-info-rules img"),null,"rules must render as text");
  assert.match(page.window.document.getElementById("world-info-season").textContent,/регистрация/);
  page.window.close();
- console.log("OK: loader gating, single campaign across openings/devices, close only by cross, focus trap, no duplicates, modal deferral, info links/auth context and safe rules");
+ console.log("OK: loader gating, every opening even after old campaign view, close only by cross, focus trap, no duplicates, modal deferral, info links/auth context and safe rules");
 })().catch(e=>{console.error(e);process.exit(1)});
