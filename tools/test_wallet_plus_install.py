@@ -16,7 +16,7 @@ class InstallTest(unittest.TestCase):
    if fail:
     self.assertEqual((p/'index.html').read_bytes(),original);self.assertFalse((p/'server/wallet_plus.py').exists());self.assertEqual(run.call_count,2)
    else:
-    self.assertIn('custom',(p/'index.html').read_text());self.assertEqual((p/'index.html').read_text().count('wallet-plus-entry.js'),1);self.assertIn('# customized',(p/'server/__init__.py').read_text());self.assertIn('register_wallet_plus',(p/'server/__init__.py').read_text());self.assertEqual(run.call_count,1);self.assertIn('advanced_features.js?v=20261126-plus1',(p/'index.html').read_text())
+    self.assertIn('custom',(p/'index.html').read_text());self.assertEqual((p/'index.html').read_text().count('wallet-plus-entry.js'),1);self.assertIn('# customized',(p/'server/__init__.py').read_text());self.assertIn('register_wallet_plus',(p/'server/__init__.py').read_text());self.assertEqual(run.call_count,1);self.assertIn('advanced_features.js?v=20261126-plus2',(p/'index.html').read_text())
  def test_install(self):self.run_install()
  def test_rollback(self):self.run_install(True)
 if __name__=='__main__':unittest.main()

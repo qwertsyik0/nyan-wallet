@@ -328,7 +328,7 @@ async function createAdvReward() {
 
 async function editAdvReward(item) {
     const title = prompt("Название", item.title); if (title === null) return;
-    const costRaw = prompt("Цена в лапкоинах", String(item.cost)); if (costRaw === null) return;
+    const costRaw = prompt("Базовая цена в лапкоинах", String(item.base_cost ?? item.cost)); if (costRaw === null) return;
     const desc = prompt("Описание", item.description || ""); if (desc === null) return;
     const stockRaw = prompt("Лимит количества, пусто = без лимита", item.stock_limit == null ? "" : String(item.stock_limit)); if (stockRaw === null) return;
     const payload = { title: title.trim(), description: desc.trim() || null, cost: Number.parseInt(costRaw, 10), stock_limit: stockRaw.trim() ? Number.parseInt(stockRaw, 10) : null, image_url: item.image_url || null, available_until: item.available_until || null, sort_order: item.sort_order || 0 };

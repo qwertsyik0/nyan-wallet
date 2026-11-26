@@ -68,8 +68,8 @@ def main():
     html=index.read_text()
     if "wallet-plus-entry.js" not in html:
         if "</body>" not in html: raise RuntimeError("не найден якорь index.html")
-        html=html.replace("</body>",'<script src="./wallet-plus-entry.js?v=20261126-plus1"></script>\n</body>',1)
-    html=re.sub(r'advanced_features\.js(?:\?[^"\s>]*)?', "advanced_features.js?v=20261126-plus1",html)
+        html=html.replace("</body>",'<script src="./wallet-plus-entry.js?v=20261126-plus2"></script>\n</body>',1)
+    html=re.sub(r'advanced_features\.js(?:\?[^"\s>]*)?', "advanced_features.js?v=20261126-plus2",html)
     updated["index.html"]=html.encode()
     originals={file:(root/file).read_bytes() if (root/file).exists() else None for file in updated}
     backup=root/".wallet-plus-backups"/datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
