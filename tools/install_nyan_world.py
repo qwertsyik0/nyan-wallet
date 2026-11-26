@@ -12,7 +12,7 @@ import time
 import urllib.request
 import json
 
-FILES=["nyan-world-rules.html","nyan-world-rules.css","nyan-world-rules.js","server/nyan_world.py","nyan-world.html","nyan-world.css","nyan-world.js","nyan-world-entry.js","nyan-world-entry.css","assets/nyan-world/globe.webp","nyan-world-invite.js","nyan-world-invite.css","nyan-world-info.html","nyan-world-info.css","nyan-world-info.js","assets/nyan-world/nyanik-hold.webp"]
+FILES=["nyan-world-news.html","nyan-world-news.css","nyan-world-news.js","assets/nyan-world/news-hero.webp","assets/nyan-world/news-desk.webp","nyan-world-rules.html","nyan-world-rules.css","nyan-world-rules.js","server/nyan_world.py","nyan-world.html","nyan-world.css","nyan-world.js","nyan-world-entry.js","nyan-world-entry.css","assets/nyan-world/globe.webp","nyan-world-invite.js","nyan-world-invite.css","nyan-world-info.html","nyan-world-info.css","nyan-world-info.js","assets/nyan-world/nyanik-hold.webp"]
 HOOK="\n# NYAN_WORLD_V1\nif os.getenv('NYAN_RESTORE_SCHEMA_ONLY') != '1':\n    from .nyan_world import register_world\n    register_world(backend_app.app)\n"
 def value(name):
     return subprocess.check_output(["systemctl","show","nyan-wallet","-p",name,"--value"],text=True).strip()
@@ -71,7 +71,8 @@ def main():
         html=html.replace("nyan-world-entry.js?v=1","nyan-world-entry.js?v=20261125-card1")
         if "nyan-world-invite.js" not in html:
             if "</body>" not in html: raise RuntimeError("не найден якорь index.html")
-            html=html.replace("</body>",'<script src="./nyan-world-invite.js?v=20261125-1"></script>\n</body>',1)
+            html=html.replace("</body>",'<script src="./nyan-world-invite.js?v=20261126-news1"></script>\n</body>',1)
+        html=re.sub(r'nyan-world-invite\.js\?v=[^"]+', "nyan-world-invite.js?v=20261126-news1",html)
         updated["index.html"]=html.encode()
     home=root/"home_v2.js"
     if home.is_file():

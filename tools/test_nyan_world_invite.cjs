@@ -5,7 +5,7 @@ const {JSDOM}=require("jsdom");
 const root=path.resolve(__dirname,"..");
 const code=fs.readFileSync(path.join(root,"nyan-world-invite.js"),"utf8");
 const tick=()=>new Promise(r=>setTimeout(r,0));
-async function fixture({ready=false,other=false}={}){
+async function fixture({ready=false,other=false,seen=new Set(),uid=9,fail=false}={}){
  const dom=new JSDOM('<head></head><body><main id="loading-view">loading</main><main id="wallet-view" class="hidden"><button id="old-focus">wallet</button></main>'+(other?'<div id="other"><section role="dialog" aria-modal="true">other</section></div>':"")+'</body>',{runScripts:"outside-only",pretendToBeVisual:true,url:"https://example.test/index.html?test=1#tgWebAppData=signed"});
  const w=dom.window,d=w.document;
  const observers=[]; const NativeObserver=w.MutationObserver;
@@ -13,6 +13,12 @@ async function fixture({ready=false,other=false}={}){
  let hidden=false;
  Object.defineProperty(d,"hidden",{get:()=>hidden,configurable:true});
  w.__nyanWalletReady=ready;
+ w.Telegram={WebApp:{initData:"signed",initDataUnsafe:{user:{id:uid}}}};
+ w.fetch=async()=>{
+  if(fail)throw Error("offline");
+  const show=!seen.has(uid);seen.add(uid);
+  return {ok:true,json:async()=>({ok:true,show,available:true,campaign:"world-first-news-20261126"})};
+ };
  w.eval(code);await tick();
  return {dom,w,d,async ready(){w.__nyanWalletReady=true;w.dispatchEvent(new w.Event("nyan-wallet-ready"));await tick()},async loaded(){d.getElementById("loading-view").classList.add("hidden");d.getElementById("wallet-view").classList.remove("hidden");await tick();await tick()},async visibility(value){hidden=value;d.dispatchEvent(new w.Event("visibilitychange"));await tick();await tick()},popup:()=>d.getElementById("nyan-world-invite"),close:()=>{for(const observer of observers)observer.disconnect();dom.window.close()}};
 }
@@ -22,7 +28,7 @@ async function fixture({ready=false,other=false}={}){
  await a.loaded();assert.ok(a.popup()&&!a.popup().hidden);
  assert.equal(a.d.activeElement.id,"nwp-close");
  assert.ok(a.d.documentElement.classList.contains("nwp-open"));
- assert.equal(a.d.getElementById("nwp-learn").href,"https://example.test/nyan-world-info.html?test=1#tgWebAppData=signed");
+ assert.equal(a.d.getElementById("nwp-learn").href,"https://example.test/nyan-world-news.html?test=1#tgWebAppData=signed");
  a.popup().click();assert.equal(a.popup().hidden,false,"backdrop cannot close");
  const escape=new a.w.KeyboardEvent("keydown",{key:"Escape",bubbles:true,cancelable:true});
  a.d.dispatchEvent(escape);assert.equal(escape.defaultPrevented,true);assert.equal(a.popup().hidden,false);
@@ -34,11 +40,11 @@ async function fixture({ready=false,other=false}={}){
  a.d.getElementById("nwp-close").click();assert.equal(a.popup().hidden,true);
  assert.equal(a.d.documentElement.classList.contains("nwp-open"),false);
  await a.ready();assert.equal(a.popup().hidden,true,"API refresh must not reopen");
- await a.visibility(true);await a.visibility(false);assert.equal(a.popup().hidden,false,"new opening must show again");
+ await a.visibility(true);await a.visibility(false);assert.equal(a.popup().hidden,true,"new opening must not repeat campaign");
  a.d.getElementById("nwp-close").click();a.w.eval(code);await tick();
  assert.equal(a.d.querySelectorAll("#nyan-world-invite").length,1);
  a.w.dispatchEvent(new a.w.PageTransitionEvent("pageshow",{persisted:true}));await tick();
- assert.equal(a.popup().hidden,false,"cached page reopening");
+ assert.equal(a.popup().hidden,true,"cached page must not repeat");
  a.close();
  const b=await fixture({other:true});await b.ready();await b.loaded();
  assert.equal(b.popup(),null,"wait for existing modal");
@@ -46,6 +52,10 @@ async function fixture({ready=false,other=false}={}){
  await tick();await tick();
  assert.equal(b.popup().hidden,false);b.close();
  const c=await fixture({ready:true});await c.loaded();assert.equal(c.popup().hidden,false,"late script must use readiness flag");c.close();
+ const shared=new Set();
+ const first=await fixture({ready:true,seen:shared});await first.loaded();assert.equal(first.popup().hidden,false);first.close();
+ const second=await fixture({ready:true,seen:shared});await second.loaded();assert.equal(second.popup(),null,"server prevents repeat on another device");second.close();
+ const offline=await fixture({ready:true,fail:true});await offline.loaded();assert.equal(offline.popup(),null,"network failure does not break wallet");offline.close();
  const info=fs.readFileSync(path.join(root,"nyan-world-info.html"),"utf8");
  const page=new JSDOM(info,{runScripts:"outside-only",url:"https://example.test/nyan-world-info.html?test=1#tgWebAppData=signed"});
  page.window.Telegram={WebApp:{initData:"signed",ready(){},expand(){}}};
@@ -56,5 +66,5 @@ async function fixture({ready=false,other=false}={}){
  assert.equal(page.window.document.querySelector("#world-info-rules img"),null,"rules must render as text");
  assert.match(page.window.document.getElementById("world-info-season").textContent,/регистрация/);
  page.window.close();
- console.log("OK: loader gating, every opening, close only by cross, focus trap, no duplicates, modal deferral, info links/auth context and safe rules");
+ console.log("OK: loader gating, single campaign across openings/devices, close only by cross, focus trap, no duplicates, modal deferral, info links/auth context and safe rules");
 })().catch(e=>{console.error(e);process.exit(1)});

@@ -3,6 +3,7 @@
   const tg = window.Telegram?.WebApp;
   tg?.ready(); tg?.expand();
   const suffix = location.search + location.hash;
+  document.getElementById("world-info-news").href="./nyan-world-news.html"+suffix;
   document.getElementById("world-info-back").href = "./index.html" + suffix;
   for (const id of ["world-info-join", "world-info-join-bottom"]) {
     document.getElementById(id).href = "./nyan-world.html" + suffix;

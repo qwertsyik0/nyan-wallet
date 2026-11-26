@@ -294,4 +294,29 @@ class WorldTest(unittest.TestCase):
         self.do("budget",{"country_id":3,"delta":10,"reason":"Owner country"})
         self.assertEqual(len(self.queued(1)),1)
 
+
+    def test_news_once_per_account_and_auth(self):
+        endpoint="/api/world/news/claim"
+        self.assertEqual(self.client.post(endpoint).status_code,401)
+        def claim(role):return self.client.post(endpoint,headers={"X-Telegram-Init-Data":role}).json()
+        self.assertTrue(claim("player")["show"])
+        self.assertFalse(claim("player")["show"])
+        self.assertTrue(claim("third")["show"])
+        self.assertFalse(claim("third")["show"])
+        self.assertEqual(self.state()["countries"][0]["budget"],1000)
+    def test_news_paused_does_not_consume_view(self):
+        self.do("season",{"id":1,"name":"Test","currency":"WU","status":"paused"})
+        endpoint="/api/world/news/claim";headers={"X-Telegram-Init-Data":"third"}
+        self.assertFalse(self.client.post(endpoint,headers=headers).json()["available"])
+        self.do("season",{"id":1,"name":"Test","currency":"WU","status":"active"})
+        self.assertTrue(self.client.post(endpoint,headers=headers).json()["show"])
+    def test_news_concurrent_claim(self):
+        if self.engine.dialect.name!="postgresql":self.skipTest("PostgreSQL concurrency")
+        from concurrent.futures import ThreadPoolExecutor
+        def claim(_):
+            return self.client.post("/api/world/news/claim",
+                headers={"X-Telegram-Init-Data":"third"}).json()["show"]
+        with ThreadPoolExecutor(max_workers=2) as pool: results=list(pool.map(claim,range(2)))
+        self.assertEqual(sorted(results),[False,True])
 if __name__=="__main__": unittest.main()
+

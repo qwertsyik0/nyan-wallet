@@ -81,6 +81,26 @@ def registration_approved(c, r, co):
     notify(c, r["author_id"], message + "\n" + url,telegram=False,mirror=False)
     notify(c,core.OWNER_TELEGRAM_ID,f"Заявка #{r['id']} одобрена. Страна: {co['name']}\nИгрок: {name} | ID: {r['author_id']}",mirror=False)
 
+news_views = Table("nw_news_views",m,
+    Column("user_id",BigInteger,primary_key=True),
+    Column("campaign",String(80),primary_key=True),
+    Column("viewed_at",DateTime(timezone=True),nullable=False))
+NEWS_CAMPAIGN="world-first-news-20261126"
+@router.post("/news/claim")
+def claim_news(x_telegram_init_data:str=Header(default="",alias="X-Telegram-Init-Data")):
+    user=auth(x_telegram_init_data);uid=int(user["id"])
+    with core.engine.begin() as c:
+        current=c.execute(select(settings).where(settings.c.id==1).with_for_update()).mappings().one()
+        sid=current["active_season_id"]
+        season=row(c,seasons,sid) if sid else None
+        if not season or season["status"] not in {"registration","active"}:
+            return {"ok":True,"show":False,"campaign":NEWS_CAMPAIGN,"available":False}
+        seen=c.execute(select(news_views.c.user_id).where(
+            news_views.c.user_id==uid,news_views.c.campaign==NEWS_CAMPAIGN)).first()
+        if seen:return {"ok":True,"show":False,"campaign":NEWS_CAMPAIGN,"available":True}
+        c.execute(news_views.insert().values(user_id=uid,campaign=NEWS_CAMPAIGN,viewed_at=now()))
+        return {"ok":True,"show":True,"campaign":NEWS_CAMPAIGN,"available":True}
+
 LIMIT = 10**15
 STATES = {"draft", "registration", "active", "paused", "finished"}
 KINDS = {"decision", "announcement", "transfer", "registration"}

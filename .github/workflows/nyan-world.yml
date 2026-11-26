@@ -1,7 +1,7 @@
 name: NYAN WORLD checks
 on:
   push:
-    paths: ['server/nyan_world.py', 'tools/test_nyan_world.py', 'tools/install_nyan_world.py', 'tools/test_install_nyan_world.py', 'nyan-world*', 'tools/test_nyan_world_ui.cjs', 'tools/test_nyan_world_rules.cjs', 'tools/test_nyan_world_entry.cjs', 'tools/test_nyan_world_country_info.cjs', 'tools/test_nyan_world_invite.cjs', 'assets/nyan-world/**', '.github/workflows/nyan-world.yml']
+    paths: ['server/nyan_world.py', 'tools/test_nyan_world.py', 'tools/install_nyan_world.py', 'tools/test_install_nyan_world.py', 'nyan-world*', 'tools/test_nyan_world_ui.cjs', 'tools/test_nyan_world_rules.cjs', 'tools/test_nyan_world_entry.cjs', 'tools/test_nyan_world_country_info.cjs', 'tools/test_nyan_world_invite.cjs', 'tools/test_nyan_world_news.cjs', 'assets/nyan-world/**', '.github/workflows/nyan-world.yml']
   pull_request:
     paths: ['server/nyan_world.py', 'tools/test_nyan_world.py', 'tools/install_nyan_world.py', 'nyan-world*', '.github/workflows/nyan-world.yml']
 permissions:
@@ -68,5 +68,12 @@ jobs:
         run: |
           node --check nyan-world-rules.js
           node tools/test_nyan_world_rules.cjs
+        env:
+          NODE_PATH: /tmp/world-ui/node_modules
+
+      - name: Test first news briefing
+        run: |
+          node --check nyan-world-news.js
+          node tools/test_nyan_world_news.cjs
         env:
           NODE_PATH: /tmp/world-ui/node_modules
