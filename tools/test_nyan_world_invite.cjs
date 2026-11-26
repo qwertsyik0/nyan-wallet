@@ -13,7 +13,7 @@ async function fixture({ready=false,other=false,seen=new Set(),uid=9,fail=false}
  let hidden=false;
  Object.defineProperty(d,"hidden",{get:()=>hidden,configurable:true});
  w.__nyanWalletReady=ready;
- w.Telegram={WebApp:{initData:"signed",initDataUnsafe:{user:{id:uid}}}};
+ w.__tgEvents={};w.Telegram={WebApp:{initData:"signed",initDataUnsafe:{user:{id:uid}},onEvent(name,callback){w.__tgEvents[name]=callback}}};
  w.fetch=async()=>{
   if(fail)throw Error("offline");
   const show=!seen.has(uid);seen.add(uid);
@@ -46,6 +46,7 @@ async function fixture({ready=false,other=false,seen=new Set(),uid=9,fail=false}
  assert.equal(a.d.querySelectorAll("#nyan-world-invite").length,1);
  a.w.dispatchEvent(new a.w.PageTransitionEvent("pageshow",{persisted:true}));await tick();
  assert.equal(a.popup().hidden,false,"cached page reopening must show");
+ a.d.getElementById("nwp-close").click();a.w.__tgEvents.activated();await tick();assert.equal(a.popup().hidden,false,"Telegram activated reopens popup without document visibility change");
  a.close();
  const b=await fixture({other:true});await b.ready();await b.loaded();
  assert.equal(b.popup(),null,"wait for existing modal");
@@ -57,6 +58,7 @@ async function fixture({ready=false,other=false,seen=new Set(),uid=9,fail=false}
  const first=await fixture({ready:true,seen:shared});await first.loaded();assert.equal(first.popup().hidden,false);first.close();
  const second=await fixture({ready:true,seen:shared});await second.loaded();assert.equal(second.popup().hidden,false,"previous campaign views do not suppress popup");second.close();
  const offline=await fixture({ready:true,fail:true});await offline.loaded();assert.equal(offline.popup().hidden,false,"popup works without a claim request");offline.close();
+ const oldLaunch=await fixture();await oldLaunch.loaded();assert.equal(oldLaunch.popup().hidden,false,"visible wallet works without modern ready signal");oldLaunch.close();
  const info=fs.readFileSync(path.join(root,"nyan-world-info.html"),"utf8");
  const page=new JSDOM(info,{runScripts:"outside-only",url:"https://example.test/nyan-world-info.html?test=1#tgWebAppData=signed"});
  page.window.Telegram={WebApp:{initData:"signed",ready(){},expand(){}}};

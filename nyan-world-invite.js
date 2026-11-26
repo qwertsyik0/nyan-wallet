@@ -44,7 +44,9 @@
   }
   function check() {
     scheduled = false;
-    if (!ready || document.hidden || !visible(wallet) || visible(loading)) return;
+    if (document.hidden || !visible(wallet) || visible(loading)) return;
+    // A visible wallet after the loader is also sufficient on older VPS launches.
+    ready = true;
     if (overlay && !overlay.hidden) {
       shownThisOpening = true;
       return;
@@ -66,9 +68,12 @@
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) { shownThisOpening=false; schedule(); }
   });
-  window.addEventListener("pageshow", event => {
-    if (event.persisted) { shownThisOpening = false; schedule(); }
-  });
+  window.addEventListener("pageshow", () => { shownThisOpening=false; schedule(); });
+  const tg=window.Telegram?.WebApp;
+  if(typeof tg?.onEvent==="function"){
+    tg.onEvent("activated",()=>{shownThisOpening=false;schedule()});
+    tg.onEvent("deactivated",()=>{shownThisOpening=false});
+  }
   document.addEventListener("keydown", event => {
     if (!overlay || overlay.hidden) return;
     if (event.key === "Escape") {
