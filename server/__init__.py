@@ -143,3 +143,10 @@ else:
     register_promo_delayed_fee(backend_app.app)
     sync_bot_menu_buttons()
     
+
+# WALLET_TOOLS_V1
+from .wallet_tools import register_wallet_tools, m as wallet_tools_metadata
+if os.getenv('NYAN_RESTORE_SCHEMA_ONLY') == '1':
+    wallet_tools_metadata.create_all(backend_app.engine)
+else:
+    register_wallet_tools(backend_app.app)

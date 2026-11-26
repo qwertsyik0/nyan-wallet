@@ -1,0 +1,44 @@
+name: Wallet tools checks
+on:
+  push:
+    paths: ['wallet-tools*', 'server/wallet_tools.py', 'tools/test_wallet_tools*', 'tools/install_wallet_tools.py', '.github/workflows/wallet-tools.yml']
+  pull_request:
+    paths: ['wallet-tools*', 'server/wallet_tools.py', 'tools/test_wallet_tools*', 'tools/install_wallet_tools.py']
+permissions:
+  contents: read
+jobs:
+  tools:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: tools
+          POSTGRES_PASSWORD: tools_test_password
+          POSTGRES_DB: tools_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: pip install 'SQLAlchemy==2.0.43' 'fastapi==0.115.12' 'httpx==0.28.1' 'psycopg[binary]==3.2.9'
+      - run: python -m py_compile server/wallet_tools.py tools/install_wallet_tools.py
+      - run: python tools/test_wallet_tools.py
+      - run: python tools/test_wallet_tools.py
+        env:
+          WALLET_TOOLS_TEST_DB: postgresql+psycopg://tools:tools_test_password@localhost:5432/tools_test
+      - run: npm install --prefix /tmp/tools-ui jsdom@26
+      - run: node --check wallet-tools.js && node --check wallet-tools-entry.js
+      - run: node tools/test_wallet_tools_ui.cjs
+        env:
+          NODE_PATH: /tmp/tools-ui/node_modules
+      - run: python tools/test_wallet_tools_install.py
