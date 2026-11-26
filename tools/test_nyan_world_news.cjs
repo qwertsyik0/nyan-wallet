@@ -13,7 +13,7 @@ const root=path.resolve(__dirname,".."),tick=()=>new Promise(r=>setTimeout(r,0))
   w.eval(fs.readFileSync(path.join(root,"nyan-world-news.js"),"utf8"));await tick();await tick();
   assert.ok(w.document.getElementById("news-vacancies").textContent.includes(expected));
   assert.equal(w.document.getElementById("news-join").href,"https://example.test/nyan-world.html?test=1#tgWebAppData=signed");
-  assert.equal(w.document.querySelectorAll(".news-stories article").length,3);
+  assert.equal(w.document.querySelectorAll(".news-stories article").length,4);
   dom.window.close();
  }
  console.log("OK: news briefing, real vacancies, closed season, own country and Telegram context");

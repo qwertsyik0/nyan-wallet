@@ -71,8 +71,8 @@ def main():
         html=html.replace("nyan-world-entry.js?v=1","nyan-world-entry.js?v=20261125-card1")
         if "nyan-world-invite.js" not in html:
             if "</body>" not in html: raise RuntimeError("не найден якорь index.html")
-            html=html.replace("</body>",'<script src="./nyan-world-invite.js?v=20261126-news1"></script>\n</body>',1)
-        html=re.sub(r'nyan-world-invite\.js\?v=[^"]+', "nyan-world-invite.js?v=20261126-news1",html)
+            html=html.replace("</body>",'<script src="./nyan-world-invite.js?v=20261126-news2"></script>\n</body>',1)
+        html=re.sub(r'nyan-world-invite\.js\?v=[^"]+', "nyan-world-invite.js?v=20261126-news2",html)
         updated["index.html"]=html.encode()
     home=root/"home_v2.js"
     if home.is_file():
