@@ -437,7 +437,7 @@ def existing_idempotent_transfer(
     )
 
 
-def transfer_lapcoins(tg_user: dict[str, Any], payload: TransferRequest) -> dict[str, Any]:
+def transfer_lapcoins(tg_user: dict[str, Any], payload: TransferRequest, *, payment_token: str | None = None) -> dict[str, Any]:
     sender_id = int(tg_user["id"])
     timestamp = now_utc()
 
@@ -449,6 +449,11 @@ def transfer_lapcoins(tg_user: dict[str, Any], payload: TransferRequest) -> dict
     try:
         with core.SessionLocal() as session:
             with session.begin():
+                payment_guard=getattr(core,'wallet_payment_guard',None)
+                payment_finish=getattr(core,'wallet_payment_finish',lambda *args:None)
+                check_frozen=getattr(core,'wallet_check_frozen',lambda *args:None)
+                if payment_token and payment_guard is None:raise HTTPException(503,'Запросы оплаты ещё не подключены')
+                if payment_token: payment_guard(session, payment_token, sender_id, payload)
                 recipient_id = resolve_recipient_id(session, payload.recipient)
                 if recipient_id == sender_id:
                     raise HTTPException(status_code=400, detail="Нельзя перевести лапкоины самому себе")
@@ -464,9 +469,11 @@ def transfer_lapcoins(tg_user: dict[str, Any], payload: TransferRequest) -> dict
                             status_code=409,
                             detail="Этот ключ операции уже использован для другого перевода",
                         )
+                    payment_finish(session, payment_token, sender_id, existing.public_id)
                     return serialize_transfer(existing, sender, recipient, sender_balance=int(sender.balance))
 
                 sender, recipient = lock_users(session, sender_id, recipient_id)
+                check_frozen(session, sender_id)
                 recipient_address = ensure_wallet_address(session, recipient, timestamp)
                 ensure_wallet_address(session, sender, timestamp)
 
@@ -514,6 +521,7 @@ def transfer_lapcoins(tg_user: dict[str, Any], payload: TransferRequest) -> dict
                 )
                 session.flush()
 
+                payment_finish(session, payment_token, sender_id, transfer.public_id)
                 result = serialize_transfer(
                     transfer,
                     sender,
@@ -734,3 +742,4 @@ def register_transfers(app) -> None:
 
     app.include_router(router)
     _REGISTERED = True
+

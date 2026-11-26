@@ -1,0 +1,44 @@
+name: Wallet plus checks
+on:
+  push:
+    paths: ['server/wallet_plus.py', 'server/transfers.py', 'server/extended_features.py', 'server/advanced_features.py', 'wallet-plus*', 'tools/test_wallet_plus*', 'tools/install_wallet_plus.py', '.github/workflows/wallet-plus.yml']
+  pull_request:
+    paths: ['server/wallet_plus.py', 'server/transfers.py', 'server/extended_features.py', 'server/advanced_features.py', 'wallet-plus*']
+permissions:
+  contents: read
+jobs:
+  plus:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: gifts_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: pip install 'SQLAlchemy==2.0.43' 'fastapi==0.115.12' 'httpx==0.28.1' 'psycopg[binary]==3.2.9' 'qrcode==8.2'
+      - run: python -m py_compile server/wallet_plus.py server/transfers.py server/extended_features.py server/advanced_features.py tools/install_wallet_plus.py
+      - run: python tools/test_wallet_plus.py
+      - run: python tools/test_wallet_plus.py
+        env:
+          GIFT_TEST_DB: postgresql+psycopg://test:test_password@localhost:5432/gifts_test
+      - run: python tools/test_wallet_plus_install.py
+      - run: npm install --prefix /tmp/plus-ui jsdom@26
+      - run: node --check wallet-plus.js && node --check wallet-plus-entry.js && node --check advanced_features.js
+      - run: node tools/test_wallet_plus_ui.cjs
+        env:
+          NODE_PATH: /tmp/plus-ui/node_modules

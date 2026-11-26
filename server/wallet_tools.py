@@ -90,6 +90,8 @@ def state(before_request_id:int|None=None,before_transfer_id:int|None=None,x_tel
  with core.engine.connect() as c:
   u=user(c,uid);catalog=table(c,'reward_catalog');req=table(c,'spend_requests');meta=table(c,'spend_request_meta',True)
   rewards=[dict(r) for r in c.execute(select(catalog.c.id,catalog.c.title,catalog.c.cost,catalog.c.is_active).order_by(catalog.c.cost,catalog.c.id)).mappings()]
+  effective_cost=getattr(core,'wallet_effective_cost',lambda c,rid,cost:cost)
+  for reward in rewards:reward['cost']=effective_cost(c,reward['id'],reward['cost'])
   gid=c.execute(select(goals.c.reward_id).where(goals.c.user_id==uid)).scalar_one_or_none()
   goal=next((r.copy() for r in rewards if r['id']==gid),None)
   if goal:
@@ -161,3 +163,4 @@ def add_bonus(p:Bonus,x_telegram_init_data:str=Header(default='')):
 
 def register_wallet_tools(app):
  m.create_all(core.engine);app.include_router(router)
+

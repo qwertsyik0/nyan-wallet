@@ -72,14 +72,16 @@ def buy(p:Buy,x_telegram_init_data:str=Header(default='')):
     return {'ok':True,'request_id':req.id,'repeated':True}
    reward=session.scalar(select(Reward).where(Reward.id==p.reward_id).with_for_update())
    if not reward or is_vip_reward(reward.title) or not catalog_item(session,reward)['available']:raise HTTPException(400,'Награда недоступна для подарка')
-   if reward.cost!=p.expected_cost:raise HTTPException(409,'Цена изменилась. Обновите список и подтвердите новую стоимость')
-   if users[uid].balance<reward.cost:raise HTTPException(409,'Недостаточно лапкоинов')
-   users[uid].balance-=reward.cost
-   req=SpendRequest(telegram_id=uid,reward_id=reward.id,reward_title=reward.title,cost=reward.cost,status='pending',created_at=w.now(),processed_at=None);session.add(req);session.flush()
+   effective_cost=getattr(core,'wallet_effective_cost',lambda c,rid,cost:cost)
+   price=effective_cost(c,reward.id,reward.cost)
+   if price!=p.expected_cost:raise HTTPException(409,'Цена изменилась. Обновите список и подтвердите новую стоимость')
+   if users[uid].balance<price:raise HTTPException(409,'Недостаточно лапкоинов')
+   users[uid].balance-=price
+   req=SpendRequest(telegram_id=uid,reward_id=reward.id,reward_title=reward.title,cost=price,status='pending',created_at=w.now(),processed_at=None);session.add(req);session.flush()
    c.execute(gifts.insert().values(request_id=req.id,sender_id=uid,recipient_id=p.recipient_id,operation_id=str(p.operation_id),message=p.message,created_at=w.now()))
    session.add(RequestMeta(request_id=req.id,owner_comment=f"Подарок для {w.identity(c,p.recipient_id)} | ID: {p.recipient_id}. От: {w.identity(c,uid)}. {p.message}",updated_at=w.now()))
-   session.add(core.Transaction(telegram_id=uid,amount=-reward.cost,operation_type='gift_purchase',description=f'Подарок #{req.id} для ID {p.recipient_id}: {reward.title}',created_at=w.now()));session.flush()
-   for target,text in [(uid,f'Подарок #{req.id} оплачен. {reward.title}. Получатель: {w.identity(c,p.recipient_id)}'),(p.recipient_id,f'Вам заказан подарок #{req.id}: {reward.title}. От: {w.identity(c,uid)}\n{p.message}\nОжидайте выдачи продавцом.'),(core.OWNER_TELEGRAM_ID,f'Новый подарок #{req.id}: {reward.title}\nОтправитель: {w.identity(c,uid)} | ID {uid}\nПолучатель: {w.identity(c,p.recipient_id)} | ID {p.recipient_id}\nСтоимость: {reward.cost}\n{p.message}')]:
+   session.add(core.Transaction(telegram_id=uid,amount=-price,operation_type='gift_purchase',description=f'Подарок #{req.id} для ID {p.recipient_id}: {reward.title}',created_at=w.now()));session.flush()
+   for target,text in [(uid,f'Подарок #{req.id} оплачен. {reward.title}. Получатель: {w.identity(c,p.recipient_id)}'),(p.recipient_id,f'Вам заказан подарок #{req.id}: {reward.title}. От: {w.identity(c,uid)}\n{p.message}\nОжидайте выдачи продавцом.'),(core.OWNER_TELEGRAM_ID,f'Новый подарок #{req.id}: {reward.title}\nОтправитель: {w.identity(c,uid)} | ID {uid}\nПолучатель: {w.identity(c,p.recipient_id)} | ID {p.recipient_id}\nСтоимость: {price}\n{p.message}')]:
     if target:w.notify(c,target,text,mirror=False)
    return {'ok':True,'request_id':req.id,'balance':users[uid].balance}
  except IntegrityError:raise HTTPException(409,'Повтор операции. Проверьте список подарков')
@@ -104,3 +106,4 @@ def status(rid:int,p:Status,x_telegram_init_data:str=Header(default='')):
   return {'ok':True}
 def register_prize_gifts(app):
  m.create_all(core.engine);event.listen(SpendRequest,'before_update',guard);event.listen(SpendRequest,'after_update',on_status);app.include_router(router)
+

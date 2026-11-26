@@ -160,3 +160,10 @@ if os.getenv('NYAN_RESTORE_SCHEMA_ONLY') == '1':
 else:
     register_world_hub(backend_app.app)
     register_prize_gifts(backend_app.app)
+
+# WALLET_PLUS_V1
+from .wallet_plus import register_wallet_plus, m as wallet_plus_metadata
+if os.getenv('NYAN_RESTORE_SCHEMA_ONLY') == '1':
+    wallet_plus_metadata.create_all(backend_app.engine)
+else:
+    register_wallet_plus(backend_app.app)

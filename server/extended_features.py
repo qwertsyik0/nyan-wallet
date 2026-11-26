@@ -73,11 +73,15 @@ def now_utc() -> datetime:
 
 
 def serialize_reward(reward: Reward) -> dict:
+    from sqlalchemy.orm import object_session
+    effective_cost=getattr(core,'wallet_effective_cost',lambda c,rid,cost:cost)
+    session=object_session(reward)
+    price=effective_cost(session.connection(),reward.id,reward.cost) if session else reward.cost
     return {
         "id": reward.id,
         "title": reward.title,
         "description": reward.description,
-        "cost": reward.cost,
+        "cost": price,
         "is_active": reward.is_active,
     }
 
@@ -196,6 +200,7 @@ async def create_spend_request(
     x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
     x_vip_purchase_key: str | None = Header(default=None, alias="X-VIP-Purchase-Key"),
     vip_purchase_key: str | None = None,
+    expected_cost: int | None = None,
 ):
     tg_user = core.verify_init_data(x_telegram_init_data or "")
     timestamp = now_utc()
@@ -233,6 +238,8 @@ async def create_spend_request(
             if core.is_owner(user.telegram_id):
                 raise HTTPException(status_code=400, detail="Владельцу не нужно списывать бесконечный баланс")
 
+            effective_cost=getattr(core,'wallet_effective_cost',lambda c,rid,cost:cost)
+            purchase_cost=effective_cost(session.connection(),reward.id,reward.cost)
             from .vip import is_vip_reward, check_renewal_capacity, activate_vip, VipPurchaseToken
             is_vip = is_vip_reward(reward.title)
             vip_key = (vip_purchase_key or x_vip_purchase_key or "").strip() if is_vip else ""
@@ -256,21 +263,23 @@ async def create_spend_request(
                         "balance": user.balance,
                         "message": "VIP уже активирован. Повторное списание предотвращено.",
                     }
+            if expected_cost is not None and expected_cost != purchase_cost:
+                raise HTTPException(status_code=409,detail="Цена изменилась. Обновите каталог и подтвердите новую стоимость")
             if is_vip:
                 check_renewal_capacity(session, user.telegram_id, timestamp)
 
-            if user.balance < reward.cost:
+            if user.balance < purchase_cost:
                 raise HTTPException(
                     status_code=409,
-                    detail=f"Недостаточно лапкоинов. Нужно {reward.cost} 🐾, у вас {user.balance} 🐾",
+                    detail=f"Недостаточно лапкоинов. Нужно {purchase_cost} 🐾, у вас {user.balance} 🐾",
                 )
 
-            user.balance -= reward.cost
+            user.balance -= purchase_cost
             item = SpendRequest(
                 telegram_id=user.telegram_id,
                 reward_id=reward.id,
                 reward_title=reward.title,
-                cost=reward.cost,
+                cost=purchase_cost,
                 status="fulfilled" if is_vip else "pending",
                 created_at=timestamp,
                 processed_at=timestamp if is_vip else None,
@@ -286,12 +295,12 @@ async def create_spend_request(
                         request_id=item.id,
                         created_at=timestamp,
                     ))
-                audit(session, "vip_subscription_activated", user.telegram_id, f"Заявка #{item.id}: {reward.cost} 🐾")
+                audit(session, "vip_subscription_activated", user.telegram_id, f"Заявка #{item.id}: {purchase_cost} 🐾")
 
             session.add(
                 core.Transaction(
                     telegram_id=user.telegram_id,
-                    amount=-reward.cost,
+                    amount=-purchase_cost,
                     operation_type="reward_request",
                     description=f"Заявка: {reward.title}",
                     created_at=timestamp,
@@ -306,7 +315,7 @@ async def create_spend_request(
                 f"Пользователь: {user_label(user)}\n"
                 f"Telegram ID: {user.telegram_id}\n"
                 f"Награда: {reward.title}\n"
-                f"Стоимость: {reward.cost} 🐾"
+                f"Стоимость: {purchase_cost} 🐾"
             )
             user_text = (
                 f"VIP активирован! Заявка #{request_id}. 30 дней привилегий Nyan Wallet.\n"
@@ -327,7 +336,7 @@ async def create_spend_request(
         "request": {
             "id": request_id,
             "reward_title": reward.title,
-            "cost": reward.cost,
+            "cost": purchase_cost,
             "status": "fulfilled" if is_vip else "pending",
             "created_at": timestamp.isoformat(),
         },
@@ -655,3 +664,4 @@ def register_extended_features(app) -> None:
     core.Base.metadata.create_all(core.engine)
     seed_rewards()
     app.include_router(router)
+

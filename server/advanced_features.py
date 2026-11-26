@@ -537,6 +537,7 @@ def level_data(earned: int, cfg: dict[str, int]) -> dict:
 
 
 def catalog_item(session: Session, reward: Reward) -> dict:
+    effective_cost=getattr(core,'wallet_effective_cost',lambda c,rid,cost:cost)
     meta = session.get(RewardMeta, reward.id)
     used = session.scalar(select(func.count()).select_from(SpendRequest).where(SpendRequest.reward_id == reward.id, SpendRequest.status != "cancelled")) or 0
     limit = meta.stock_limit if meta else None
@@ -544,7 +545,7 @@ def catalog_item(session: Session, reward: Reward) -> dict:
     until = norm_dt(meta.available_until) if meta else None
     available = reward.is_active and (not until or until > now()) and (remaining is None or remaining > 0)
     from .vip import is_vip_reward
-    return {"id": reward.id, "title": reward.title, "description": reward.description, "cost": reward.cost, "is_active": reward.is_active, "sort_order": reward.sort_order, "image_url": meta.image_url if meta else None, "stock_limit": limit, "stock_used": int(used), "stock_remaining": remaining, "available_until": until.isoformat() if until else None, "available": available, "is_vip_subscription": is_vip_reward(reward.title)}
+    return {"id": reward.id, "title": reward.title, "description": reward.description, "cost": effective_cost(session.connection(),reward.id,reward.cost), "base_cost": reward.cost, "is_active": reward.is_active, "sort_order": reward.sort_order, "image_url": meta.image_url if meta else None, "stock_limit": limit, "stock_used": int(used), "stock_remaining": remaining, "available_until": until.isoformat() if until else None, "available": available, "is_vip_subscription": is_vip_reward(reward.title)}
 
 
 @router.get("/api/catalog")
@@ -1046,3 +1047,4 @@ def register_advanced_features(app) -> None:
     else:
         print("Nyan Wallet event announcement worker disabled by configuration")
     _REGISTERED = True
+
