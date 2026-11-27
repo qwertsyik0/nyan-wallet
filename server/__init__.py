@@ -167,3 +167,11 @@ if os.getenv('NYAN_RESTORE_SCHEMA_ONLY') == '1':
     wallet_plus_metadata.create_all(backend_app.engine)
 else:
     register_wallet_plus(backend_app.app)
+
+
+# WORLD_NEWS_EDITOR_V1
+from .world_news import register_world_news, m as world_news_metadata
+if os.getenv("NYAN_RESTORE_SCHEMA_ONLY") == "1":
+    world_news_metadata.create_all(backend_app.engine)
+else:
+    register_world_news(backend_app.app)

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <title>Редактор сводки // NYAN WORLD</title>
+  <link rel="stylesheet" href="./nyan-world.css?v=20261125-rules1">
+  <link rel="stylesheet" href="./nyan-world-news-editor.css?v=20261127-editor1">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+<main class="world">
+  <header><a id="editor-back" href="./nyan-world.html">В кабинет</a><span>NYAN WORLD</span><a id="editor-news" href="./nyan-world-news.html">Смотреть сводку</a></header>
+  <div class="eyebrow">НОВОСТИ // УПРАВЛЕНИЕ</div>
+  <h1>редактор сводки</h1>
+  <p class="intro">Сохрани текст в черновик, проверь и опубликуй. Читатели увидят только опубликованную версию.</p>
+  <p id="editor-status" role="status" aria-live="polite">Проверяем доступ…</p>
+  <section id="editor-workspace" hidden>
+    <div class="actions"><button id="new-post" class="primary" type="button">Новая новость</button><button id="reload-posts" type="button">Обновить список</button></div>
+    <form id="post-form" class="card" hidden>
+      <h2 id="post-heading">Новая новость</h2>
+      <label>Рубрика<input id="post-category" maxlength="120" required placeholder="РОССИЯ // США"></label>
+      <label>Заголовок<input id="post-title" maxlength="160" required></label>
+      <label>Текст<textarea id="post-body" maxlength="12000" rows="9" required></textarea></label>
+      <p class="muted">Разделяй абзацы пустой строкой. Фото, HTML и форматирование здесь не нужны.</p>
+      <div class="actions"><button id="save-post" class="primary" type="submit">Сохранить черновик</button><button id="preview-post" type="button">Предпросмотр</button><button id="close-post" type="button">Закрыть</button></div>
+      <section id="post-preview" class="card" aria-label="Предпросмотр новости" hidden></section>
+    </form>
+    <section id="publish-confirm" class="card" hidden>
+      <h2 id="publish-heading"></h2><p id="publish-description"></p>
+      <article id="publish-preview"></article>
+      <div class="actions"><button id="confirm-publish" class="primary" type="button">Подтвердить</button><button id="cancel-publish" type="button">Отмена</button></div>
+    </section>
+    <section id="post-list" aria-label="Новости"></section>
+  </section>
+</main>
+<script src="./nyan-world-news-editor.js?v=20261127-editor1"></script>
+</body>
+</html>
