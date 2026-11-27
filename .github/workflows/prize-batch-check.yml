@@ -1,0 +1,19 @@
+name: Owner prize batch checks
+on:
+  push:
+    paths: ['tools/issue_prizes_20261127.py', 'tools/test_issue_prizes_20261127.py', '.github/workflows/prize-batch-check.yml']
+  pull_request:
+    paths: ['tools/issue_prizes_20261127.py', 'tools/test_issue_prizes_20261127.py']
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install SQLAlchemy==2.0.43
+      - run: python -m py_compile tools/issue_prizes_20261127.py
+      - run: python tools/test_issue_prizes_20261127.py
