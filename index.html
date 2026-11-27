@@ -24,6 +24,18 @@
 
         const startParam = values.map(v => String(v || "").trim().toLowerCase()).find(Boolean) || "";
 
+        if (["world_news", "nyan_world_news"].includes(startParam)) {
+          const current = new URL(window.location.href);
+          const target = new URL("./nyan-world-news.html", current);
+          for (const [key, value] of current.searchParams.entries()) {
+            if (!["startapp", "tgWebAppStartParam"].includes(key)) target.searchParams.set(key, value);
+          }
+          target.searchParams.set("v", "20261127-news-direct1");
+          target.hash = current.hash;
+          window.location.replace(target.toString());
+          return;
+        }
+
         if (["nyan_lavka", "nyan-lavka", "lavka"].includes(startParam)) {
           const target = new URL("./nyan-lavka.html", window.location.href);
           const current = new URL(window.location.href);
