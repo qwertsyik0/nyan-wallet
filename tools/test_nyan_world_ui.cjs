@@ -42,7 +42,17 @@ async function fixture(owner){
  a.fail();await a.save();assert.equal(a.calls.length,1);const id=a.calls[0].operation_id;
  await a.save();assert.equal(a.calls[1].operation_id,id,"retry must retain idempotency ID");
  assert.equal(a.calls[1].data.name,"New");
- a.click("Страны");a.click("Добавить страну");
+ a.click("Страны");
+ const countryNames=()=>[...a.w.document.querySelectorAll("#country-list > .card > h2")].map(n=>n.textContent);
+ assert.deepEqual(countryNames(),["A","B"]);
+ const filter=a.w.document.getElementById("country-filter");filter.value="free";filter.dispatchEvent(new a.w.Event("change"));
+ assert.deepEqual(countryNames(),["B"]);
+ a.click("Кабинет");a.click("Страны");assert.equal(a.w.document.getElementById("country-filter").value,"free");
+ a.data.countries[1].occupied=true;
+ a.click("Обновить");await tick();await tick();
+ assert.ok(a.w.document.getElementById("country-list").textContent.includes("Свободных стран пока нет"));
+ a.data.countries[1].occupied=false;
+ a.click("Добавить страну");
  a.fill("Страна","C");a.fill("Telegram ID","123");a.fill("Начальный бюджет","200");
  await a.save();assert.equal(a.calls.at(-1).kind,"country");assert.equal(a.calls.at(-1).data.opening_budget,200);
  a.data.requests=[{id:7,country_id:1,kind:"decision",title:"Build",body:"Details",status:"submitted",revision:1,comment:"",effects:{},updated_at:"2026-11-25T10:00:00Z"}];
