@@ -11,6 +11,7 @@ from sqlalchemy import select, func
 from test_nyan_world import WorldTest
 
 ROOT = Path(__file__).resolve().parents[1]
+SEED_COUNT = len(json.loads((ROOT / "server/world_news_seed.json").read_text()))
 
 
 class NewsTest(WorldTest):
@@ -57,7 +58,7 @@ class NewsTest(WorldTest):
         return self.command("save", category="РОССИЯ • США", title="Draft", body="First paragraph\n\nSecond", **extra)["id"]
 
     def test_news_auth_and_public_privacy(self):
-        self.assertEqual(len(self.public()), 18)
+        self.assertEqual(len(self.public()), SEED_COUNT)
         self.assertEqual(self.newsclient.get("/api/world/news/editor").status_code, 401)
         self.assertEqual(self.newsclient.get("/api/world/news/editor", headers={"X-Telegram-Init-Data": "player"}).status_code, 403)
         self.command("save", role="player", code=403, category="x", title="x", body="x")
@@ -94,14 +95,14 @@ class NewsTest(WorldTest):
         self.command("publish", key=key, id=rid, expected_revision=1)
         self.command("save", id=rid, expected_revision=1, category="A", title="Stale", body="x", code=409)
         self.command("unpublish", id=rid, expected_revision=1, code=409)
-        self.assertEqual(len(self.news_list()), 19)
+        self.assertEqual(len(self.news_list()), SEED_COUNT + 1)
 
     def test_seed_reinstall_does_not_overwrite_or_republish(self):
         post = self.news_list()[0]
         self.command("save", id=post["id"], expected_revision=post["revision"], category="A", title="Edited legacy", body="x")
         self.command("unpublish", id=post["id"], expected_revision=post["revision"] + 1)
         self.news.seed_existing()
-        self.assertEqual(len(self.news_list()), 18)
+        self.assertEqual(len(self.news_list()), SEED_COUNT)
         self.assertEqual(self.news_list()[0]["title"], "Edited legacy")
         self.assertFalse(self.news_list()[0]["is_published"])
 
@@ -133,7 +134,7 @@ class NewsTest(WorldTest):
             responses = list(pool.map(save, range(2)))
         self.assertEqual([r.status_code for r in responses], [200, 200])
         self.assertEqual(responses[0].json()["id"], responses[1].json()["id"])
-        self.assertEqual(len(self.news_list()), 19)
+        self.assertEqual(len(self.news_list()), SEED_COUNT + 1)
 
 
 if __name__ == "__main__":
