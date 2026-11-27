@@ -8,7 +8,7 @@ async function check(mode){
  };
  w.eval(fs.readFileSync(path.join(root,"nyan-world-news.js"),"utf8"));await tick();await tick();
  const list=w.document.querySelector(".news-stories");
- if(mode==="failure"){assert.equal(list.querySelectorAll("article").length,19);assert.equal(w.document.getElementById("news-feed-status").hidden,false)}
+ if(mode==="failure"){assert.equal(list.querySelectorAll("article").length,(fs.readFileSync(path.join(root,"nyan-world-news.html"),"utf8").match(/<article class="card">/g)||[]).length);assert.equal(w.document.getElementById("news-feed-status").hidden,false)}
  else if(mode==="empty"){assert.equal(list.querySelectorAll("article").length,0);assert.match(list.textContent,/скоро/)}
  else{assert.equal(list.querySelectorAll("article").length,1);assert.equal(list.querySelectorAll("img,script").length,0);assert.equal(list.querySelectorAll("p").length,2);assert.equal(list.querySelector(".news-category").textContent,"A // B")}
  dom.window.close();
