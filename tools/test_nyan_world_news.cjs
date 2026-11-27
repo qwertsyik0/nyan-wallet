@@ -15,7 +15,7 @@ const root=path.resolve(__dirname,".."),tick=()=>new Promise(r=>setTimeout(r,0))
   assert.equal(w.document.getElementById("news-join").href,"https://example.test/nyan-world.html?test=1#tgWebAppData=signed");
   const stories=[...w.document.querySelectorAll(".news-stories article")];
   assert.ok(stories.length>=5);
-  assert.ok(stories.some(article=>article.querySelector("h2")?.textContent==="инвестиции в обмен на доступ к рынкам"&&article.textContent.includes("О согласии Китая и Франции или подписании договора пока не сообщалось.")));
+  assert.ok(stories.some(article=>article.querySelector("h2")?.textContent==="инвестиции в обмен на доступ к рынкам"&&article.textContent.includes("О подписании итогового договора пока не сообщалось.")));
   dom.window.close();
  }
  console.log("OK: news briefing, real vacancies, closed season, own country and Telegram context");
