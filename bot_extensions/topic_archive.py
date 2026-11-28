@@ -49,11 +49,13 @@ def record(message):
             attachment = kind + (": " + getattr(item, "file_name", "") if getattr(item, "file_name", None) else "")
             break
     with connect() as c:
-        c.execute("""INSERT INTO messages VALUES(?,?,?,?,?,?,?)
-            ON CONFLICT(chat,mid) DO UPDATE SET topic=excluded.topic,
-            author=excluded.author,text=excluded.text,attachment=excluded.attachment""",
-            (message.chat_id, message.message_thread_id or 0, message.message_id,
-             message.date.isoformat(), author, text, attachment))
+        values = (message.chat_id, message.message_thread_id or 0, message.message_id,
+                  message.date.isoformat(), author, text, attachment)
+        # UPDATE + INSERT OR IGNORE works with the older SQLite on the bot host.
+        # Both statements share one transaction; edits preserve the original date.
+        c.execute("UPDATE messages SET topic=?,author=?,text=?,attachment=? WHERE chat=? AND mid=?",
+                  (values[1], author, text, attachment, values[0], values[2]))
+        c.execute("INSERT OR IGNORE INTO messages VALUES(?,?,?,?,?,?,?)", values)
 
 def select_rows(chat, topic, before, count):
     with connect() as c:

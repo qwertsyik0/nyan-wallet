@@ -70,7 +70,12 @@ def main():
         module = response.read()
     compile(module,"topic_archive.py","exec")
     # Use the running interpreter, not an unrelated system Python.
-    executable = str(Path("/proc")/str(pid)/"exe")
+    executable = command[0]
+    if not os.path.isabs(executable):
+        executable = str(root / executable) if "/" in executable else shutil.which(
+            executable, path=env.get("PATH", os.defpath))
+    if not executable:
+        raise RuntimeError("Bot interpreter not found")
     probe = subprocess.run([executable,"-c",
         "import sqlite3; from telegram.ext import Application, ApplicationHandlerStop; "
         "from telegram.ext import MessageHandler, CommandHandler, filters"],
