@@ -45,11 +45,13 @@ async function fixture(owner,options={}){
  const p=await fixture(false,{applicant:true});
  assert.equal(p.w.document.getElementById("world-rules-gate"),null,"no prompt before success");
  p.click("Страны");p.click("Подать заявку на страну");
- p.fill("Заголовок","Application");p.fill("Опиши","I want to lead");
+ p.w.document.querySelector("#fields input[type=checkbox]").checked=true;
  p.fail();await p.save();
  assert.equal(p.w.document.getElementById("world-rules-gate"),null,"failed request must not show prompt");
  await p.save();
  assert.equal(p.calls.at(-1).data.kind,"registration");
+ assert.equal(p.w.document.getElementById("world-rules-gate"),null,"acknowledged signup does not open another rules prompt");
+ p.w.NyanWorldRules.require(1);
  const gate=p.w.document.getElementById("world-rules-gate");
  assert.ok(gate&&!gate.hidden,"successful registration opens gate");
  assert.equal(gate.querySelectorAll("button").length,0,"no dismiss control");
@@ -83,7 +85,7 @@ async function fixture(owner,options={}){
  assert.equal(reloaded.w.document.getElementById("world-rules-gate").hidden,true,"browser back after reading unlocks cabinet");
  assert.equal(reloaded.w.document.querySelector("main").inert,false);
  reloaded.close();rulesDOM.window.close();
- const player=await fixture(false);player.click("Подать действие");player.fill("Заголовок","Reform");player.fill("Опиши","Details");await player.save();
+ const player=await fixture(false);player.click("Первое решение");player.fill("Заголовок","Reform");player.fill("Опиши","Details");await player.save();
  assert.equal(player.w.document.getElementById("world-rules-gate"),null,"ordinary actions do not trigger registration prompt");
  player.close();
  console.log("OK: successful registration gate, failure and retry, mascot, no dismiss, focus trap, reload, rules, return and ordinary actions");
