@@ -3,7 +3,7 @@
 const tg=window.Telegram?.WebApp; tg?.ready();tg?.expand();
 const API="https://nyan-wallet-bridge.qwertsyik.workers.dev";
 const app=document.getElementById("app"),status=document.getElementById("status"),dialog=document.getElementById("editor");
-let state,tab="overview",selectedSeason=null,busy=false,formAction,formKey,countryFilter="all";
+let state,tab=new URLSearchParams(location.search).get("countries")==="free"?"countries":"overview",selectedSeason=null,busy=false,formAction,formKey,countryFilter=new URLSearchParams(location.search).get("countries")==="free"?"free":"all";
 const names={draft:"Черновик",registration:"Регистрация",active:"Сезон идёт",paused:"Пауза",finished:"Сезон завершён",submitted:"На рассмотрении",needs_revision:"На доработке",approved:"Одобрено",in_progress:"В работе",completed:"Выполнено",rejected:"Отклонено",cancelled:"Отозвано"};
 const kinds={decision:"Государственное решение",announcement:"Объявление",transfer:"Перевод другой стране",registration:"Заявка на страну"};
 function el(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n}

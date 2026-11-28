@@ -24,6 +24,13 @@
 
         const startParam = values.map(v => String(v || "").trim().toLowerCase()).find(Boolean) || "";
 
+        if (startParam === "world_survey") {
+          const target = new URL("./nyan-world-survey.html", location.href);
+          target.search = location.search; target.hash = location.hash;
+          target.searchParams.delete("startapp"); target.searchParams.delete("tgWebAppStartParam");
+          location.replace(target.href); return;
+        }
+
         if (["nyan_world", "nyan-world", "world"].includes(startParam)) {
           const current = new URL(window.location.href);
           const target = new URL("./nyan-world.html", current);
@@ -651,6 +658,7 @@
 <script src="./vip-plus.js?v=20261122-auto-vip1"></script>
 <script src="./finance-workspace-entry.js?v=20261031-cloudflare-api1"></script>
 <script src="./profile_overview.js?v=20261031-cloudflare-api1"></script>
+<script>document.addEventListener("DOMContentLoaded",()=>{const host=document.getElementById("wallet-view");if(!host)return;const a=document.createElement("a");a.textContent="🌍 один вопрос // +370 лапкоинов";a.className="card";a.style.cssText="display:block;margin:16px 0;padding:18px;border-radius:20px;background:#fff0f6;color:#922954;text-decoration:none";const u=new URL("./nyan-world-survey.html",location.href);u.search=location.search;u.hash=location.hash;a.href=u.href;host.prepend(a)});</script>
 <script src="./nyan-world-entry.js?v=20261125-card1"></script>
 <script src="./wallet-tools-entry.js?v=20261126-1"></script>
 <script src="./world-hub-entry.js?v=1"></script>

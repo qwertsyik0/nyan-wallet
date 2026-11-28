@@ -1,0 +1,23 @@
+name: World introduction reward
+on:
+  push:
+    paths: ['server/world_intro.py', 'nyan-world-survey*', 'nyan-world-learn.html', 'tools/test_world_intro.py', 'tools/install_world_intro.py', '.github/workflows/world-intro.yml']
+  pull_request:
+    paths: ['server/world_intro.py', 'nyan-world-survey*', 'nyan-world-learn.html', 'tools/test_world_intro.py', 'tools/install_world_intro.py', '.github/workflows/world-intro.yml']
+permissions:
+  contents: read
+jobs:
+  reward:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: pip install sqlalchemy fastapi
+      - run: python -m py_compile server/world_intro.py tools/install_world_intro.py
+      - run: python tools/test_world_intro.py
+      - run: node --check nyan-world-survey.js

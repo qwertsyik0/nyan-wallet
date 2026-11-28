@@ -175,3 +175,10 @@ if os.getenv("NYAN_RESTORE_SCHEMA_ONLY") == "1":
     world_news_metadata.create_all(backend_app.engine)
 else:
     register_world_news(backend_app.app)
+
+# WORLD_INTRO_V1
+from .world_intro import register_world_intro, m as world_intro_metadata
+if os.getenv("NYAN_RESTORE_SCHEMA_ONLY") == "1":
+    world_intro_metadata.create_all(backend_app.engine)
+else:
+    register_world_intro(backend_app.app)
