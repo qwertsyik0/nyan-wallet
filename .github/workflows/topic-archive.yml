@@ -1,0 +1,19 @@
+name: Standalone topic archive
+on:
+  push:
+    paths: ['bot_extensions/topic_archive.py', 'tools/install_topic_archive.py', 'tools/test_topic_archive.py', '.github/workflows/topic-archive.yml']
+  pull_request:
+    paths: ['bot_extensions/topic_archive.py', 'tools/install_topic_archive.py', 'tools/test_topic_archive.py', '.github/workflows/topic-archive.yml']
+permissions:
+  contents: read
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install 'python-telegram-bot==22.5'
+      - run: python -m py_compile bot_extensions/topic_archive.py tools/install_topic_archive.py
+      - run: python tools/test_topic_archive.py
